@@ -17,13 +17,19 @@
  *      我们选了更透明的做法。要不要补一层小退避，见 docs/免费模型-方案.md。）
  *   * 不抓取、不分发任何账号或凭据（这条通道本来就是匿名的，全程没有 Key）。
  *
- * ## 门禁的实际形状（照 `FishBottle7/opencode2dsh` 的实测记录实现）
+ * ## 门禁的实际形状（2026-10-13 更新：形状之外还要能"解出时间戳"）
  *
- * 目前上游**只看两件事**（原文：descriptions、parameters 和每个 header 都不检查）：
- *   1. `x-opencode-session` 必须是 `ses_` + 12 位小写 hex + 14 位 Base62 的形状；
- *   2. 请求体必须 `stream: true`，且 `tools` 里有函数工具名为 **`bash`** 与 **`read`**。
- * 头部（User-Agent / x-opencode-client / 关联 id）现在不检查了，但仍然照发 ——
- * 保持"官方 CLI 形状"，也让上游将来收紧时行为更接近有意为之。
+ * 上游**只看三件事**：
+ *   1. `x-opencode-session` 是 `ses_` + 12 位小写 hex + 14 位 Base62 的形状
+ *      **并且那 12 位 hex 要能解码回一个合理的毫秒时间戳**（← 2026-10-13 起新增，
+ *      见 `decolua/9router#4780`：真客户端的编码是
+ *      `~(BigInt(Date.now()) * 0x1000n + counter)` 取低 48 位。
+ *      各家复刻实现原来都是把种子 sha256 派生成这 12 位 —— **现在会被判成
+ *      "不是 OpenCode 客户端"直接 403**。本文件 `canonicalSessionId()` 已按时间戳改）；
+ *   2. 请求体必须 `stream: true`（非流式 403）；
+ *   3. `tools` 里要有函数工具 `bash` 与 `read`（实测：缺了照样 403）。
+ * 头部（User-Agent / x-opencode-client / 关联 id）不检查；`Authorization: Bearer public`
+ * 在 `/zen/v1` 上合法（`/inference/openai` 才 401）。这些都照旧发着。
  *
  * ⚠️ 上游随时可能再收紧（历史上已经收紧过两次）。所以：
  *   * 失败时**必须如实报出来**（让 App 能说"这个通道现在不可用"），绝不假装成功。
@@ -132,14 +138,38 @@ function base62Fixed(value, width) {
 }
 
 /**
- * 把任意种子**确定性地**换算成官方会话 id 的形状。
+ * 把任意种子**确定性地**换算成官方会话 id。
  * 同一个会话拿到同一个 id（保持上游的 prompt cache 亲和性）。
+ *
+ * ## ⚠️ 前 12 位 hex 必须是「时间戳编码」，不能是摘要（2026-10-13 上游这么改的）
+ *
+ * 上游现在会把这 12 位 hex **解码回一个毫秒时间戳**，合理才认；不合理就一律
+ * `403 FreeTierError: free tier can only be used from within OpenCode` ——
+ * 也就是说「形状对」已经不够了。官方客户端的编码是：
+ *
+ *     ~(BigInt(Date.now()) * 0x1000n + counter)     // 取低 48 位 → 恰好 12 位 hex
+ *
+ * 所以它生成的 id 总以 `ecc…ffe` 收尾。我们这边要在**确定性**（同一会话同一 id）
+ * 和**时间戳合理**之间取一个折中：用种子哈希在「最近 30 天」里挑一个毫秒数 ——
+ * 上游不校验会话新旧（实测 30 天前的照样 200），但会校验这 12 位能不能解成时间戳。
+ * 后 14 位 Base62 仍按种子派生。
+ *
+ * 依据：`decolua/9router#4780`（2026-10-13，已有人验修）+ 本机实测（换回时间戳编码后 200）。
  */
 function canonicalSessionId(seed) {
   const s = String(seed || '');
   if (CANONICAL_SESSION.test(s)) return s;
   const sum = createHash('sha256').update('ses\u0000' + s).digest();
-  const timePart = sum.subarray(0, 6).toString('hex');
+  const tsum = createHash('sha256').update('ses-time\u0000' + s).digest();
+  // 在最近 30 天里取一个由种子决定的毫秒数，并把基准**按天取整** ——
+  // 这样同一天里同一会话拿到的 id 完全一致（缓存亲和），跨天才会换一个。
+  const spanMs = 30 * 24 * 60 * 60 * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const back = Number(BigInt('0x' + tsum.subarray(0, 6).toString('hex')) % BigInt(spanMs));
+  const ms = Math.floor(Date.now() / dayMs) * dayMs - (back % dayMs);
+  const counter = Number(tsum[6] % 16);
+  const inv = (~((BigInt(ms) * 0x1000n) + BigInt(counter))) & 0xFFFFFFFFFFFFn;
+  const timePart = inv.toString(16).padStart(12, '0');
   const randomPart = base62Fixed(BigInt('0x' + sum.subarray(6, 16).toString('hex')), 14);
   return `ses_${timePart}${randomPart}`;
 }

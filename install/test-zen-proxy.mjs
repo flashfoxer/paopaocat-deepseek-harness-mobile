@@ -345,6 +345,31 @@ section('错误呈现：不许假装成功，要说清"怎么办"');
   });
 }
 
+  await test('会话 id 前 12 位必须是时间戳编码，不是种子摘要（2026-10-13 上游新门禁）', async () => {
+    await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
+      const p = await startProxy(upstream);
+      try {
+        const send = (seed) => proxyFetch(p.port, '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-zen-seed': seed },
+          body: JSON.stringify({ model: 'big-pickle', messages: [{ role: 'user', content: 'hi' }], stream: true }),
+        });
+        await send('sess-A'); await send('sess-A'); await send('sess-B');
+        const ids = chatHits(hits).map((h) => h.headers['x-opencode-session'] || '');
+        assert.equal(ids.length, 3, `应当有 3 个 chat 请求，实际 ${ids.length}`);
+        for (const id of ids) assert.match(id, /^ses_[0-9a-f]{12}[0-9A-Za-z]{14}$/, `形状不对：${id}`);
+        assert.equal(ids[0], ids[1], '同一个 x-zen-seed 两次必须拿到同一个会话 id（缓存亲和）');
+        assert.notEqual(ids[0], ids[2], '不同种子应当拿到不同的会话 id');
+        // 那 12 位 = ~(ms*0x1000 + counter) 的低 48 位 → 低 12 位必然很大（官方 id 总以 fff/ffe 收尾）。
+        // 旧的「摘要派生」实现没有这个性质 —— 这就是这条测试要咬住的回归。
+        for (const id of ids) {
+          const low12 = parseInt(id.slice(13, 16), 16);
+          assert.ok(low12 >= 0xf00, `低 12 位不像时间戳编码（${id}）：0x${low12.toString(16)}`);
+        }
+      } finally { await p.stop(); }
+    });
+  });
+
 // ─────────────────────────────────────────────────────────────────────
 console.log(`\n${'='.repeat(60)}`);
 if (failures.length === 0) {

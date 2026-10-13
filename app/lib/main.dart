@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,8 @@ import 'local/android_toolbox.dart';
 import 'local/diagnostics_log.dart';
 import 'data/zen_channel.dart';
 import 'local/dsh_runtime.dart';
+// 「检查更新」：启动后台查一次（结果塞进 AppSettings，设置页自己会读）。
+import 'local/update_checker.dart';
 import 'state/app_settings.dart';
 import 'state/model_store.dart';
 import 'state/provider_keys.dart';
@@ -403,6 +406,16 @@ class _LocalShellState extends State<LocalShell> {
         _ready = ready;
         _loading = false;
       });
+
+      // 「检查更新」：**启动后后台查一次**（不 await、失败静默、可在设置里关掉）。
+      //
+      // 放在这里而不是设置页里的原因：用户不进设置页也该知道有新版本 ——
+      // 而"结果放哪儿"是这里唯一要操心的（塞进 AppSettings 的内存槽，
+      // 设置页建起来时自己读，见 `_UpdateSectionState.initState`）。
+      //
+      // ⚠️ 必须**在启动流程的最后**、且**不 await**：网络不通时这次请求要等满
+      // 超时，绝不能让它拖慢"App 能不能打开"。
+      unawaited(_autoCheckUpdate());
     } catch (e) {
       debugPrint('[dsh-shell] init failed: $e');
       if (!mounted) return;
@@ -410,6 +423,36 @@ class _LocalShellState extends State<LocalShell> {
         _error = '$e';
         _loading = false;
       });
+    }
+  }
+
+  /// 启动后的那次自动检查更新。
+  ///
+  /// 三条纪律（都不是可选项）：
+  ///   ① **不 await** —— 调用处已经 `unawaited`，这里也不能让任何异常冒出去；
+  ///   ② **失败静默** —— 国内访问 GitHub 时好时坏，一次连不上不该弹窗；
+  ///   ③ **尊重开关** —— 用户在设置里关掉「启动后自动检查」时，一个包也不发。
+  ///
+  /// 结果统一塞进 `AppSettings.lastUpdateResult`（内存态），设置页读它。
+  /// 时间戳**成败都记**，这样设置页里那句"上次检查：刚刚"说的是"试过"，
+  /// 而不是"成功过" —— 把失败的尝试藏起来会让用户以为 App 没在查。
+  Future<void> _autoCheckUpdate() async {
+    final s = widget.appSettings;
+    if (!s.updateAutoCheck) {
+      debugPrint('[dsh-update] 用户关掉了自动检查，这次一个包也不发');
+      return;
+    }
+    try {
+      // 自动那次**不绕缓存**：它是后台行为、不急，让 CDN 缓存正常发挥作用
+      // （手动点「检查更新」才会挂 `?t=` 绕过去，见设置页）。
+      final r = await checkForUpdate(customSource: s.updateSource);
+      await s.noteUpdateChecked();
+      if (!mounted) return;
+      s.setLastUpdateResult(r);
+      debugPrint('[dsh-update] 自动检查完成：${r.summary}');
+    } catch (e) {
+      // `checkForUpdate` 本身不抛（见它的文件头），这里只是最后一道保险。
+      debugPrint('[dsh-update] 自动检查异常（已忽略）: $e');
     }
   }
 

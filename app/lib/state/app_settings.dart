@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../i18n/app_language.dart';
 import '../ui/theme/dsh_palette.dart';
+// 只为一个地址校验函数（`looksLikeUpdateSource`）+ 那个"本进程内最后一次结果"的类型
+// （`UpdateCheckResult`）—— 地址与检查逻辑放在 local 层，设置层不该反过来定义它们。
+import '../local/update_checker.dart';
+import '../local/update_source.dart';
 
 import '../i18n/dsh_i18n.dart';
 
@@ -82,6 +86,26 @@ class AppSettings extends ChangeNotifier {
   ///    于是**在影视页选一张参考图**，回来也会被推去本地对话。
   ///    记下出发页，才能"从哪来回哪去"。
   static const String _kPickInFlightFrom = 'dsh_pick_in_flight_from';
+
+  /// 「检查更新」用**用户自填的**更新源地址（空 = 用内置那两条）。
+  ///
+  /// 为什么要能自填：国内直连 GitHub 时好时坏，用户手上有能通的镜像时，
+  /// 让他自己填一个比我们猜哪个站可用靠谱得多。见 `local/update_source.dart`。
+  static const String _kUpdateSource = 'dsh_update_source';
+
+  /// 启动后要不要**自动查一次**更新（默认开、失败静默）。
+  ///
+  /// 默认开是因为"有新版本却没人知道"是这类侧载 App 最大的问题；但它必须能关 ——
+  /// 有人就是不想让 App 一开机就联网，这个开关要尊重。
+  static const String _kUpdateAutoCheck = 'dsh_update_auto_check';
+
+  /// 用户点了「跳过这个版本」的那个版本号（空 = 没跳过任何版本）。
+  ///
+  /// 存的是**版本号字符串**而不是布尔：跳过 0.75 之后，出了 0.76 还要能提示他。
+  static const String _kUpdateSkippedVersion = 'dsh_update_skipped_version';
+
+  /// 上次检查更新的时间（epoch ms，0 = 从没查过）。
+  static const String _kUpdateLastCheckMs = 'dsh_update_last_check_ms';
 
   /// 本地推理后端的合法 id（与 `LocalModelBackend.name` 对齐）。
   /// **NPU 已按用户口径取消**（2026-10-08），所以只剩两个。
@@ -185,6 +209,29 @@ class AppSettings extends ChangeNotifier {
 
   String _thinkingModeId = 'collapsed';
 
+  /// 「检查更新」：用户自填的更新源（空串 = 用内置那两条，见 [_kUpdateSource]）。
+  String _updateSource = '';
+
+  /// 启动后自动查一次更新（默认开；见 [_kUpdateAutoCheck]）。
+  bool _updateAutoCheck = true;
+
+  /// 用户点过「跳过这个版本」的版本号（空串 = 没跳过任何版本）。
+  String _updateSkippedVersion = '';
+
+  /// 上次检查更新的时间；null = 从没查过。
+  DateTime? _updateLastCheckAt;
+
+  /// **本进程内**最后一次检查更新的结果。刻意**不落盘**。
+  ///
+  /// 为什么需要它：启动后那次自动检查是在 `main.dart` 的 shell 层跑的，
+  /// 而界面在设置页里 —— 没有一个中转的地方，自动查到的结果就只能进日志，
+  /// "自动检查"这个开关就等于白开。设置页建起来时读这个值，用户一进去
+  /// 就能看到有没有新版，不必自己再点一次。
+  ///
+  /// 为什么不落盘：它描述的是"此刻远端是什么版本"，跨启动会过期；
+  /// 而且启动时本来就会重查（除非用户关了自动检查，那时他会手动点）。
+  UpdateCheckResult? _lastUpdateResult;
+
   bool _loaded = false;
 
   /// 全局字号缩放（1.0 = 设计稿原尺寸）
@@ -226,6 +273,32 @@ class AppSettings extends ChangeNotifier {
 
   /// 「思考过程」显示方式 id（`collapsed` / `expanded` / `hidden`）。
   String get thinkingModeId => _thinkingModeId;
+
+  /// 用户自填的更新源地址；空串 = 用内置那两条（见 `local/update_source.dart`）。
+  String get updateSource => _updateSource;
+
+  /// 启动后是否自动查一次更新。
+  bool get updateAutoCheck => _updateAutoCheck;
+
+  /// 用户跳过的那一版（空串 = 没跳过任何版本）。
+  ///
+  /// 界面上的判据是「远端版本 == 这一版」时才不提示 —— 所以跳过 0.75 之后，
+  /// 0.76 出来照样会提示他。
+  String get updateSkippedVersion => _updateSkippedVersion;
+
+  /// 上次检查更新的时间；null = 从没查过（界面就不显示这一行，而不是显示"从未"）。
+  DateTime? get updateLastCheckAt => _updateLastCheckAt;
+
+  /// 本进程内最后一次检查更新的结果（见 [_lastUpdateResult]）。
+  UpdateCheckResult? get lastUpdateResult => _lastUpdateResult;
+
+  /// 存下"刚查过"的结果（内存 + 通知界面）。
+  ///
+  /// 传 null = 清掉（界面上就回到"还没查过"）。
+  void setLastUpdateResult(UpdateCheckResult? r) {
+    _lastUpdateResult = r;
+    notifyListeners();
+  }
 
   /// 三档的文案与依据。
   ///
@@ -338,6 +411,17 @@ class AppSettings extends ChangeNotifier {
       if (think != null && kThinkingModeIds.contains(think)) {
         _thinkingModeId = think;
       }
+      // 「检查更新」四项。自填的源只收"看起来像个 http(s) 地址"的值 ——
+      // 磁盘上写了半截地址的话，宁可退回内置源，也别让用户对着一个必然失败的
+      // 源点半天"检查更新"还不知道为什么。
+      final upSrc = (prefs.getString(_kUpdateSource) ?? '').trim();
+      _updateSource = looksLikeUpdateSource(upSrc) ? upSrc : '';
+      _updateAutoCheck = prefs.getBool(_kUpdateAutoCheck) ?? true;
+      _updateSkippedVersion =
+          (prefs.getString(_kUpdateSkippedVersion) ?? '').trim();
+      final upAt = prefs.getInt(_kUpdateLastCheckMs) ?? 0;
+      _updateLastCheckAt =
+          upAt > 0 ? DateTime.fromMillisecondsSinceEpoch(upAt) : null;
     } catch (e) {
       debugPrint('[dsh-app-settings] load failed: $e');
     }
@@ -557,6 +641,76 @@ class AppSettings extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setDouble(_kTtsSpeed, speed);
       debugPrint('[dsh-app-settings] 配音语速 = $speed（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────── 检查更新（L1）
+
+  /// 记住用户自填的更新源。传空串 = 恢复内置源。
+  ///
+  /// 非空但不长得像 http(s) 地址时**直接忽略**（保持原值），只写一条日志：
+  /// 界面上那个输入框旁边本来就会提示"要填完整地址"，这里做二次把关是为了
+  /// 防住"存进去一个必然失败的地址、下次启动还在用它"。
+  Future<void> setUpdateSource(String raw) async {
+    final v = raw.trim();
+    if (v.isNotEmpty && !looksLikeUpdateSource(v)) {
+      debugPrint('[dsh-app-settings] 忽略不像更新源的地址：$v');
+      return;
+    }
+    if (v == _updateSource) return;
+    _updateSource = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUpdateSource, v);
+      debugPrint('[dsh-app-settings] 更新源 = ${v.isEmpty ? '(内置)' : v}（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 开/关"启动后自动查一次更新"。
+  Future<void> setUpdateAutoCheck(bool v) async {
+    if (v == _updateAutoCheck) return;
+    _updateAutoCheck = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kUpdateAutoCheck, v);
+      debugPrint('[dsh-app-settings] 自动检查更新 = $v（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记下"用户跳过了这一版"（传空串 = 取消跳过）。
+  Future<void> setUpdateSkippedVersion(String version) async {
+    final v = version.trim();
+    if (v == _updateSkippedVersion) return;
+    _updateSkippedVersion = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kUpdateSkippedVersion, v);
+      debugPrint('[dsh-app-settings] 跳过版本 = ${v.isEmpty ? '(清空)' : v}（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记一次"刚查过更新"的时间戳。
+  ///
+  /// ⚠️ 检查**成败都记**：界面那行"上次检查：刚刚"说的是"什么时候试过"，
+  /// 不是"什么时候成功过" —— 把失败的尝试藏起来会让用户以为 App 没在查。
+  Future<void> noteUpdateChecked([DateTime? at]) async {
+    final when = at ?? DateTime.now();
+    _updateLastCheckAt = when;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kUpdateLastCheckMs, when.millisecondsSinceEpoch);
     } catch (e) {
       debugPrint('[dsh-app-settings] persist failed: $e');
     }

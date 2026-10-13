@@ -43,4 +43,9 @@
          与 dshhome 分开是因为 dshhome 是 DSH 运行时的 HOME（AGENTS.md、skills、
          node_modules 都在里面），把用户媒体混进去会让两边都难清理。 -->
     <files-path name="media" path="media/" />
+    <!-- 应用内更新下载好的安装包：files/updates/。
+         必须在这里开，否则 `installApk` 会抛 IllegalArgumentException（"找不到包含该路径的
+         已配置根"），界面上表现为"下载好了却装不了"。**只给 updates/ 这一层** ——
+         不要写 "."，那会把整个私有目录（含运行时 zip、标记文件）都开出去。 -->
+    <files-path name="updates" path="updates/" />
 </paths>

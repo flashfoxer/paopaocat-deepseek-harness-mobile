@@ -49,6 +49,30 @@ android {
             // 追加自己的 ABI，于是 150 MB 的 assets 之外又会同时打进两套原生库。
             // 这里显式排除非目标 ABI。
             excludes += allAbis.filter { it != dshAbi }.map { "lib/$it/**" }
+
+            // ── 本地大模型那一套（LiteRT-LM）不再进包 ────────────────────────────────
+            // 2026-10-14，用户明确说「本地模型那一套彻底不用了」；包因此再小 **11.2 MiB**
+            // （压缩后）。这四件来自下面 `dependencies` 里的三条 LiteRT 依赖：
+            //   litertlm-android:0.18.0            → liblitertlm_jni.so              9.26 MiB
+            //   litert-gpu:2.3.0                   → libLiteRtClGlAccelerator.so     1.43
+            //   litert-npu-runtime-qualcomm:2.3.0  → libLiteRtCompilerPlugin_Qualcomm.so
+            //                                        libLiteRtDispatch_Qualcomm.so  0.55
+            //
+            // ⚠️ **只排除 `.so`，不动那三条 Java 依赖、也不动 `LiteRtLmBridge.kt`** —— 这是刻意的：
+            //   * 它们**只在真要起本地模型时才 dlopen**，而界面入口 0.70 就撤了、
+            //     Dart 侧也没有调用点 —— 正常使用根本走不到那儿；
+            //   * 万一真走到了，`LiteRtLmBridge` 里**统一 catch `Throwable`**
+            //     （审计 P0-10 立的规矩：native 抛的是 `Error`，不是 `Exception`），
+            //     拿到的是 `UnsatisfiedLinkError` 而不是进程崩溃；
+            //   * Java 类还在包里（几百 KB），意味着**要恢复只需删掉下面这几行**，不用改任何代码。
+            //
+            // 要恢复：把这四行注释掉重新出包即可（.so 会自动从 AAR 里再抽出来）。
+            excludes += setOf(
+                "lib/$dshAbi/liblitertlm_jni.so",
+                "lib/$dshAbi/libLiteRtClGlAccelerator.so",
+                "lib/$dshAbi/libLiteRtCompilerPlugin_Qualcomm.so",
+                "lib/$dshAbi/libLiteRtDispatch_Qualcomm.so",
+            )
         }
     }
 
@@ -97,7 +121,20 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.srcDirs("src/main/assets", "$dshNodeRoot/app-assets")
+            // ⚠️ **不再把 `$dshNodeRoot/app-assets` 混进来**（2026-10-14，L3 包瘦身）。
+            //
+            // 那里只有一个文件：`dsh-runtime.zip`（32.1 MB / 进 APK 后占 30.1 MB），
+            // 是整个包里**最大且最该外置**的一块 —— 它是 DSH 的依赖树（26,495 个条目），
+            // 属于"装完就用、之后每次更新都不该重下"的那类数据。
+            //
+            // 现在它由 App 首次启动时**按需下载**（`lib/local/runtime_bootstrap.dart`），
+            // 落盘到 `files/runtime.zip` —— 这**正是**原生侧 `unpack()` 一直在读的路径
+            // （0.15 起就是把 asset 拷到那儿再解压的），所以原生那边的解包逻辑一行不用改。
+            //
+            // **老用户完全不受影响**：他们 `files/` 里早就有这个 zip（0.15~0.74 都是
+            // 随包拷过去的），`isRuntimeReady()` 直接为 true、根本不进「准备运行时」那一页。
+            // 只有全新安装 / 清了应用数据，才需要下这一次（下载时代替了原先的"从 asset 拷"）。
+            assets.srcDirs("src/main/assets")
             // 引擎目录不存在时**不报错**：没跑过引擎构建脚本的机器照样能出包
             // （只是没有端侧模型能力，UI 会如实提示"引擎不存在"）。
             val dirs = mutableListOf("src/main/jniLibs", "$dshNodeRoot/jnilibs")

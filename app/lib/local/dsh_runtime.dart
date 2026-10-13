@@ -266,6 +266,54 @@ class DshHost {
     return r ?? 'ok';
   }
 
+  // ------------------------------------------------------------- 应用内更新
+
+  /// 问清"这台设备上的安装环境"：能不能装、已装应用是哪个签名。
+  ///
+  /// 为什么签名也一起问：覆盖安装要求**新旧包同一签名**，而 Dart 侧拿不到
+  /// "已装应用的签名"（那是 `PackageManager` 的东西），只能由原生给。
+  ///
+  /// 返回原生给的原始 Map（键：`canInstall` / `installedSignature` / `versionCode` /
+  /// `versionName` / `sdkInt` / `packageName`），由 `local/apk_installer.dart`
+  /// 翻成强类型 —— 这里**不解释**，免得两处各解释一遍。
+  static Future<Map<String, Object?>?> updateInfo() async {
+    final r = await channel.invokeMethod<Map<Object?, Object?>>('updateInfo');
+    if (r == null) return null;
+    return r.map((k, v) => MapEntry('$k', v));
+  }
+
+  /// 校验一个 APK：是不是合法包、以及它的签名是否与**当前这个 App** 同一家。
+  ///
+  /// 返回键：`matched` / `apkSignature` / `installedSignature` / `reason` / `detail`。
+  /// `reason` 是机器可读的原因（`not_an_apk` / `apk_unsigned` / `installed_unknown` /
+  /// `signature_mismatch` / `read_failed`），**`matched` 为 false 时一定有值**。
+  ///
+  /// ⚠️ 这是"更新包没被换成别人的"的**唯一防线**：读不出签名一律算不通过，
+  /// 不要在这里做任何"拿不到就当它过"的兜底。
+  static Future<Map<String, Object?>?> verifyApk(String path) async {
+    final r = await channel.invokeMethod<Map<Object?, Object?>>(
+      'verifyApk',
+      <String, dynamic>{'path': path},
+    );
+    if (r == null) return null;
+    return r.map((k, v) => MapEntry('$k', v));
+  }
+
+  /// 把下载好的 APK 交给系统安装器（FileProvider + `package-archive`）。
+  ///
+  /// 返回：
+  ///   * `'ok'`              —— 安装界面已拉起（**装没装成拿不到**，界面不能假装知道）；
+  ///   * `'need_permission'` —— 还没允许"安装未知应用"，要先引导去系统设置；
+  ///   * `'no_app'`          —— 系统里没有能处理安装 Intent 的应用（定制 ROM 上才有）；
+  ///   * `'bad_path'`        —— 路径不在 FileProvider 白名单里（配置问题，要报出来）。
+  static Future<String> installApk(String path) async {
+    final r = await channel.invokeMethod<String>(
+      'installApk',
+      <String, dynamic>{'path': path},
+    );
+    return r ?? 'ok';
+  }
+
   /// 用系统浏览器打开一个**网址**（内置厂家的「去注册 / 申请 Key」按钮）。
   ///
   /// 返回：

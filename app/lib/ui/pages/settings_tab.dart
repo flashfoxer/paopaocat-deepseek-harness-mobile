@@ -22,6 +22,17 @@ import '../widgets/send_log_button.dart';
 import 'model_settings_panel.dart';
 // 「关于」里的「更新说明」：整页展示各版本改了什么（数据在 data/changelog.dart）。
 import 'release_notes_page.dart';
+// 「检查更新」：拉远端版本清单、比版本、提示新版（L1）+ 应用内下载/校验/安装（L2）。
+import '../../local/update_checker.dart';
+// 更新包下载（断点续传 + sha256 校验 + 原子落盘）与「交给系统安装」那一步。
+import '../../local/apk_downloader.dart';
+import '../../local/apk_installer.dart';
+// 更新源地址常量（默认那两条 + Release 页）。地址口径写在那个文件头部。
+import '../../local/update_source.dart';
+// 「上次检查：刚刚 / 12 分钟前」—— 与历史会话、会话列表共用同一个实现。
+import '../../data/relative_time.dart';
+// 打开下载页失败时，把异常翻成中文人话（与模型面板同一份实现）。
+import '../../data/api_error_text.dart';
 
 import '../../i18n/dsh_i18n.dart';
 
@@ -123,6 +134,18 @@ class _SettingsTabState extends State<SettingsTab> {
             children: [
               // ── 六个分区**统一收成「下拉」**（用户要求：外观、插件也做成下拉）。
               //    设置页原本一长条，收起后一屏能看全；点标题才展开。
+              //
+              // 「检查更新」**放第一位、默认展开**（2026-10-13 加）：
+              //   它是这一页里唯一跟"这台手机上的 App 本身"有关的板块，而且
+              //   "有新版本"这件事必须一眼看得见 —— 收进下拉等于没做
+              //   （用户 2026-10-13 的口径是"设置页顶部一张卡片"）。
+              DshCollapsibleSection(
+                title: context.tr('检查更新'),
+                initiallyOpen: true,
+                child: _card(
+                    child: _UpdateSection(settings: settings, runtime: runtime)),
+              ),
+              const SizedBox(height: 10),
               DshCollapsibleSection(
                 title: context.tr('外观'),
                 child: _card(child: _appearanceSection(context, settings)),
@@ -2290,5 +2313,747 @@ class _MediaModelsSectionState extends State<_MediaModelsSection> {
       ),
       TextButton(onPressed: onTap, child: Text(context.tr('换一个'))),
     ]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════ 检查更新（L1）
+
+/// 「检查更新」板块（设置页里，排在「关于」之前）。
+///
+/// ## 这一版做到哪、没做到哪（**界面上的话必须跟这里一致**）
+///
+/// 做到：① 去更新源读一份**版本清单**、比版本，有新版本就在这里提示；
+///      ② 记住"上次什么时候查过"；③ 可以自填镜像源；④ 可以关掉自动检查。
+/// 没做到：**应用内下载与安装**（下一阶段）。所以"下载"这一步现在交给
+///      系统浏览器，按钮就写「去浏览器下载」—— 不装作 App 自己能装。
+///
+/// ## 为什么不弹窗、不亮红点
+///
+/// 见 `local/update_checker.dart` 文件头的静默约定：国内访问 GitHub 时好时坏，
+/// 检查失败是常态，不该打扰用户；查到新版也只在这里露出一张卡，不弹窗催。
+/// [State] 里那几行状态（`_checking` / `_result` / `_showTried`）就是全部界面状态 ——
+/// **不把"检查过没有"写进磁盘**，每次进设置页都是从 `AppSettings` 读上次时间戳。
+class _UpdateSection extends StatefulWidget {
+  const _UpdateSection({required this.settings, required this.runtime});
+
+  final AppSettings settings;
+
+  /// 要它的 `filesDir` —— 安装包落在 `<filesDir>/updates/`，
+  /// 那个目录已加进 FileProvider 白名单（否则拉起安装器会抛异常，见 `res/xml/file_paths.xml`）。
+  final DshRuntime runtime;
+
+  @override
+  State<_UpdateSection> createState() => _UpdateSectionState();
+}
+
+/// 「应用内下载 / 安装」走到哪一步了。
+///
+/// ⚠️ 只有四步，**没有"已安装"这一步** —— Android 不允许普通应用静默安装，
+/// 我们拉起系统安装界面之后就再也拿不到结果了（见 `local/apk_installer.dart`）。
+/// 界面不能自己编一个"安装成功"出来。
+enum _UpdPhase { idle, downloading, downloaded, installing }
+
+class _UpdateSectionState extends State<_UpdateSection> {
+  bool _checking = false;
+  UpdateCheckResult? _result;
+  bool _showTried = false;
+
+  // ── 应用内下载 / 安装的状态。**只活在本次进程内，不落盘。**
+  //
+  //    为什么不落盘：下载器是**幂等**的（目标文件在、哈希对得上就直接返回），
+  //    所以用户切走再回来点一次「下载」是瞬间完成 —— 没必要为此再加一套持久化，
+  //    少一份状态就少一类"磁盘上写着下好了、其实文件被清了"的错。
+  _UpdPhase _phase = _UpdPhase.idle;
+  ApkDownloadProgress? _progress;
+  ApkDownloadCancelToken? _cancel;
+  String? _apkPath;
+  SignatureCheck? _sig;
+  InstallEnv? _env;
+  String? _ioNotice;
+
+  /// 正在编辑的源地址。**只有点「保存」才落盘** —— 边打字边存的话，
+  /// 用户打到一半（地址还不完整）就会把设置里的值覆盖成半截。
+  late final TextEditingController _sourceCtrl =
+      TextEditingController(text: widget.settings.updateSource);
+
+  @override
+  void initState() {
+    super.initState();
+    // 启动时那次自动检查的结果已经在这儿了（见 `main.dart` 的 `_autoCheckUpdate`），
+    // 所以用户一进设置页就看到"有没有新版"，不必自己再点一次。
+    _result = widget.settings.lastUpdateResult;
+  }
+
+  @override
+  void dispose() {
+    _sourceCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    if (_checking) return;
+    setState(() {
+      _checking = true;
+      _showTried = false;
+    });
+    // 手动检查**绕缓存**（`?t=` 时间戳）：用户刚在电脑上传了新清单，
+    // 不该让他拿到 CDN 里那份旧的。
+    final r = await checkForUpdate(
+      customSource: widget.settings.updateSource,
+      bypassCache: true,
+    );
+    // 成败都记时间戳：那行字说的是"什么时候**试过**"，不是"什么时候成功过"。
+    await widget.settings.noteUpdateChecked();
+    // 存进内存槽：这样切走再回设置页，"有没有新版"还在（不必重查）。
+    widget.settings.setLastUpdateResult(r);
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _result = r;
+    });
+  }
+
+  Future<void> _openUrl(String url) async {
+    final messenger = ScaffoldMessenger.of(context);
+    debugPrint('[dsh-update] 打开 → $url');
+    try {
+      final r = await DshHost.openUrl(url);
+      if (!mounted || r != 'no_app') return;
+      messenger.showSnackBar(SnackBar(
+          content:
+              Text(context.tr('这台设备没有能打开网页的应用，请手动访问：{0}', [url]))));
+    } catch (e) {
+      final t = translateException(e);
+      debugPrint('[dsh-update] 打开失败：${t.zh}');
+      if (!mounted) return;
+      messenger.showSnackBar(
+          SnackBar(content: Text(context.tr('打不开网页：{0}', [t.zh]))));
+    }
+  }
+
+  Future<void> _saveSource() async {
+    final v = _sourceCtrl.text.trim();
+    if (v.isNotEmpty && !looksLikeUpdateSource(v)) {
+      // 与 `AppSettings.setUpdateSource` 的二次校验同一个口径（那里是兜底，
+      // 这里是给用户看得见的提示）。
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(context
+              .tr('这不像一个完整网址：要以 http:// 或 https:// 开头。'))));
+      return;
+    }
+    await widget.settings.setUpdateSource(v);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(v.isEmpty
+            ? context.tr('已恢复内置更新源。')
+            : context.tr('已保存更新源。'))));
+  }
+
+  // ───────────────────────────────── 应用内下载 → 校验 → 交给系统安装（L2）
+
+  /// 从清单给的地址推出保存用的文件名。
+  ///
+  /// 用 URL 的最后一段（Release 附件本来就叫 `paopaocat-preview-0.75-arm64-v8a.apk`）；
+  /// 拿不到就按版本号造一个 —— 文件名只影响"用户自己去看文件时认不认得出来"，
+  /// 安全性靠 sha256 与签名，不靠名字。
+  String _fileNameFor(UpdateInfo info) {
+    final seg = Uri.tryParse(info.url)?.pathSegments;
+    final last = (seg == null || seg.isEmpty) ? '' : seg.last;
+    if (last.toLowerCase().endsWith('.apk') && last.length > 4) return last;
+    return 'paopaocat-${info.version}-arm64-v8a.apk';
+  }
+
+  Future<void> _download(UpdateInfo info) async {
+    if (_phase == _UpdPhase.downloading) return;
+    final dir = '${widget.runtime.filesDir}/updates';
+    final token = ApkDownloadCancelToken();
+    setState(() {
+      _phase = _UpdPhase.downloading;
+      _cancel = token;
+      _progress = null;
+      _ioNotice = null;
+      _sig = null;
+      _apkPath = null;
+    });
+    final downloader = ApkDownloader(dir: dir);
+    try {
+      final res = await downloader.download(
+        url: info.url,
+        fileName: _fileNameFor(info),
+        expectSha256: info.sha256,
+        expectBytes: info.size,
+        cancel: token,
+        onProgress: (p) {
+          if (!mounted) return;
+          setState(() => _progress = p);
+        },
+      );
+      if (!mounted) return;
+      setState(() {
+        _phase = _UpdPhase.downloaded;
+        _apkPath = res.path;
+        _progress = null;
+        _cancel = null;
+      });
+      // 下完**立刻**验签名：把"这个包是不是同一家签的"摆在安装按钮**之前**，
+      // 而不是等用户点了安装才告诉他不行。
+      await _checkSignature(res.path);
+    } on ApkDownloadCancelled {
+      if (!mounted) return;
+      setState(() {
+        _phase = _UpdPhase.idle;
+        _progress = null;
+        _cancel = null;
+        _ioNotice = context.tr('已取消下载。已经下好的那一部分留着，下次点「下载」会接着下。');
+      });
+    } on ApkDownloadException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _phase = _UpdPhase.idle;
+        _progress = null;
+        _cancel = null;
+        _ioNotice = e.zh;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _phase = _UpdPhase.idle;
+        _progress = null;
+        _cancel = null;
+        _ioNotice = context.tr('下载出错了：{0}', ['$e']);
+      });
+    } finally {
+      downloader.close();
+    }
+  }
+
+  /// 校验签名 + 读一次安装环境（一起做，界面一次刷到位）。
+  Future<void> _checkSignature(String path) async {
+    final sig = await verifyDownloadedApk(path);
+    final env = await readInstallEnv();
+    if (!mounted) return;
+    setState(() {
+      _sig = sig;
+      _env = env;
+    });
+    debugPrint('[dsh-update] 签名校验 matched=${sig.matched} '
+        'reason=${sig.reason} canInstall=${env.canInstall}');
+  }
+
+  Future<void> _install() async {
+    final path = _apkPath;
+    if (path == null) return;
+    if (_sig != null && !_sig!.matched) {
+      // 双保险：签名不通过时安装按钮本来就不该出现，这里再挡一次。
+      setState(() => _ioNotice = _sig!.message);
+      return;
+    }
+    setState(() {
+      _phase = _UpdPhase.installing;
+      _ioNotice = null;
+    });
+    final r = await installDownloadedApk(path);
+    if (!mounted) return;
+    setState(() {
+      // 回到 downloaded：安装按钮留着（用户可能装完又回来，或第一次没在系统界面点确认）。
+      _phase = _UpdPhase.downloaded;
+      _ioNotice = r.message;
+    });
+    // 差权限时顺手把"允许安装未知应用"那一页打开（省掉用户自己找路）。
+    if (r.outcome == InstallOutcome.needPermission) {
+      await _openInstallPermission();
+    }
+  }
+
+  /// 跳到系统的「安装未知应用」授权页。
+  Future<void> _openInstallPermission() async {
+    try {
+      final r = await DshHost.openSpecialSettings('install-packages');
+      // 原生约定：打开成功回 `'opened'`（与 Dart 侧那句判断**逐字对齐**）。
+      debugPrint('[dsh-update] 打开"安装未知应用"设置页 → $r');
+    } catch (e) {
+      debugPrint('[dsh-update] 打不开设置页：$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.settings;
+    final r = _result;
+    final last = s.updateLastCheckAt;
+    // 用户跳过的那一版**正在生效**吗（只有远端版本正好是他跳过的那一版才算）。
+    final skipActive = r != null &&
+        r.ok &&
+        r.hasUpdate &&
+        r.info!.version == s.updateSkippedVersion;
+    // 要不要弹那张"有新版本"的卡：有新版、且不是他跳过的那一版。
+    final showUpdate = r != null && r.ok && r.hasUpdate && !skipActive;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        DshRichText(
+          context.tr('App 会去更新源读一份**版本清单**，有新版本就在这里提示你。'
+              '它只读清单、**不会自己装东西** —— 装包那一步必须你亲手点'
+              '（Android 规定普通应用不能静默安装，任何正规 App 都一样）。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.55),
+        ),
+        const SizedBox(height: 12),
+        _kvRow(context.tr('当前版本'), 'v$kAppVersion'),
+        if (last != null)
+          _kvRow(context.tr('上次检查'), relativeTimeLabel(last)),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _checking ? null : _check,
+            icon: _checking
+                ? const SizedBox(
+                    width: 15,
+                    height: 15,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.refresh, size: 18),
+            label: Text(_checking ? context.tr('正在检查…') : context.tr('检查更新')),
+          ),
+        ),
+        if (r != null) ...<Widget>[
+          const SizedBox(height: 12),
+          if (showUpdate)
+            _updateCard(r.info!)
+          else if (r.ok && skipActive)
+            _note(context.tr('v{0} 你选了跳过。出下一版时会再提示你。',
+                [r.info!.version]))
+          else if (r.ok)
+            _note(context.tr('已是最新版本（v{0}）。', [kAppVersion]))
+          else
+            _failureBlock(r),
+        ],
+        const SizedBox(height: 14),
+        // ⚠️ 这里**刻意不用 `SwitchListTile`**：它把自己的底色与水波纹画在**最近的
+        //    Material 祖先**上，而这一块外面是玻璃卡（`DshGlassCard` 的 DecoratedBox
+        //    带底色）—— Flutter 会当场报「ListTile background color or ink splashes
+        //    may be invisible」，点击遍历测试（`clickthrough_test`）会把它当成
+        //    "点完留下了异常"直接判失败。自定义一行 Row + Switch 没有这个约束。
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(context.tr('启动后自动检查'),
+                      style: TextStyle(
+                          color: DshColors.text,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    s.updateAutoCheck
+                        ? context.tr('开。启动时在后台查一次；连不上就静默跳过，不打扰你。')
+                        : context.tr('关。只有你点「检查更新」时才会联网查这一次。'),
+                    style: TextStyle(
+                        color: DshColors.textFaint, fontSize: 11, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Switch(value: s.updateAutoCheck, onChanged: (v) => s.setUpdateAutoCheck(v)),
+          ],
+        ),
+        Divider(height: 20, color: DshColors.line),
+        _sourceEditor(s),
+      ],
+    );
+  }
+
+  /// 左标签右值的一行。
+  Widget _kvRow(String label, String value) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 72,
+              child: Text(label,
+                  style: TextStyle(
+                      color: DshColors.textDim,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600)),
+            ),
+            Expanded(
+              child: Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: DshColors.text, fontSize: 12.5)),
+            ),
+          ],
+        ),
+      );
+
+  Widget _note(String text) => Text(
+        text,
+        style: TextStyle(color: DshColors.textDim, fontSize: 11.5, height: 1.5),
+      );
+
+  /// 「有新版本」那张卡 —— 这一块是整页的重点，所以给足信息：
+  /// 版本号、日期、包大小、说明条数、改动列表（最多 6 条）、下载按钮、跳过。
+  Widget _updateCard(UpdateInfo info) {
+    final s = widget.settings;
+    final bits = <String>[
+      if ((info.publishedAt ?? '').isNotEmpty) info.publishedAt!,
+      if (info.size != null && info.size! > 0) formatBytes(info.size),
+      if (info.notes.isNotEmpty) context.tr('{0} 条说明', ['${info.notes.length}']),
+    ];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: DshColors.accent.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(DshMetrics.radius(12)),
+        border: Border.all(color: DshColors.accent.withValues(alpha: 0.38)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.system_update_alt, size: 16, color: DshColors.accent),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(context.tr('发现新版本 v{0}', [info.version]),
+                    style: TextStyle(
+                        color: DshColors.accent,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          if (bits.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 4),
+            Text(bits.join(' · '),
+                style: TextStyle(color: DshColors.textDim, fontSize: 11.5)),
+          ],
+          if (info.notes.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            for (final n in info.notes.take(6))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: Text('· $n',
+                    style: TextStyle(
+                        color: DshColors.text, fontSize: 11.5, height: 1.45)),
+              ),
+            if (info.notes.length > 6)
+              Text(
+                  context.tr('…还有 {0} 条，去发布页能看到全部。',
+                      ['${info.notes.length - 6}']),
+                  style:
+                      TextStyle(color: DshColors.textFaint, fontSize: 11)),
+          ],
+          const SizedBox(height: 10),
+          _downloadArea(info),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => s.setUpdateSkippedVersion(info.version),
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+              child: Text(context.tr('跳过这个版本'),
+                  style: const TextStyle(fontSize: 11.5)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 「下载 → 校验 → 安装」这一块的界面，按当前走到哪一步画。
+  ///
+  /// 三段话必须说清（用户最容易误解的三处）：
+  ///   * 下载是**应用内**做的，可以取消、**断了能接着下**；
+  ///   * 装之前**两样都验**了 —— 哈希（文件没坏）+ 签名（是同一家签的）；
+  ///   * 最后**一定要点系统那个「安装」** —— 我们只能把安装界面交到你手上。
+  Widget _downloadArea(UpdateInfo info) {
+    switch (_phase) {
+      // ── 正在下载
+      case _UpdPhase.downloading:
+        final p = _progress;
+        final frac = p?.fraction;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            // ⚠️ 刻意**总是给 value**（拿不到进度就给 0），不用"不确定进度条"：
+            //    那种是**无限动画**，而点击遍历测试（clickthrough）会一直等不到静止。
+            LinearProgressIndicator(value: frac ?? 0, minHeight: 6),
+            const SizedBox(height: 6),
+            Text(
+              p == null
+                  ? context.tr('正在连接…')
+                  : (frac == null
+                      ? context.tr('已下载 {0}', [formatBytes(p.received)])
+                      : context.tr('{0} / {1} · {2}/秒', [
+                          formatBytes(p.received),
+                          formatBytes(p.total),
+                          formatBytes(p.bytesPerSecond.round()),
+                        ])),
+              style: TextStyle(color: DshColors.textDim, fontSize: 11.5),
+            ),
+            const SizedBox(height: 6),
+            OutlinedButton(
+              onPressed: () => _cancel?.cancel(),
+              child: Text(context.tr('取消下载')),
+            ),
+          ],
+        );
+
+      // ── 下载好了（安装按钮就在这儿）
+      case _UpdPhase.downloaded:
+      case _UpdPhase.installing:
+        final sig = _sig;
+        final matched = sig?.matched ?? false;
+        final canInstall = _env?.canInstall ?? false;
+        final busy = _phase == _UpdPhase.installing;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Icon(matched ? Icons.verified : Icons.gpp_bad,
+                    size: 15,
+                    color: matched ? DshColors.accent : DshColors.err),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                      matched
+                          ? context.tr('已下载，校验通过')
+                          : context.tr('已下载，但签名对不上'),
+                      style: TextStyle(
+                          color: matched ? DshColors.accent : DshColors.err,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            DshRichText(
+              matched
+                  ? context.tr('文件哈希对得上、签名与当前应用**同一把**，可以装。')
+                  : sig?.message ?? context.tr('校验没通过。'),
+              style: TextStyle(
+                  color: DshColors.textDim, fontSize: 11, height: 1.45),
+            ),
+            const SizedBox(height: 8),
+            if (matched) ...<Widget>[
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: busy ? null : _install,
+                  icon: const Icon(Icons.system_update_alt, size: 18),
+                  label: Text(busy
+                      ? context.tr('正在交给系统…')
+                      : (canInstall
+                          ? context.tr('安装（会弹出系统安装界面）')
+                          : context.tr('先允许「安装未知应用」'))),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                context.tr('最后那一下**一定要你亲手点** —— Android 不允许普通应用自己装东西。'
+                    '装完回到这里就是新版，数据不会丢。'),
+                style: TextStyle(
+                    color: DshColors.textFaint, fontSize: 11, height: 1.45),
+              ),
+            ] else ...<Widget>[
+              Text(
+                context.tr('出于安全，这个包不会给你装。'),
+                style: TextStyle(
+                    color: DshColors.err, fontSize: 11.5, height: 1.45),
+              ),
+            ],
+            if (_ioNotice != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(_ioNotice!,
+                  style: TextStyle(
+                      color: DshColors.textDim, fontSize: 11.5, height: 1.45)),
+            ],
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: <Widget>[
+                if (busy)
+                  const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                else
+                  TextButton(
+                    onPressed: () => _download(info),
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 30)),
+                    child: Text(context.tr('重新下载'),
+                        style: const TextStyle(fontSize: 11.5)),
+                  ),
+                TextButton(
+                  onPressed: () => _openUrl(info.url),
+                  style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+                  child: Text(context.tr('改用浏览器下载'),
+                      style: const TextStyle(fontSize: 11.5)),
+                ),
+                TextButton(
+                  onPressed: _openInstallPermission,
+                  style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+                  child: Text(context.tr('打开「安装未知应用」设置'),
+                      style: const TextStyle(fontSize: 11.5)),
+                ),
+              ],
+            ),
+          ],
+        );
+
+      // ── 还没下（默认）
+      case _UpdPhase.idle:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () => _download(info),
+                icon: const Icon(Icons.download, size: 18),
+                label: Text(info.size != null && info.size! > 0
+                    ? context.tr('下载到本机（{0}）', [formatBytes(info.size)])
+                    : context.tr('下载到本机')),
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: () => _openUrl(info.url),
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+              child: Text(context.tr('或者用浏览器下载'),
+                  style: const TextStyle(fontSize: 11.5)),
+            ),
+            const SizedBox(height: 2),
+            DshRichText(
+              context.tr('下载在**本机**做，断了能接着下；装之前会**验两样** —— '
+                  '文件哈希（没下坏）+ 签名（跟现在这个 App 是同一把钥匙签的）。'
+                  '签名对不上就不给你装，这是防止包被替换的那道闸。'),
+              style: TextStyle(
+                  color: DshColors.textFaint, fontSize: 11, height: 1.45),
+            ),
+            if (_ioNotice != null) ...<Widget>[
+              const SizedBox(height: 6),
+              Text(_ioNotice!,
+                  style: TextStyle(
+                      color: DshColors.textDim,
+                      fontSize: 11.5,
+                      height: 1.45)),
+            ],
+          ],
+        );
+    }
+  }
+
+  /// 检查失败：如实说原因，并给一个"看看卡在哪一步"的展开区。
+  ///
+  /// 为什么要把每个源的失败原因都留着：三条源全不通时，用户最需要知道的是
+  /// **是不是被网络挡了**、以及**该不该换个镜像** —— 只说"检查失败"等于没说。
+  Widget _failureBlock(UpdateCheckResult r) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(r.errorZh ?? context.tr('检查失败，原因不明。'),
+            style: TextStyle(
+                color: DshColors.err, fontSize: 11.5, height: 1.5)),
+        if (r.tried.isNotEmpty) ...<Widget>[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _showTried = !_showTried),
+              style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
+              child: Text(
+                  _showTried
+                      ? context.tr('收起细节')
+                      : context.tr('看看卡在哪一步'),
+                  style: const TextStyle(fontSize: 11.5)),
+            ),
+          ),
+          if (_showTried)
+            for (final t in r.tried)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 3),
+                child: SelectableText('· $t',
+                    style: TextStyle(
+                        color: DshColors.textFaint,
+                        fontSize: 10.5,
+                        height: 1.4)),
+              ),
+        ],
+      ],
+    );
+  }
+
+  /// 更新源：显示现在用的是内置源还是自填的，并允许改。
+  ///
+  /// 为什么把这条通道**摆在界面上**而不是藏起来：国内访问 GitHub 时好时坏，
+  /// 用户在别处有能通的镜像时，自己填一条比我们猜哪个站可用靠谱得多。
+  Widget _sourceEditor(AppSettings s) {
+    final custom = s.updateSource;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(context.tr('更新源'),
+            style: TextStyle(
+                color: DshColors.text,
+                fontSize: 13,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        DshRichText(
+          custom.isEmpty
+              ? context.tr('现在用内置的两条源（GitHub 原站为主、jsDelivr 兜底），'
+                  '**一般不用动**。如果这两条在你那边连不上，把你自己的镜像地址填进来。')
+              : context.tr('现在用你填的这一条。清空后保存就回到内置的两条源。'),
+          style: TextStyle(
+              color: DshColors.textFaint, fontSize: 11, height: 1.5),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _sourceCtrl,
+          maxLines: 1,
+          style: const TextStyle(fontSize: 12),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: defaultUpdateSources().first,
+            hintStyle: TextStyle(color: DshColors.textFaint, fontSize: 11),
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            OutlinedButton(
+                onPressed: _saveSource, child: Text(context.tr('保存'))),
+            if (custom.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  _sourceCtrl.clear();
+                  _saveSource();
+                },
+                child: Text(context.tr('恢复内置源')),
+              ),
+            TextButton(
+              onPressed: () => _openUrl(kReleasesPage),
+              child: Text(context.tr('打开发布页')),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 }

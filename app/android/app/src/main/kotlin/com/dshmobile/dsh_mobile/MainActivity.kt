@@ -60,7 +60,12 @@ class MainActivity : FlutterActivity() {
         /** 改动此值会让已安装的 App 重新解压一次运行时。 */
         private const val RUNTIME_VERSION = "1"
 
-        private const val ZIP_ASSET = "dsh-runtime.zip"
+        // 这里以前有个 `ZIP_ASSET = "dsh-runtime.zip"`（从 asset 里捞随包的运行时）。
+        // 0.75 起那个 zip **不再随包**（APK 小 30 MB），改由 App 首次启动时下载到
+        // `files/runtime.zip`（见 `lib/local/runtime_bootstrap.dart`），
+        // 所以 `assets.open(...)` 那条路连同常量一起删掉了。
+        // 要恢复"随包"：把 `build.gradle.kts` 的 assets.srcDirs 加回 `$dshNodeRoot/app-assets`，
+        // 再把 `unpack()` 里的抛错换回 `assets.open(...)` 拷贝即可。
 
         /** 附件/语音用的 requestCode（三者互不相同即可）。 */
         private const val REQ_PICK = 4711
@@ -356,6 +361,19 @@ class MainActivity : FlutterActivity() {
                     // 运行日志（用户要求：导出/分享给开发者分析）：
                     //   deviceInfo      → 报告头部要的机型/系统/版本信息；
                     //   exportTextFile  → 系统「保存文件」选择器（SAF），返回 ok:uri / cancel / no_app。
+                    // ------------------------------------------------ 应用内更新
+                    // updateInfo    → 安装相关的全部事实（能否装 / 已装签名 / 版本）
+                    // verifyApk     → 这个 APK 的签名是否与当前 App 同一家（**唯一防线**）
+                    // installApk    → 交给系统安装器（FileProvider + package-archive）
+                    "updateInfo" -> result.success(updateInfo())
+                    "verifyApk" -> verifyApkSignature(
+                        call.argument<String>("path"),
+                        result
+                    )
+                    "installApk" -> installApk(
+                        call.argument<String>("path"),
+                        result
+                    )
                     "deviceInfo" -> result.success(deviceInfo())
                     "exportTextFile" -> exportTextFile(
                         call.argument<String>("fileName"),
@@ -1312,6 +1330,201 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // ---------------------------------------------- 应用内更新（下载完之后的三件事）
+
+    /**
+     * 安装相关的**全部事实**，一次问清。
+     *
+     * 为什么把"已装应用的签名"也一起返回：覆盖安装要求新旧包**同一签名**，
+     * 而这是唯一能证明"我要装的这个包跟现在这个 App 是同一家签的"的依据。
+     * Dart 侧拿它跟下载到的 APK 比对，不一致就**拒绝安装**
+     * （见 [verifyApkSignature] 与 Dart 侧 `local/apk_installer.dart`）。
+     *
+     * `installedSignature` 是**签名证书 DER 的 sha256（小写 hex）** —— 与
+     * `apksigner verify --print-certs` / `keytool -list` 显示的口径一致，便于人工核对。
+     */
+    private fun updateInfo(): Map<String, Any?> {
+        val out = mutableMapOf<String, Any?>(
+            "packageName" to packageName,
+            "sdkInt" to Build.VERSION.SDK_INT,
+            // O 之前没有"逐应用允许安装"这个开关，所以老系统一律视为已允许。
+            "canInstall" to (Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
+                packageManager.canRequestPackageInstalls()),
+            "installedSignature" to installedSignature(),
+        )
+        try {
+            @Suppress("DEPRECATION")
+            val pi = packageManager.getPackageInfo(packageName, 0)
+            out["versionCode"] = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pi.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                pi.versionCode.toLong()
+            }
+            out["versionName"] = pi.versionName
+        } catch (e: Throwable) {
+            // 读不到自己的包信息不该让整次查询失败 —— 那两项只是"显示用"。
+            Log.w(TAG, "updateInfo: 读不到自身包信息：${e.message}")
+        }
+        return out
+    }
+
+    /** 已装应用的签名证书 sha256；读不到返回 null（**不猜、不兜底**）。 */
+    private fun installedSignature(): String? = try {
+        @Suppress("DEPRECATION")
+        val pi = packageManager.getPackageInfo(packageName, signatureFlags())
+        signaturesOf(pi)?.firstOrNull()?.let { sha256Hex(it.toByteArray()) }
+    } catch (e: Throwable) {
+        Log.w(TAG, "读已装应用签名失败：${e.message}")
+        null
+    }
+
+    /** API 28 前后取签名的 flag 不同：P 起是 GET_SIGNING_CERTIFICATES，之前是 GET_SIGNATURES。 */
+    private fun signatureFlags(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        PackageManager.GET_SIGNING_CERTIFICATES
+    } else {
+        @Suppress("DEPRECATION")
+        PackageManager.GET_SIGNATURES
+    }
+
+    /** 从一个已解析的 PackageInfo 里取出签名数组（P 前后字段不同）。 */
+    private fun signaturesOf(
+        pi: android.content.pm.PackageInfo
+    ): Array<android.content.pm.Signature>? {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val si = pi.signingInfo ?: return null
+            // 多签名（v1+v2 各自签）走 apkContentsSigners；单签名时两者首个元素相同。
+            // 这里统一取**当前 APK 的签名者**，避免把轮换历史里的旧证书当成当前签名。
+            return if (si.hasMultipleSigners()) {
+                si.apkContentsSigners
+            } else {
+                si.signingCertificateHistory
+            }
+        }
+        @Suppress("DEPRECATION")
+        return pi.signatures
+    }
+
+    /**
+     * 字节数组 → 小写 hex。
+     *
+     * ⚠️ `"%02x".format(it)` 对**负的字节**会输出 `ffffff80` 这种 8 位串
+     * （Byte 先按有符号提升成 Int）—— 那不是"证书 DER 的 sha256"，
+     * 也就跟我文档里写的"与 apksigner 口径一致"对不上。
+     * 必须先 `and 0xFF` 掩成无符号。
+     */
+    private fun sha256Hex(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+
+    /**
+     * 校验一个 APK：它是不是合法 APK，以及**它的签名是不是跟当前这个 App 同一家**。
+     *
+     * ⚠️ 这是"更新不被换成别人的包"的**唯一防线**，所以只回答事实、不做任何妥协：
+     *   * 读不出签名 → `matched = false`（读不出就是不能装，而不是"那就算它对吧"）；
+     *   * 包没有签名 → `matched = false`；
+     *   * 比对得上才 `matched = true`。
+     *
+     * 返回 `{matched, apkSignature, installedSignature, reason}`，
+     * `reason` 是机器可读的原因（not_an_apk / apk_unsigned / installed_unknown /
+     * signature_mismatch / read_failed），由 Dart 侧翻成人话。
+     */
+    private fun verifyApkSignature(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) {
+            result.error("BAD_ARGS", "缺少 path 参数", null)
+            return
+        }
+        val f = File(path)
+        if (!f.exists() || !f.isFile) {
+            result.error("NOT_FOUND", "文件不存在：$path", null)
+            return
+        }
+        val installed = installedSignature()
+        val out = mutableMapOf<String, Any?>(
+            "installedSignature" to installed,
+            "apkSignature" to null,
+            "matched" to false,
+            "reason" to null,
+        )
+        try {
+            @Suppress("DEPRECATION")
+            val pi = packageManager.getPackageArchiveInfo(f.absolutePath, signatureFlags())
+            if (pi == null) {
+                out["reason"] = "not_an_apk"
+                result.success(out)
+                return
+            }
+            val apkSig = signaturesOf(pi)?.firstOrNull()?.let { sha256Hex(it.toByteArray()) }
+            out["apkSignature"] = apkSig
+            when {
+                apkSig == null -> out["reason"] = "apk_unsigned"
+                installed == null -> out["reason"] = "installed_unknown"
+                apkSig == installed -> out["matched"] = true
+                else -> out["reason"] = "signature_mismatch"
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "verifyApkSignature 失败：${e.message}")
+            out["reason"] = "read_failed"
+            out["detail"] = e.message
+        }
+        result.success(out)
+    }
+
+    /**
+     * 把下载好的 APK 交给系统安装器（ACTION_VIEW + `application/vnd.android.package-archive`）。
+     *
+     * 为什么必须走 FileProvider：Android 7 起禁止用 `file://` URI 跨应用传文件
+     * （FileUriExposedException），只能换成 content:// 并临时授权读取。
+     *
+     * 为什么**不**自己实现安装：普通应用在 Android 8+ 上不允许静默安装 ——
+     * 系统一定会弹安装界面让用户点确认。所以这里做完就结束，**拿不到"装没装成"**，
+     * 界面上也不能假装能拿到（如实写"装完请回到 App"）。
+     *
+     * 返回（Dart 侧翻成人话）：
+     *   * `"ok"`              —— 安装界面已拉起；
+     *   * `"need_permission"` —— 还没允许"安装未知应用"，要先引导去系统设置；
+     *   * `"no_app"`          —— 系统里没有能处理安装 Intent 的应用（定制 ROM 上才有）；
+     *   * `"bad_path"`        —— 路径不在 FileProvider 白名单里（配置问题，要报出来）。
+     */
+    private fun installApk(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) {
+            result.error("BAD_ARGS", "缺少 path 参数", null)
+            return
+        }
+        val f = File(path)
+        if (!f.exists() || !f.isFile) {
+            result.error("NOT_FOUND", "文件不存在：$path", null)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            Log.i(TAG, "installApk: 还没允许安装未知应用")
+            result.success("need_permission")
+            return
+        }
+        try {
+            val uri: Uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", f)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            Log.i(TAG, "installApk -> $path")
+            result.success("ok")
+        } catch (e: android.content.ActivityNotFoundException) {
+            Log.w(TAG, "installApk: 系统里没有安装器 -> $path")
+            result.success("no_app")
+        } catch (e: IllegalArgumentException) {
+            Log.w(TAG, "installApk: 路径不在 FileProvider 白名单里 -> $path（${e.message}）")
+            result.success("bad_path")
+        } catch (e: Throwable) {
+            Log.w(TAG, "installApk failed: ${e.message}")
+            result.error("INSTALL_FAILED", "拉起安装界面失败：${e.message}", null)
+        }
+    }
+
     private fun openFileByPath(path: String?, result: MethodChannel.Result) {
         if (path.isNullOrBlank()) {
             result.error("BAD_ARGS", "缺少 path 参数", null)
@@ -1608,6 +1821,9 @@ class MainActivity : FlutterActivity() {
             "mp4" -> "video/mp4"
             "mp3" -> "audio/mpeg"
             "zip" -> "application/zip"
+            // 应用内更新下载好的安装包（files/updates/）。必须显式给，
+            // 否则落到下面的 `*/*` → 系统认不出这是安装包、不弹安装器。
+            "apk" -> "application/vnd.android.package-archive"
             else -> "*/*"
         }
     }
@@ -1703,9 +1919,13 @@ class MainActivity : FlutterActivity() {
         // ZipFile 读 central directory，不受流式读取错位影响。
         val tmpZip = File(filesDir, "runtime.zip")
         if (!tmpZip.exists() || tmpZip.length() == 0L) {
-            assets.open(ZIP_ASSET).use { input ->
-                tmpZip.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
-            }
+            // ⚠️ 0.75 起这个 zip **不再随包**（APK 因此小 30 MB）——改由 Dart 侧
+            // （`local/runtime_bootstrap.dart`）先下载并校验，落到**这个路径**再调
+            // `unpackRuntime`。所以这里没有 asset 兜底了，也就必须给一句能读懂的话；
+            // 否则用户看到的是 `FileNotFoundException: dsh-runtime.zip`（等于没说）。
+            throw IllegalStateException(
+                "运行时包不在 ${tmpZip.absolutePath} —— 请先在应用内完成「下载运行环境」这一步，再开始解压。"
+            )
         }
         Log.i(TAG, "zip size = ${tmpZip.length()} bytes")
 

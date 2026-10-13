@@ -1,0 +1,13 @@
+=== 修复前 ===
+  models.json: 不存在
+
+=== 启动后 models.json（自愈应补回）===
+  {"provider":"com","baseUrl":"https://api.commandcode.ai/provider/v1","selected":"deepseek/deepseek-v4.1-flash","updatedAt":"2026-10-03T16:26:28.584462","models":[{"id":"deepseek/deepseek-v4.1-flash","name":"deepseek/deepseek-v4.1-flash"}]}
+  [OK] models.json 已被自愈补回并含模型
+
+=== 设置页模型段 ===
+  [OK] 有「我的模型」
+  [OK] **不再**说「还没有添加任何模型」
+  [OK] 出现「默认」按钮（说明清单里有一行且它是默认）
+   · 模型
+   · 从「我的模型」里删除

@@ -1,0 +1,10 @@
+﻿{
+  "title": "Android 上的真 PPTX 生成",
+  "subtitle": "纯 Node 内置模块 · 无 npm 依赖 · 离线可用",
+  "author": "泡泡猫 DSH",
+  "slides": [
+    { "title": "为什么要自己写 ZIP", "bullets": ["Android 没有 pandoc / python", "装不了 npm 包", "所以容器、CRC32、OOXML 全自己实现"], "notes": "备注：这一段讲环境约束。" },
+    { "title": "最小合法 OOXML 集合", "bullets": ["[Content_Types].xml 必须在根", "slideMaster + slideLayout 不能省", "theme 的三个必需块与四个样式列表"] },
+    { "title": "中文支持", "bullets": [{"text": "一级要点：ea typeface = 等线", "level": 0}, {"text": "二级要点：缩进 685800 EMU", "level": 1}, {"text": "带\n换行的要点\n也要正常"}], "notes": "备注第二页\n第二行" }
+  ]
+}

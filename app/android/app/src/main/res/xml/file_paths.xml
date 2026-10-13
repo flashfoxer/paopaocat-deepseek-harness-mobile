@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 的可见路径（白名单）。
+     用途共四处，每一处都对应真实代码路径：
+       1. 拍照：照片写进 attachments/，content:// URI 交给相机应用
+          （MainActivity.attachmentsDir / ACTION_IMAGE_CAPTURE）；
+       2. 打开产物 / 资料库文件 / 分享：openFileByPath 与 shareFileByPath 把 Dart
+          传来的路径转成 URI —— 那些文件落在 **workspace/**（默认工作区）、
+          **workspaces/**（用户自己建的工作区）或 dshhome/（知识库包与产物）下。
+          ⚠️ 单数 workspace/ **和** 复数 workspaces/ 两条都必须有 —— 默认工作区用的
+          是单数（见 lib/data/workspace_store.dart 的 _defaultPath），用户建的才在
+          复数下。这里曾经只写了复数，后果是**默认工作区里的文件全部分享不出去**
+          （「用其它应用打开」同样失败，报"这个文件所在的位置不允许对外分享"），
+          而默认工作区恰恰装着绝大多数用户的全部东西。真踩过：2026-10-12 用户手机上
+          刚让模型做好的单文件游戏（workspace/shooter.html）点分享直接失败。
+          **不含 dsh/** —— 那里是 DSH 运行时本体（lib/bin.js、node_modules），
+          用户不会去"打开"它，所以不给它开 URI 通道；
+       3. 分享运行日志：shareFileByPath 分享 logs/dsh-diagnostic.log；
+       4. dshhome 同时是 DSH 运行时的 HOME，知识库包落在 dshhome/kb/。
+
+     ⚠️ 这里以前是 files-path path="." —— 放开**整个**私有目录（审计 P2）。
+     FileProvider 本身只暴露"你交给 Intent 的那个 URI"，且这些目录只有本 App
+     （独立 UID）能读，所以它不是"把目录公开"；但白名单仍值得收：
+     一旦哪天有代码把用户可控的路径交给 getUriForFile，"." 允许它指到私有目录里
+     **任何**文件（含 .dsh-runtime-* 标记、runtime.zip 这类内部文件），
+     而白名单会让那种调用直接抛异常、当场暴露问题。
+
+     ⚠️ 审计当时建议收窄到 attachments/ + workspaces/ + logs/ —— 那个清单**漏了
+     dshhome/**，照做会**弄坏"打开/分享知识库文件"**（KB 包在 dshhome/kb/）。
+     下面这份是按真实用途逐条核对后写的。
+
+     注意：XML 注释里不能出现双连字符。 -->
+<paths>
+    <files-path name="attachments" path="attachments/" />
+    <files-path name="logs" path="logs/" />
+    <!-- 单数：默认工作区（_defaultPath = filesDir/workspace）—— 漏了它，
+         默认工作区里的文件就分享不出去/外部打不开。 -->
+    <files-path name="workspace" path="workspace/" />
+    <!-- 复数：用户自己建的工作区（_workspacesRoot = filesDir/workspaces）。 -->
+    <files-path name="workspaces" path="workspaces/" />
+    <files-path name="dshhome" path="dshhome/" />
+    <!-- 「影视」的产物（生图/生视频）：media/{image,video}。
+         必须在这里开，否则"分享 / 保存到相册"会抛 IllegalArgumentException。
+         与 dshhome 分开是因为 dshhome 是 DSH 运行时的 HOME（AGENTS.md、skills、
+         node_modules 都在里面），把用户媒体混进去会让两边都难清理。 -->
+    <files-path name="media" path="media/" />
+</paths>

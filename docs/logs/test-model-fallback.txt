@@ -1,0 +1,39 @@
+overlay 里的 model id: ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4.1-flash']
+删除 models.json...
+
+删除后 models.json 存在? 否
+
+=== 会话页模型区 ===
+  当前模型 deepseek/deepseek-v4.1-flash&#10;deepseek/deepseek-v4.1-flash
+
+  [OK] 显示的是模型名（不是未配置模型）
+  [OK] 模型区不再出现「未配置模型」
+
+=== 兜底日志 ===
+  10-03 10:09:35.899  3473  3473 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:17:14.851  4912  4912 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:42:31.391  5432  5432 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:44:05.741  5625  5625 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:47:05.362  5895  5895 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:47:06.079  5895  5895 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 10:47:06.082  5895  5895 I flutter : [dsh-shell] 老配置自愈：已用安全存储里的 model id 补齐 models.json （deepseek/deepseek-v4.1-flash）
+  10-03 11:02:09.796  6538  6538 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:02:47.164  6644  6644 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:06:57.381  7103  7103 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:10:02.318  7321  7321 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:11:43.918  7525  7525 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:13:24.069  7785  7785 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:14:57.441  8069  8069 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:46:59.061  8519  8519 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:48:53.620  8775  8775 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:50:13.611  8920  8920 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 14:19:03.933  9635  9635 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 14:19:04.184  9635  9635 I flutter : [dsh-model] overlay 已生成/升级：默认=deepseek/deepseek-v4.1-flash，注册 1 条（写入前 7 条）
+  10-03 14:19:59.716  9722  9722 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:04:55.848 10827 10827 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:07:53.472 11092 11092 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:36:44.112 11447 11447 I flutter : [dsh-model] models.json 为空，用兜底模型：deepseek/deepseek-v4.1-flash
+  10-03 15:36:44.252 11447 11447 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+
+=== 重启后 models.json ===
+cat: files/models.json: No such file or directory

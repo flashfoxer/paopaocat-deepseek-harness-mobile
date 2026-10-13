@@ -1,0 +1,48 @@
+=== 0) 清空 models.json（让内存从空开始）===
+  models.json 存在? 否
+
+=== 1) 设置页（应处于收起态，有「修改配置」）===
+  修改配置 @ (711, 1590)
+  测试并保存 @ (712, 590)
+  已点击「测试并保存」，等待真实连通性测试…
+  等待超时，继续后续检查
+
+=== 2) 不重启，直接开会话 ===
+  会话页可见: 返回 | 新会话 | 本机 | 设置 | 内容由AI生成 | 添加附件 | 按住说话 | 当前模型 deepseek/deepseek-v4.1-flash&#10;deepsee | 首页&#10;首页 | 专家&#10;专家 | 资料库&#10;资料库 | 定时任务&#10;定时任务
+
+  [OK] 会话页**不再**显示「未配置模型」
+  [OK] 会话页显示了模型名
+
+=== 3) 关键日志（清单重读 / 落盘）===
+  10-03 10:09:35.899  3473  3473 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:17:14.851  4912  4912 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:42:31.391  5432  5432 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:44:05.741  5625  5625 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:47:05.362  5895  5895 I flutter : [dsh-model] 清单载入：0 个模型（provider=-），选中=无
+  10-03 10:47:06.079  5895  5895 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:02:09.796  6538  6538 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:02:47.164  6644  6644 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:06:57.381  7103  7103 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:10:02.318  7321  7321 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:11:43.918  7525  7525 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:13:24.069  7785  7785 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:14:57.441  8069  8069 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:46:59.061  8519  8519 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:48:53.620  8775  8775 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 11:50:13.611  8920  8920 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 14:19:03.933  9635  9635 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 14:19:59.716  9722  9722 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:04:55.848 10827 10827 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:07:53.472 11092 11092 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-03 15:36:44.252 11447 11447 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:18:04.355 11839 11839 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:19:33.678 12155 12155 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:21:18.003 12309 12309 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:23:22.702 12569 12569 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:26:28.387 12705 12705 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-03 16:26:28.803 12705 12705 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-04 02:05:36.854 13474 13474 I flutter : [dsh-model] 清单载入：1 个模型（provider=-），选中=deepseek/deepseek-v4.1-flash
+  10-04 02:05:37.334 13474 13474 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash
+  10-04 02:06:18.799 13474 13474 I flutter : [dsh-settings-tab] 已写入配置：com @ https://api.commandcode.ai/provider/v1，model=deepseek/deepseek-v4.1-flash
+  10-04 02:06:22.037 13474 13474 I flutter : [dsh-settings-tab] 连通性测试通过（3150ms），已落盘 1 个模型供对话页使用
+  10-04 02:06:22.084 13474 13474 I flutter : [dsh-model] 清单载入：1 个模型（provider=com），选中=deepseek/deepseek-v4.1-flash

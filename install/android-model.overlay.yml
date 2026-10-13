@@ -1,0 +1,30 @@
+# Android 本地运行用的模型覆盖层（headless profile）
+#
+# 与 bridge/acp-model.overlay.yml 的区别：去掉 `acp` 行。
+# 那一行是 ACP 服务器专用的（它用自己的 config 决定每个新会话的路由），
+# 在 headless / sdk 这类 profile 里不存在，插入它只会带来无关的插件。
+#
+# 本机可用的路由是自定义 provider（commandcode.ai + COM_API_KEY）；
+# 如果换成官方 DeepSeek，把 provider 改成 deepseek-official 并去掉 baseURL 即可。
+
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      com:
+        apiKeyEnv: COM_API_KEY
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        models:
+          - id: deepseek/deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4-pro
+            name: DeepSeek V4 Pro
+            contextWindow: 1000000
+
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: com
+    model: deepseek/deepseek-v4.1-flash

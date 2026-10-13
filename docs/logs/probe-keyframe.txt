@@ -1,0 +1,36 @@
+﻿=== nodes (keyframe-top) ===
+                               | Display brightness                                   | FrameLayout                | (42, 357, 1038, 483)
+Display brightness             |                                                      | SeekBar                    | (42, 357, 1038, 483)
+Dump SysUI Heap, rss: 151M / 0 |                                                      | LinearLayout               | (42, 525, 529, 735)
+Dump SysUI Heap                |                                                      | TextView                   | (163, 579, 418, 630)
+rss: 151M / 0B                 |                                                      | TextView                   | (163, 630, 418, 681)
+SystemUIGX, Enabled            |                                                      | LinearLayout               | (550, 525, 1037, 735)
+SystemUIGX                     |                                                      | TextView                   | (671, 579, 979, 630)
+Enabled                        |                                                      | TextView                   | (671, 630, 979, 681)
+                               | Page 3 of 3                                          | ViewGroup                  | (506, 1480, 573, 1501)
+                               | Edit order of settings.                              | ImageView                  | (907, 1428, 1033, 1554)
+                               | Signed in as Owner                                   | ImageView                  | (707, 2236, 760, 2289)
+                               | Open settings.                                       | ImageView                  | (833, 2236, 886, 2289)
+                               | Power menu                                           | ImageView                  | (959, 2236, 1012, 2289)
+T-Mobile                       |                                                      | TextView                   | (884, 163, 1027, 214)
+python.exe : Traceback (most recent call last):
+At line:1 char:173
++ ... sh-mobile"; & "C:\Python314\python.exe" "install\_pool_probe.py" keyf ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\�½��ļ���\�½��ļ���\�½��ļ���\�½��ļ���\dsh-mobile\install\_pool_probe.py", line 135, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "D:\�½��ļ���\�½��ļ���\�½��ļ���\�½��ļ���\dsh-mobile\install\_pool_probe.py", line 91, in main
+    show(xml, mode + "-top")
+    ~~~~^^^^^^^^^^^^^^^^^^^^
+  File "D:\�½��ļ���\�½��ļ���\�½��ļ���\�½��ļ���\dsh-mobile\install\_pool_probe.py", line 61, in show
+    print("%-30s | %-52s | %-26s | %s" % (
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        t.replace("\n", "\\n")[:30], d.replace("\n", "\\n")[:52],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        c.replace("android.view.", "").replace("android.widget.", ""), b), flush=True)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u202f' in position 5: illegal multibyte sequence

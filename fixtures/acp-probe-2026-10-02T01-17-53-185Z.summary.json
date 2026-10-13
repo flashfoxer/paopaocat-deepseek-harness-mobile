@@ -1,0 +1,200 @@
+{
+  "label": "acp-probe-2026-10-02T01-17-53-185Z",
+  "generatedAt": "2026-10-02T01:17:56.944Z",
+  "dshBin": "D:/Programs/PaopaocatDSH/app/lib/bin.js",
+  "sandbox": "D:\\新建文件夹\\新建文件夹\\新建文件夹\\新建文件夹\\dsh-mobile\\fixtures\\acp-sandbox",
+  "steps": [
+    {
+      "step": "initialize-ok",
+      "at": "2026-10-02T01:17:54.960Z",
+      "data": {
+        "requestedProtocolVersion": 1,
+        "negotiated": 1,
+        "agentInfo": {
+          "name": "deepseek-harness-acp",
+          "version": "0.0.1"
+        },
+        "authMethods": [],
+        "agentCapabilities": {
+          "mcpCapabilities": {
+            "http": true
+          },
+          "promptCapabilities": {
+            "image": false,
+            "audio": false,
+            "embeddedContext": false
+          },
+          "sessionCapabilities": {
+            "close": {},
+            "list": {},
+            "resume": {}
+          }
+        }
+      }
+    },
+    {
+      "step": "session-new-ok",
+      "at": "2026-10-02T01:17:55.023Z",
+      "data": {
+        "sessionId": "0e299a79-c41d-4c23-ac51-4b0276a8f0e3",
+        "keys": [
+          "sessionId",
+          "configOptions"
+        ],
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-flash\"]",
+                    "name": "deepseek-v4-flash"
+                  },
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-flash\"]",
+                    "name": "DeepSeek-V41-Flash"
+                  },
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-pro\"]",
+                    "name": "DeepSeek-V4-Pro",
+                    "description": "Stronger agentic coding, knowledge, and difficult reasoning; suited to complex or quality-critical tasks at higher cost."
+                  }
+                ]
+              },
+              {
+                "group": "com",
+                "name": "com",
+                "options": [
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4-pro\"]",
+                    "name": "DeepSeek V4 Pro (latest)"
+                  },
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4.1-flash\"]",
+                    "name": "DeepSeek V4.1 Flash"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "reasoning_effort",
+            "name": "Reasoning effort",
+            "category": "thought_level",
+            "type": "select",
+            "currentValue": "high",
+            "options": [
+              {
+                "value": "off",
+                "name": "Off",
+                "description": "Use for simple tasks that do not need reasoning."
+              },
+              {
+                "value": "low",
+                "name": "Low",
+                "description": "Prefer for routine or latency-sensitive tasks."
+              },
+              {
+                "value": "high",
+                "name": "High",
+                "description": "The default balance for most tasks."
+              },
+              {
+                "value": "max",
+                "name": "Max",
+                "description": "Reserve for the hardest quality-first tasks."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "step": "prompt-chat-failed",
+      "at": "2026-10-02T01:17:55.300Z",
+      "data": {
+        "message": "Internal error: turn failed: Authentication Fails, Your api key: ****b901 is invalid (request_id: df22b04f-f0d5-4d3e-bed7-f29d6ad0aa36)",
+        "code": -32603
+      }
+    },
+    {
+      "step": "prompt-chat-done",
+      "at": "2026-10-02T01:17:55.300Z",
+      "data": {
+        "stopReason": null,
+        "usage": null,
+        "updates": 0,
+        "updateKinds": []
+      }
+    },
+    {
+      "step": "prompt-tool-failed",
+      "at": "2026-10-02T01:17:55.410Z",
+      "data": {
+        "message": "Internal error: turn failed: Authentication Fails, Your api key: ****b901 is invalid (request_id: fee45d1f-e715-4498-99d2-c57b65dc2894)",
+        "code": -32603
+      }
+    },
+    {
+      "step": "prompt-tool-done",
+      "at": "2026-10-02T01:17:55.410Z",
+      "data": {
+        "stopReason": null,
+        "updates": 0,
+        "permissionRequested": 0,
+        "serverRequests": [],
+        "updateKinds": []
+      }
+    },
+    {
+      "step": "session-list-ok",
+      "at": "2026-10-02T01:17:55.432Z",
+      "data": {
+        "keys": [
+          "sessions"
+        ],
+        "sessions": [
+          {
+            "sessionId": "f3899029-6d6f-4e44-9545-27fc96bfc650",
+            "cwd": "D:\\新建文件夹\\新建文件夹\\新建文件夹\\新建文件夹\\dsh-mobile\\fixtures\\acp-sandbox"
+          }
+        ]
+      }
+    },
+    {
+      "step": "session-close-ok",
+      "at": "2026-10-02T01:17:55.437Z",
+      "data": {
+        "result": {}
+      }
+    },
+    {
+      "step": "proc-exit",
+      "at": "2026-10-02T01:17:55.489Z",
+      "data": {
+        "code": 0,
+        "signal": null
+      }
+    }
+  ],
+  "frameCount": 12,
+  "updateKinds": {},
+  "updateCount": 0,
+  "updateBytes": {
+    "min": null,
+    "max": null,
+    "avg": null
+  },
+  "permissionRequests": [],
+  "serverRequestMethods": [],
+  "stderrTail": [
+    ""
+  ]
+}

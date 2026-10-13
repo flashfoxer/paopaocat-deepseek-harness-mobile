@@ -1,0 +1,14 @@
+# 语音：没有识别服务时，界面到底说了什么
+时间: 18:08:09
+!! 找不到「开始新会话」
+
+## 对话页可见文案（找「按住说话」）
+  Google logo、Tap to try again、Didn't catch that. Try speaking again.、Try again、English (United States)
+  含「按住说话」：False
+!! 找不到「按住说话」节点
+
+## 日志
+  speech：（无）
+  Speech：（无）
+  DshLocal：（无）
+  dsh-chat：（无）

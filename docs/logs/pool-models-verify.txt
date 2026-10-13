@@ -1,0 +1,97 @@
+=== 测试前的 models.json ===
+{
+  "version": 2,
+  "selected": "agnes/agnes-model",
+  "providers": [
+    {"id": "agnes", "label": "agnes", "baseUrl": "http://127.0.0.1:8891/agnes/v1", "api": "openai-completions", "apiKeyEnv": "AGNES_API_KEY"}
+  ],
+  "models": [
+    {"provider": "agnes", "id": "agnes-model", "name": "agnes-m", "context": 65536}
+  ],
+  "groups": []
+}
+
+=== ③ 填 Key → 点「测试并保存」（每次从干净状态起，短序列多次重试）===
+  --- 第 1 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  --- 第 2 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  --- 第 3 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  --- 第 4 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  --- 第 5 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  --- 第 6 次尝试（距上次被外部 force-stop 999s）---
+    tap 内置卡「Agnes」 @ (540, 1394)
+    定位失败（field=False btn=False），重来
+  [MISS] 「测试并保存」真的被按下（logcat 有 [dsh-model-panel] 测试并保存开始）
+    等落盘 + 连通性测试（15s）…
+  [MISS] 落盘：models.json 里出现 agnes-3.0-flash
+    shot: D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\theme-screenshots\pool-04-after-test-and-save.png  (370369 bytes)
+    可见节点（text | content-desc | class | bounds）:
+      -  | 设置 | View | (484, 203, 596, 266)
+      -  | 外观 | View | (39, 282, 1041, 340)
+      -  | 主题&#10;点一下立即生效，重启后保持&#10;浅色逐条对齐网站 https://soft.zmm168.top/ 的浅色令牌；深色是同一 | View | (39, 340, 1041, 1080)
+      -  | 浅色&#10;浅色 | Button | (76, 455, 245, 560)
+      -  | 深色&#10;深色 | Button | (272, 455, 441, 560)
+      -  | 自定义（占位，还没做）&#10;自定义 | Button | (467, 455, 671, 560)
+      -  | 小&#10;小 | Button | (76, 952, 178, 1043)
+      -  | 标准&#10;标准 | Button | (199, 952, 334, 1043)
+      -  | 大&#10;大 | Button | (355, 952, 457, 1043)
+      -  | 特大&#10;特大 | Button | (478, 952, 613, 1043)
+      -  | 模型 | View | (39, 1122, 1041, 1180)
+      -  | 我的模型 | View | (105, 1238, 249, 1290)
+      -  | Agnes（免费），未配 Key，1 个模型，收起&#10;Agnes（免费）&#10;1 个模型&#10;未配 Key | Button | (79, 1340, 1001, 1449)
+      -  | 去注册 / 申请 Key | Button | (108, 1944, 456, 2002)
+      -  | 首页&#10;首页 | Button | (0, 2194, 216, 2337)
+      -  | 专家&#10;专家 | Button | (216, 2194, 432, 2337)
+      -  | 资料库&#10;资料库 | Button | (432, 2194, 648, 2337)
+      -  | 定时任务&#10;定时任务 | Button | (648, 2194, 864, 2337)
+      -  | 设置&#10;设置 | Button | (864, 2194, 1080, 2337)
+  [MISS] 界面明确说模型已经登记、会话里能选
+  [MISS] 界面列出了 agnes-3.0-flash
+  [MISS] 如实说明用的是预置建议模型（没拉到真实列表）
+  [MISS] 如实贴出测试失败的中文原因
+    OCR(saved) -> 42 行：[y=  67 x=  97 s=0.71] 12:27
+  [MISS] 截图 OCR（保存后）里出现「agnes-3.0-flash」
+  [MISS] 截图 OCR（保存后）里出现「预置建议模型」
+  [OK  ] 截图 OCR（保存后）里出现「测试」
+
+=== ④ models.json 落盘核对（其它厂家/轮换池一条都不许丢）===
+{
+  "version": 2,
+  "selected": "agnes/agnes-model",
+  "providers": [
+    {"id": "agnes", "label": "agnes", "baseUrl": "http://127.0.0.1:8891/agnes/v1", "api": "openai-completions", "apiKeyEnv": "AGNES_API_KEY"}
+  ],
+  "models": [
+    {"provider": "agnes", "id": "agnes-model", "name": "agnes-m", "context": 65536}
+  ],
+  "groups": []
+}
+  [OK  ] agnes 厂家写进去了
+  [MISS] agnes-3.0-flash 模型写进去了
+  [OK  ] 测试前已有的厂家没丢：['agnes'] -> ['agnes']
+  [OK  ] 测试前已有的轮换池没丢：[] -> []
+  [OK  ] 测试前已有的模型没丢：['agnes/agnes-model'] -> ['agnes/agnes-model']
+
+=== 截图落盘核对 ===
+  D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\theme-screenshots\pool-04-after-test-and-save.png  370369 bytes
+  共 1 张
+
+=== 结论：5/14 项通过 ===
+  MISS: 「测试并保存」真的被按下（logcat 有 [dsh-model-panel] 测试并保存开始）
+  MISS: 落盘：models.json 里出现 agnes-3.0-flash
+  MISS: 界面明确说模型已经登记、会话里能选
+  MISS: 界面列出了 agnes-3.0-flash
+  MISS: 如实说明用的是预置建议模型（没拉到真实列表）
+  MISS: 如实贴出测试失败的中文原因
+  MISS: 截图 OCR（保存后）里出现「agnes-3.0-flash」
+  MISS: 截图 OCR（保存后）里出现「预置建议模型」
+  MISS: agnes-3.0-flash 模型写进去了

@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-09",
+  "requireHash": false,
+  "note": "端侧模型清单。**2026-10-08 起收敛为 LiteRT-LM 一条路**（用户选定）。**2026-10-09 按用户口径收成三个**：「多模态」1 个 = Gemma 4 E2B（通用版）；「文本」2 个 = Gemma 3 1B（通用版）、Qwen3 0.6B。**Qwen2.5 1.5B 已删除** —— 上游该仓库只有 `multi-prefill-seq` 两个变体（f32 5.76 GiB / q8 1.49 GiB），没有标准构建；而本仓真机实测正好是它测不了速、另一个同类构建（Gemma 3 1B multi-prefill-seq）答乱话。**清单一律只收通用版**（用户 2026-10-08：App 要适配很多机型，专属版只在一颗芯片上有意义）。原先 llama.cpp 的 GGUF 与出图/出视频已全部下线（那个引擎在骁龙 8 Elite 上长请求必段错误 code=-11）。注：note 里标了「格式未验证」的条目，是本机取文件头未能确证含 `tf_lite_prefill_decode` 的那些 —— 该法只能证实「含」、不能证实「不含」，所以得真机实试。 **2026-10-09 审计 P1-10**：三个模型目前**都还没有 sha256**（只有体积校验），所以 `requireHash` 必须保持 false —— 一旦打开，缺哈希的条目会被**拒绝安装**，而报错看起来像\"清单坏了\"而不是\"哈希没填\"。填真值要用 `install/models/sha256-fill.py`（它要求文件大小与清单逐字节相等，防止把别的版本的哈希填进来）；**先填哈希、再打开 requireHash**。本机算不出真值：三个模型是 584 MB~2.58 GB，而本机只有 4 MiB 的测试残留，不是同一份文件 —— 拿它算会得出错哈希，比不填更糟。另外 `requireHash` 以前**根本没被下载器读过**（开关静默失效），现已接线并有测试钉住。",
+  "models": [
+    {
+      "id": "gemma-4-e2b",
+      "family": "gemma-4-e2b",
+      "name": "Gemma 4 E2B（通用版・推荐）",
+      "kind": "vision",
+      "engine": "litert-lm",
+      "format": "litertlm",
+      "quant": "int4",
+      "fileName": "gemma-4-E2B-it.litertlm",
+      "bytes": 2588147712,
+      "sha256": null,
+      "license": "Apache-2.0",
+      "minRamGb": 6,
+      "socMatch": [],
+      "abi": "arm64-v8a",
+      "note": "**多模态那一档就用它**（Gemma 4 本身能看图/听音；App 目前只发纯文本，看图链路还没接）。本机取文件头验证：容器魔数 LITERTLM，且**含** `tf_lite_prefill_decode` 子图 ✅（这正是 -gpu 版缺的那个）。 2.41 GiB。",
+      "sources": [
+        {
+          "label": "ModelScope（国内主源）",
+          "url": "https://modelscope.cn/models/litert-community/gemma-4-E2B-it-litert-lm/resolve/master/gemma-4-E2B-it.litertlm",
+          "priority": 0
+        },
+        {
+          "label": "hf-mirror（HF 国内镜像）",
+          "url": "https://hf-mirror.com/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+          "priority": 1
+        },
+        {
+          "label": "HuggingFace 官方",
+          "url": "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "id": "gemma-3-1b-it",
+      "family": "gemma-3-1b-it",
+      "name": "Gemma 3 1B（通用版・0.54G）",
+      "kind": "text",
+      "engine": "litert-lm",
+      "format": "litertlm",
+      "quant": "int4",
+      "fileName": "Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+      "bytes": 584417280,
+      "sha256": null,
+      "license": "Apache-2.0",
+      "kvTokens": 4096,
+      "minRamGb": 4,
+      "socMatch": [],
+      "abi": "arm64-v8a",
+      "note": "通用版（非机型专属）。**为什么不用 sm8850 专属版**：App 要适配很多机型，专属版只在一颗芯片上有意义，所以一律只收通用版 —— （代价：那个专属版是本仓唯一被本机验出**含** `tf_lite_prefill_decode` 的 Gemma3-1B，通用版没能验出，故标「未验证」。）0.54 GiB。",
+      "sources": [
+        {
+          "label": "ModelScope（国内主源）",
+          "url": "https://modelscope.cn/models/litert-community/Gemma3-1B-IT/resolve/master/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+          "priority": 0
+        },
+        {
+          "label": "hf-mirror（HF 国内镜像）",
+          "url": "https://hf-mirror.com/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+          "priority": 1
+        },
+        {
+          "label": "HuggingFace 官方",
+          "url": "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/Gemma3-1B-IT_multi-prefill-seq_q4_ekv4096.litertlm",
+          "priority": 2
+        }
+      ]
+    },
+    {
+      "id": "qwen3-0.6b",
+      "family": "qwen3-0.6b",
+      "name": "Qwen3 0.6B（0.57G）",
+      "kind": "text",
+      "engine": "litert-lm",
+      "format": "litertlm",
+      "quant": "mixed",
+      "fileName": "Qwen3-0.6B.litertlm",
+      "bytes": 614236160,
+      "sha256": null,
+      "license": "Apache-2.0",
+      "minRamGb": 4,
+      "socMatch": [],
+      "abi": "arm64-v8a",
+      "note": "本机取文件头验证：容器魔数 LITERTLM，且**含** `tf_lite_prefill_decode` 子图 ✅（这正是 -gpu 版缺的那个）。 0.57 GiB —— 最小且确证可用的一个。",
+      "sources": [
+        {
+          "label": "ModelScope（国内主源）",
+          "url": "https://modelscope.cn/models/litert-community/Qwen3-0.6B/resolve/master/Qwen3-0.6B.litertlm",
+          "priority": 0
+        },
+        {
+          "label": "hf-mirror（HF 国内镜像）",
+          "url": "https://hf-mirror.com/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B.litertlm",
+          "priority": 1
+        },
+        {
+          "label": "HuggingFace 官方",
+          "url": "https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B.litertlm",
+          "priority": 2
+        }
+      ]
+    }
+  ]
+}

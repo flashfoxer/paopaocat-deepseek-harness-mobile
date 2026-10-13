@@ -1,0 +1,215 @@
+/// 界面语言的回归测试。
+///
+/// 这里锁住三件容易**悄悄坏掉**的事：
+///
+///   1. **三张表的条目数必须一致** —— 少一条就是某个界面上那一句话退回中文，
+///      而它不会报错、也不会崩，只有切到那个语言才看得见。
+///   2. **占位符不能丢** —— `'{0} 个会话'` 的译文如果写成 `'会话'`，
+///      数字就凭空消失了（编译通过、运行也不报错）。
+///   3. **`const` widget 必须能被刷新** —— 这是整套方案的命门：
+///      `const Text(context.tr('设置'))` 这种写法能编译，但如果没有
+///      `DshI18n` 的依赖通知，父级重建时它会被原样复用、跳过 rebuild，
+///      于是"切了语言界面不变"。下面第 5 组测试就是钉住这个行为。
+library;
+
+import 'package:dsh_mobile/i18n/app_language.dart';
+import 'package:dsh_mobile/i18n/dsh_i18n.dart';
+import 'package:dsh_mobile/i18n/tables/en_table.dart';
+import 'package:dsh_mobile/i18n/tables/ja_table.dart';
+import 'package:dsh_mobile/i18n/tables/ko_table.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// 一个**刻意 const** 的探针：内部用 `context.tr` 取文案。
+/// 如果 InheritedWidget 那条链路断了，它在语言切换后不会重新 build。
+class _ConstProbe extends StatelessWidget {
+  const _ConstProbe();
+
+  @override
+  Widget build(BuildContext context) => Text(context.tr('设置'));
+}
+
+void main() {
+  group('三张表', () {
+    test('条目数一致，且规模对得上（1559 条界面文案）', () {
+      // 994 这个数不是随手写的：2026-10-09 按审计 P0-11/P1-5 清过一轮漂移
+      // （补 48 条漏翻 / 删 77 条陈旧 / 修 17 条换行错，三张表各自）。
+      // 清理的依据是 `install/i18n/check-tables.mjs` —— 那个脚本以前**不存在**，
+      // 只在表头注释里被引用（这就是漂移能攒到 48/77 的原因）。
+      // 以后改文案：先跑 check-tables，它会让你顺手把这里和表一起更新。
+      // ⚠️ 2026-10-11 1143 → 1144：新增「无需 Key」（免费模型那一组的状态徽标）。
+      // ⚠️ 2026-10-11 1144 → 1180：新增「修图」整页（36 条：档位/位置/强度/去水印说明…）。
+      // ⚠️ 2026-10-11 1180 → 1212：新增「图像 / 视频模型」设置（32 条：模型行/添加表单/边界说明…）。
+      // ⚠️ 2026-10-11 1212 → 1225：设置页「特殊权限」从"一排只有名字的按钮"改成
+      //    列表（每项：用途 + 手动路径 + 去设置）；同时删掉两条被替换的旧失败文案。
+      //    ⚠️ 这个数字是**读当前表实际长度**得出的。
+      // ⚠️ 2026-10-11 1225 → 1227：补上 media_page「擦除」改名后的 3 条新文案 +
+      //    ondevice_models_page 的「本地服务没起来：{0}」，同时删掉 2 条陈旧条目
+      //    （用 install/i18n/rewrite-tables.mjs 写盘，check-tables 已复核 0 漂移）。
+      // ⚠️ 2026-10-11 1227 → 1231：新增「图像 / 视频模型 → 添加模型」里的
+      //    **内置外部厂商**预设（6 家一行 chip）+ 两条边界说明 + 一条 Key 提示。
+      // ⚠️ 2026-10-11 1231 → 1251：**影视工具支持多个厂家**（用户纠正）——
+      //    新增厂家参数矩阵的 12 条说明（`MediaVendors` 的 note）+「尺寸 / 分辨率」
+      //    两个标签 +「已按这家支持的档位改成 {0}」+ 不支持时的两句如实说明 +
+      //    settings_tab 里改成事实的 3 条（视频内置厂商 / 图像边界 / 边界总结）；
+      //    同时删掉 4 条**已经不对**的旧话术（"图像请求按 Agnes 形状发"
+      //    "视频暂时没有内置外部厂商"等）。净 +23 是本次的改动。
+      //    另外 +1 是同事同时在改的 ondevice_models_page（llama.cpp 引擎那句）。
+      //    两次都用 install/i18n/rewrite-tables.mjs 写盘，check-tables 复核 0 漂移。
+      // ⚠️ 2026-10-11 1251 → 1258：补上**两条"永远翻不了"的路**（不是新增文案，
+      //    是这些文案以前根本没进过表）：
+      //    ① settings 里 6 家**图像预设的 note** 是数据表字面量、界面用
+      //       `Text(presetNote)` 原文显示 → 切英/日/韩露中文。改成
+      //       `context.tr(presetNote)` 并在 media_models.dart 加扫描器锚点（+6 条，
+      //       其中万相/MiniMax 两条是新改的端点说明）；
+      //    ② local_chat_page 里那句带参数的提示原来走 `_toast('中文', args)`，
+      //       字面量不在 `tr(...)` 里 → 扫描器看不见 → 表里没有 → 静默不翻。
+      //       改成 `_toastMsg(context.tr('…', args))`（+1 条）。
+      //    这次的 7 条**不是新功能文案**，是"本来就该翻、但机制上永远翻不了"的补齐。
+      // ⚠️ 2026-10-12 1258 → 1268：用户报的 4 条里两条带新文案 ——
+      //    ① 图像/视频模型那一页**新增 Key 输入**（原来只有一句"去云端大模型那边配"，
+      //       用户找不到地方填）：+8 条（标题、说明、按钮、两种状态、两个 toast、对话框）；
+      //    ② 擦除改成**图上自由框选**：+3 条（直接选的说明、快捷起点、宽/高微调两根滑杆）；
+      //    ③ 本地模型上下文那句重写（"已按它启动" → "上下文已收敛到 N 格"）：1 条换 1 条，
+      //       净 0；④ 面板不透明化不涉及文案。
+      //    另外 rewrite-tables 顺带删了 18 条陈旧键（其中含被上面 ③ 取代的那条）。
+      //    老规矩：`rewrite-tables.mjs` 写盘 → `check-tables.mjs` 复核 0 漂移。
+      // ⚠️ 2026-10-12 1268 → 1271：知识库切片修复带出 3 条 ——
+      //    知识库页要如实标出"这个索引是旧切法建的"（+2：状态行 + 说明）
+      //    与「重建（推荐）」按钮（+1）。
+      // ⚠️ 2026-10-12 1271 → 1283 → 1325（同一轮里的两次 +）：
+      //    · 1283：影视页「配音」改造 —— 加 MiniMax 这一家、音色下拉、
+      //      语速档位/滑杆、拉取音色，以及全部失败文案（+12）；
+      //    · 1325：搬入两个 Anthropic 开源技能时改写了
+      //      「第三方组件与许可」那一整段（-1 旧 key / +1 新 key，同时补上
+      //      前面配音那一批的 44 条译文）。老规矩：rewrite-tables 写盘 →
+      //      check-tables 复核 0 漂移（三张表条数必须一致）。
+      // ⚠️ 2026-10-12 1353 → 1367：工作台新增「创作 · 小说改游戏」入口（+14；许可段那次是"删旧加新"净 0）
+      //    与它的说明页（这是什么 / 七个阶段 / 怎么开始 / 边界），共 +14 条。
+      // ⚠️ 2026-10-12 1325 → 1334：设置 → 外观新增「思考过程」三档
+      //    （折叠 / 展开 / 不显示）+ 该分区的说明与「已落盘」提示（+9）。
+      // ⚠️ 2026-10-12 1387 → 1413：工作台新增「AI 角色（实验）」一格（+26）——
+      //    标题、入口说明、三张开局牌的每一段（名字/情境/角色/场景/目标）、
+      //    共用规则、开始按钮，以及四条"边界（如实说）"（+25）；
+      //    首句骨架 `promptTemplate` 单独算一条（+1，带 {0}..{4} 五个占位符，
+      //    让"【你演】/【场景】/【目标与结束条件】"这些小标题也跟语言走）。
+      //    注意这些中文都写在 `const` 数据表里，扫描器看不见 —— 靠
+      //    `ai_role_page.dart` 底部 `aiRoleI18nAnchors()` 里的字面量才被收进来
+      //    （同理见 `media_models.dart` 的 `_presetNoteAnchors`）。
+      // ⚠️ 2026-10-12 1413 → 1460：工作台新增「剪辑」一格（+47）——
+      //    五个操作（剪一段/拼接/抽音频/抽一帧/压小）的名字与说明、参数区的每一句、
+      //    资料库选片弹层、结果卡与四条"边界（如实说）"。
+      //    同样：五个操作写在 `ClipPage.ops` 这个 `const` 表里，靠
+      //    `clip_page.dart` 底部 `clipI18nAnchors()` 才收得到。
+      // ⚠️ 2026-10-12 1460 → 1499：首页那 13 条内置起始语（+39 = 13 × 标题/副标题/首句）。
+      //    这一批**不是靠锚点**收进来的，而是**修了扫描器本身**：
+      //    `builtin_starters.dart` 原来在 `scan.mjs` 的 SKIP_FILES 里（旧理由
+      //    "内置会话模板，点一下会发给电脑端"）——那条排除太宽：它连首页卡片的
+      //    **标题/副标题**（纯手机端 UI 文字）一起跳过了，于是切英/日/韩时
+      //    首页 13 张卡全是中文，而 check-tables 照样报 0 漂移。
+      //    现在把它移出 SKIP_FILES，那 39 条中文自己就是 key（不再需要锚点函数）。
+      expect(kEnTable.length, 1559);
+      expect(kJaTable.length, kEnTable.length);
+      expect(kKoTable.length, kEnTable.length);
+    });
+
+    test('没有任何译文是空的（空串会让界面上出现一片空白）', () {
+      final bad = <String>[];
+      for (final table in <Map<String, String>>[kEnTable, kJaTable, kKoTable]) {
+        table.forEach((k, v) {
+          if (v.trim().isEmpty) bad.add(k);
+        });
+      }
+      expect(bad, isEmpty, reason: '这些 key 的译文是空的：$bad');
+    });
+
+    test('中文即原文：中文语言下任何 key 都原样返回', () {
+      for (final k in kEnTable.keys) {
+        expect(DshStrings.translate(AppLanguage.zh, k), k);
+      }
+    });
+
+    test('占位符不丢：key 里出现的 {n} 必须在译文里也出现', () {
+      final problems = <String>[];
+      final re = RegExp(r'\{\d+\}');
+      for (final entry in <String, Map<String, String>>{
+        'en': kEnTable,
+        'ja': kJaTable,
+        'ko': kKoTable,
+      }.entries) {
+        entry.value.forEach((k, v) {
+          for (final m in re.allMatches(k)) {
+            final p = m.group(0)!;
+            if (!v.contains(p)) {
+              problems.add('[${entry.key}] 「$k」→「$v」丢了 $p');
+            }
+          }
+        });
+      }
+      expect(problems, isEmpty, reason: problems.take(10).join('\n'));
+    });
+
+    test('抽样：常用界面词确实翻成了目标语言', () {
+      expect(kEnTable['设置'], 'Settings');
+      expect(kJaTable['设置'], '設定');
+      expect(kKoTable['설정'] ?? kKoTable['设置'], isNotNull);
+      for (final t in <String>[
+        kEnTable['外观']!,
+        kJaTable['外观']!,
+        kKoTable['外观']!
+      ]) {
+        expect(t, isNotEmpty);
+      }
+    });
+  });
+
+  group('语言解析', () {
+    test('落盘值不认识时兜底到中文（绝不留在空状态）', () {
+      expect(AppLanguage.byId(null), AppLanguage.zh);
+      expect(AppLanguage.byId('nope'), AppLanguage.zh);
+      expect(AppLanguage.byId('ja'), AppLanguage.ja);
+      expect(AppLanguage.byId('ko'), AppLanguage.ko);
+    });
+
+    test('四种语言的 id 唯一且不可为空', () {
+      final ids = AppLanguage.values.map((l) => l.id).toSet();
+      expect(ids.length, AppLanguage.values.length);
+      expect(ids.every((i) => i.isNotEmpty), isTrue);
+    });
+  });
+
+  group('切语言能刷新界面（核心机制）', () {
+    testWidgets('const 子树在 DshI18n 换语言时也会重建', (tester) async {
+      // 中文
+      await tester.pumpWidget(
+        const DshI18n(
+          language: AppLanguage.zh,
+          child: MaterialApp(home: _ConstProbe()),
+        ),
+      );
+      expect(find.text('设置'), findsOneWidget);
+
+      // 同一个 const 实例，只换语言 —— 必须变成英文
+      await tester.pumpWidget(
+        const DshI18n(
+          language: AppLanguage.en,
+          child: MaterialApp(home: _ConstProbe()),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('设置'), findsNothing);
+    });
+
+    testWidgets('中文界面里查表不会把中文换成别的', (tester) async {
+      await tester.pumpWidget(
+        const DshI18n(
+          language: AppLanguage.zh,
+          child: MaterialApp(home: _ConstProbe()),
+        ),
+      );
+      expect(find.text('设置'), findsOneWidget);
+      expect(find.text('Settings'), findsNothing);
+    });
+  });
+}

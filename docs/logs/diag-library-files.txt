@@ -1,0 +1,152 @@
+=== 1) logcat：会话 cwd / 工作区 / 会话就绪 ===
+  10-03 10:09:36.154  3473  3473 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:09:41.781  3473  3473 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1554ms
+  10-03 10:10:17.081  3473  3473 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:10:39.378  3473  3473 I flutter : [chat] ACP session ready: c578fcdd-c565-4c54-bd1c-f5bd723b11b6 model=未配置模型 cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 10:17:15.016  4912  4912 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:17:18.201  4912  4912 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1001ms
+  10-03 10:17:37.179  4912  4912 I flutter : [dsh-nav] open workspace page (current=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:42:31.783  5432  5432 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:42:34.996  5432  5432 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=801ms
+  10-03 10:42:55.391  5432  5432 I flutter : [dsh-nav] open workspace page (current=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:44:06.470  5625  5625 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:44:10.724  5625  5625 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=721ms
+  10-03 10:44:28.253  5625  5625 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:44:36.423  5625  5625 I flutter : [chat] ACP session ready: 84447ad7-629c-4c3e-bcc0-ef34ac9c5f92 model=未配置模型 cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 10:47:06.346  5895  5895 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:47:09.996  5895  5895 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1152ms
+  10-03 10:47:27.393  5895  5895 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:47:47.824  5895  5895 I flutter : [chat] ACP session ready: aec14d63-2d8d-4c60-8450-d9bfd3767bb8 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 10:47:59.940  5895  5895 I flutter : [chat] thought: The user says "进行文档处理" (perform document processing). This is vague. I should ask for clarification or check the workspace for documents.
+  10-03 10:48:03.870  5895  5895 I flutter : [chat] thought: The sandbox isn't usable. I need to request sandbox_permissions. Actually the error says sandbox mode workspace-write requested but no backend usable. I should r
+  10-03 11:02:10.042  6538  6538 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:02:13.363  6538  6538 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=545ms
+  10-03 11:02:47.361  6644  6644 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:02:50.134  6644  6644 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=462ms
+  10-03 11:03:08.029  6644  6644 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:03:23.257  6644  6644 I flutter : [chat] ACP session ready: 268a3dcc-f881-4640-8e62-fdf447274163 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:03:40.388  6644  6644 I flutter : [chat] thought: The user says "进行文档处理" (perform document processing). That's very vague. I should look at the workspace to see what documents are there. Let me explore.
+  10-03 11:03:40.391  6644  6644 I flutter : [chat] message: 我先看看工作区里有哪些文件，再决定如何处理。
+  10-03 11:03:44.491  6644  6644 I flutter : [chat] thought: The sandbox can't run commands. Let me try with sandbox_permissions danger-full-access? The policy says ask. I should attempt the narrowest wider mode. The error
+  10-03 11:06:57.649  7103  7103 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:07:00.725  7103  7103 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=423ms
+  10-03 11:10:02.523  7321  7321 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:10:05.948  7321  7321 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1080ms
+  10-03 11:10:24.122  7321  7321 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:10:39.544  7321  7321 I flutter : [chat] ACP session ready: 8c98ba14-9543-4f36-a082-d854cc1b90d4 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:10:56.712  7321  7321 I flutter : [chat] thought: The user says "进行文档处理" (perform document processing). This is very vague. I should first look at the workspace to see what documents exist.
+  10-03 11:10:56.714  7321  7321 I flutter : [chat] message: 我先看看工作区里有哪些待处理的文档。
+  10-03 11:11:02.250  7321  7321 I flutter : [chat] message: Shell sandbox不可用，我改用文件工具来探测工作区。
+  10-03 11:11:15.264  7321  7321 I flutter : [chat] thought: Interesting: the `read` tool works (it gave "not found" rather than a sandbox error), so the filesystem backend functions but the directory is empty (no AGENTS.m
+  10-03 11:11:44.299  7525  7525 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:11:47.727  7525  7525 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=483ms
+  10-03 11:12:03.923  7525  7525 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:12:13.551  7525  7525 I flutter : [chat] ACP session ready: 9dc1a821-a164-4d5b-b81f-dacd2acc2b9d model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:13:24.144  7785  7785 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:13:27.322  7785  7785 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=471ms
+  10-03 11:13:44.866  7785  7785 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:13:54.082  7785  7785 I flutter : [chat] ACP session ready: e99c2b72-9c82-4fde-af3b-c26a3012f567 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:14:57.525  8069  8069 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:15:00.574  8069  8069 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=605ms
+  10-03 11:15:18.369  8069  8069 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:15:26.471  8069  8069 I flutter : [chat] ACP session ready: 0dcabaea-aa03-43f1-aaf4-d56564042612 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:46:59.275  8519  8519 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:47:03.092  8519  8519 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1302ms
+  10-03 11:47:20.950  8519  8519 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:47:39.702  8519  8519 I flutter : [chat] ACP session ready: e8313ffc-df90-400e-8382-e4e226ecdc30 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 11:48:53.739  8775  8775 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:48:56.683  8775  8775 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=528ms
+  10-03 11:50:13.814  8920  8920 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:50:16.687  8920  8920 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=512ms
+
+=== 2) files/ 顶层 ===
+total 112
+drwxrwx--x  8 u0_a192 u0_a192 4096 2026-10-03 11:47 .
+drwx------  7 u0_a192 u0_a192 4096 2026-10-02 08:21 ..
+-rw-------  1 u0_a192 u0_a192   26 2026-10-02 08:23 .dsh-runtime-1
+-rw-rw-rw-  1 u0_a192 u0_a192   94 2026-10-02 09:15 dev-api-key.txt
+drwx------  4 u0_a192 u0_a192 4096 2026-10-02 08:22 dsh
+drwx------  5 u0_a192 u0_a192 4096 2026-10-03 04:07 dshhome
+-rw-------  1 u0_a192 u0_a192  239 2026-10-03 10:47 models.json
+-rw-------  1 u0_a192 u0_a192   24 2026-10-03 11:47 profileInstalled
+-rw-rw-rw-  1 u0_a192 u0_a192  411 2026-10-03 08:45 schedules.json
+drwx------  2 u0_a192 u0_a192 4096 2026-10-02 08:23 shims
+drwx------ 29 u0_a192 u0_a192 4096 2026-10-03 11:47 tmp
+drwx------  2 u0_a192 u0_a192 4096 2026-10-02 09:22 workspace
+drwx------  3 u0_a192 u0_a192 4096 2026-10-03 03:14 workspaces
+-rw-------  1 u0_a192 u0_a192  459 2026-10-03 11:50 workspaces.json
+
+=== 3) workspaces.json（工作区登记表） ===
+{
+  "version": 1,
+  "current": "/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws",
+  "workspaces": [
+    {
+      "name": "默认工作区",
+      "path": "/data/user/0/com.dshmobile.dsh_mobile/files/workspace",
+      "isDefault": true,
+      "createdAt": 0
+    },
+    {
+      "name": "moni-ws",
+      "path": "/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws",
+      "isDefault": false,
+      "createdAt": 1790997298432
+    }
+  ]
+}
+
+=== 4) files/workspaces 递归（前 60 行） ===
+files/workspaces:
+total 24
+drwx------ 3 u0_a192 u0_a192 4096 2026-10-03 03:14 .
+drwxrwx--x 8 u0_a192 u0_a192 4096 2026-10-03 11:47 ..
+drwx------ 2 u0_a192 u0_a192 4096 2026-10-03 03:14 moni-ws
+
+files/workspaces/moni-ws:
+total 24
+drwx------ 2 u0_a192 u0_a192 4096 2026-10-03 03:14 .
+drwx------ 3 u0_a192 u0_a192 4096 2026-10-03 03:14 ..
+-rw------- 1 u0_a192 u0_a192   92 2026-10-03 03:14 WORKSPACE-INFO.txt
+
+=== 5) files/workspace（单数，默认工作区） ===
+total 32
+drwx------ 2 u0_a192 u0_a192 4096 2026-10-02 09:22 .
+drwxrwx--x 8 u0_a192 u0_a192 4096 2026-10-03 11:47 ..
+-rw------- 1 u0_a192 u0_a192   57 2026-10-02 09:17 MEMORY.md
+-rw------- 1 u0_a192 u0_a192   33 2026-10-02 09:22 memory.md
+
+=== 6) 找 pptx/ppt ===
+
+=== 7) 找常见产物（md/txt/html/docx/xlsx） ===
+files/dev-api-key.txt
+files/dsh/README.md
+files/dsh/README.zh.md
+files/dshhome/AGENTS.md
+files/workspace/MEMORY.md
+files/workspace/memory.md
+files/workspaces/moni-ws/WORKSPACE-INFO.txt
+  …（另有 1036 行落在运行时目录里，已折叠）
+
+=== 8) 写盘失败痕迹（沙箱/权限）===
+  10-03 10:09:17.280   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 10:09:19.389   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 10:09:29.956   959  1009 D SubscriptionUtil: getSelectableSubscriptionInfoList: [[SubscriptionInfo: id=1 iccId=89860318640220133897 simSlotIndex=0 portIndex=0 isEmbedded=false carrierId=1 displayName=T-Mobile carri
+  10-03 10:09:29.959   959  1009 D SubscriptionUtil: getSelectableSubscriptionInfoList: [[SubscriptionInfo: id=1 iccId=89860318640220133897 simSlotIndex=0 portIndex=0 isEmbedded=false carrierId=1 displayName=T-Mobile carri
+  10-03 10:46:30.031   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 10:46:30.472   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 10:48:03.870  5895  5895 I flutter : [chat] thought: The sandbox isn't usable. I need to request sandbox_permissions. Actually the error says sandbox mode workspace-write requested but no backend usable. I should r
+  10-03 11:01:44.741   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 11:01:45.092   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 11:03:44.491  6644  6644 I flutter : [chat] thought: The sandbox can't run commands. Let me try with sandbox_permissions danger-full-access? The policy says ask. I should attempt the narrowest wider mode. The error
+  10-03 11:03:44.493  6644  6644 I flutter : Actually let me first try read tool or other tools that might not need shell. glob failed too because ripgrep launch failed (same sandbox). Let me try read on a guessed path? Be
+  10-03 11:09:53.985   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 11:09:54.165   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 11:11:02.243  7321  7321 I flutter : [chat] thought: The sandbox backend isn't usable. Hmm. This is a platform issue. Let me try the file tools instead (glob, read) which may use a different backend.
+  10-03 11:11:02.250  7321  7321 I flutter : [chat] message: Shell sandbox不可用，我改用文件工具来探测工作区。
+  10-03 11:11:15.264  7321  7321 I flutter : [chat] thought: Interesting: the `read` tool works (it gave "not found" rather than a sandbox error), so the filesystem backend functions but the directory is empty (no AGENTS.m
+  10-03 11:11:21.969  7321  7321 I flutter : - glob/grep unusable (ripgrep won't launch, likely sandbox).
+  10-03 11:46:47.806   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+  10-03 11:46:47.962   543   718 I SdkSandboxManager: No SDKs used. Skipping SDK data reconcilation for CallingInfo{mUid=10192, mPackageName='com.dshmobile.dsh_mobile, mAppProcessToken='null'}
+
+=== 9) 模型提到 ppt / 文件名的地方 ===

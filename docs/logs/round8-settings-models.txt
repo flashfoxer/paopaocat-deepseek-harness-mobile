@@ -1,0 +1,52 @@
+=== 划一次后的可见文本 ===
+设置
+重新测试
+修改配置
+插件
+安装插件&#10;暂未开放&#10;按你的要求先留占位。让用户自行安装插件需要一整套校验与回滚机制（插件是能执行任意代码的），在没做完之前不放可点入口。
+文件地址
+运行时目录&#10;工作目录&#10;会话记录&#10;技能目录&#10;附件目录&#10;工具脚本&#10;模型配置&#10;以上都在 App 私有目录里，其它应用读不到；长按可以复制。
+关于
+做这个主要是下班晚上才有时间做，而且本人公众号一直没有人关注，要求不多：），麻烦大家点个关注就行&#10;应用名&#10;基于 DeepSeek Harness 的本地运行时，除模型接口外不依赖任何服务器。
+首页&#10;首页
+专家&#10;专家
+资料库&#10;资料库
+定时任务&#10;定时任务
+设置&#10;设置
+deepseek/deepseek-v4.1-flash
+https://api.commandcode.ai/provider/v1
+
+[OK] 模型段处于收起态（有「修改配置」）
+点「修改配置」@ (711, 632)
+
+=== 检查项（模型段）===
+  [OK] 出现「我的模型」
+  [MISS] 出现「设为默认」
+  [OK] 出现「获取模型」
+  [OK] 出现「测试并保存」
+  [MISS] 出现「可以多选」
+  [OK] 出现「自定义模型」
+
+=== 展开后的可见文本 ===
+设置
+模型已配置&#10;服务商&#10;选一家，端点自动填好，你只需要补 Key&#10;一个 Key 即可用 DeepSeek / MiMo / LongCat / GLM / Qwen / Claude / GPT 等全部模型。&#10;「获取模型」需要先填 Key：实测 deepseek / command / longcat / mimo 四家的 /models 都要鉴权，不带 Key 一律返回 401。&#10;我的模型&#10;会话里的模型面板就是这份清单；默认模型会被「测试并保存」验证&#10;deepseek/deepseek-v4.1-flash&#10;deepseek/deepseek-v4.1-flash&#10;自定义模型&#10;列表里没有就手填 model id
+点上面列表里的模型会自动填这里；也能直接手打
+插件
+安装插件&#10;暂未开放&#10;按你的要求先留占位。让用户自行安装插件需要一整套校验与回滚机制（插件是能执行任意代码的），在没做完之前不放可点入口。
+文件地址
+运行时目录&#10;工作目录&#10;会话记录&#10;技能目录&#10;附件目录&#10;工具脚本&#10;模型配置&#10;以上都在 App 私有目录里，其它应用读不到；长按可以复制。
+关于
+做这个主要是下班晚上才有时间做，而且本人公众号一直没有人关注，要求不多：），麻烦大家点个关注就行&#10;应用名&#10;基于 DeepSeek Harness 的本地运行时，除模型接口外不依赖任何服务器。
+首页&#10;首页
+专家&#10;专家
+资料库&#10;资料库
+定时任务&#10;定时任务
+设置&#10;设置
+deepseek/deepseek-v4.1-flash
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome
+/data/user/0/com.dshmobile.dsh_mobile/files
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/sessions
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/skills
+/data/user/0/com.dshmobile.dsh_mobile/files/attachments
+/data/user/0/com.dshmobile.dsh_mobile/files/tools
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/model.overlay.yml

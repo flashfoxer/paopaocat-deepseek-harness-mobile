@@ -1,0 +1,223 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- 与电脑端桥（WebSocket）通信所必需 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- ⚠️ 这里原来还声明了 ACCESS_NETWORK_STATE（审计 P2：声明了但没人用）。
+         已核实：本 App 没有任何代码读系统网络状态（会话页那个 isConnected 是**桥的
+         WebSocket 状态**，见 bridge_state.dart）；依赖里也没有声明它
+         （flutter_secure_storage / shared_preferences / webview_flutter /
+         web_socket_channel / provider —— 都查过）。用不到的权限就不申请。 -->
+
+    <!-- 定时任务：用前台服务把进程留在后台（见 DshSchedulerService）。
+         dataSync 类型在 Android 14+ 有每天约 6 小时的累计上限 —— 这是系统限制，
+         已在界面与 HANDOFF 里如实写明。 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <!-- Android 13+ 不授权则常驻通知不可见（服务仍会运行） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- 语音输入：Android 的 SpeechRecognizer（含 12+ 的设备端离线识别）**要求调用方自己
+         持有 RECORD_AUDIO**，否则会直接回调 error=9（ERROR_INSUFFICIENT_PERMISSIONS）。
+         用户实测反馈「语音依然不能使用」的真因就是这个：0.10 改成直接调设备端识别后，
+         清单里既没声明也没申请过麦克风。运行时申请见 MainActivity.recognizeSpeech。 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
+    <!-- 设置页「手机权限」分区里可以申请的一组权限（用户意见⑦）。
+         声明只是"允许申请"，真正拿到仍要用户在系统弹窗里点允许（运行时申请，
+         见 MainActivity.requestAppPermissions）。
+         相册在 Android 13+ 用 READ_MEDIA_*，12 及以下退到 READ_EXTERNAL_STORAGE。 -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+
+    <!-- ══════════ 特殊权限（设置页「手机权限 → 特殊权限」那 5 项）══════════
+
+         ⚠️ 用户第 7 条原话：「特殊权限这里有几个选项打开以后是无法点选的，这些权限
+         到底是干嘛的」。**"无法点选"的根因就是这里**：0.60 及之前，界面已经从
+         「手机权限」直接跳到这 5 个系统页（MainActivity.openSpecialSettingsPage），
+         但清单里**一条都没声明**。Android 的规则是：应用没在清单里声明的特殊权限，
+         系统设置页里对应本应用的条目**要么是灰的、要么根本不出现** —— 用户点进去
+         自然"没法点选"。
+
+         每一条的**官方依据**（devsite 原文，都是逐句核对过的）：
+         · MANAGE_EXTERNAL_STORAGE ——《Manage all files on a storage device》：
+           "An app can request all-files access from the user by doing the following:
+            Declare the MANAGE_EXTERNAL_STORAGE permission in the manifest. Use the
+            ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION intent action to direct users to a
+            system settings page …"（我们 `all-files` 走的正是那个 intent）
+         · SYSTEM_ALERT_WINDOW —— Manifest.permission 原文："Allows an app to create
+           windows using the type …TYPE_APPLICATION_OVERLAY, shown on top of all other
+           apps. … Note: If the app targets API level 23 or higher, the app user must
+           explicitly grant this permission to the app through a permission management
+           screen. The app requests the user's approval by sending an intent with action
+           Settings.ACTION_MANAGE_OVERLAY_PERMISSION …"；Protection level 含 signature。
+         · WRITE_SETTINGS —— 原文："Allows an application to read or write the system
+           settings. … the app user must explicitly grant this permission … The app
+           requests the user's approval by sending an intent with action
+           Settings.ACTION_MANAGE_WRITE_SETTINGS. The app can check whether it has this
+           authorization by calling Settings.System.canWrite()."；Protection level:
+           signature|preinstalled|appop|pre23。
+         · PACKAGE_USAGE_STATS —— 原文："Allows an application to collect component usage
+           statistics. **Declaring the permission implies intention to use the API** and
+           the user of the device can grant permission through the Settings application."；
+           Protection level: signature|privileged|development|appop|retailDemo。
+           （也就是说：不声明 → 系统那个列表里没有本应用 → 用户想给也给不了。）
+         · REQUEST_INSTALL_PACKAGES —— 原文："Allows an application to request installing
+           packages. Apps targeting APIs greater than 25 must hold this permission in
+           order to use Intent.ACTION_INSTALL_PACKAGE."；Protection level: signature。
+
+         tools:ignore 是**给 Android Lint 看的**，不是系统要求（删掉照样能装）：
+         · ScopedStorage —— 官方那页明写：声明 MANAGE_EXTERNAL_STORAGE 时 Android Studio
+           会弹一条 lint 警告（因为 Google Play 对这个权限有使用政策）。我们确实要用
+           （只用来跳系统页让用户自己开），所以显式抑制。
+         · ProtectedPermissions —— 上面 4 条的 protectionLevel 都含 **signature**，
+           Lint 会对"普通应用声明签名级权限"报警；我们不是伪造系统权限，只是要在清单里
+           声明之后，系统设置页才会给出对应的开关。所以显式抑制。
+
+         ⚠️ MANAGE_EXTERNAL_STORAGE 只在 Android 11(API 30)+ 存在；低版本仍走上面那条
+         READ_EXTERNAL_STORAGE（maxSdkVersion=32）与运行时申请，声明它不会影响低版本。
+         ⚠️ 这 4 个 intent 的目标页在**国产 ROM 上可能被改名/藏起来**（界面侧已如实给出
+         手动路径），这不是声明能解决的，只能引导用户。 -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage"/>
+    <uses-permission
+        android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions"/>
+    <uses-permission
+        android:name="android.permission.REQUEST_INSTALL_PACKAGES"
+        tools:ignore="ProtectedPermissions"/>
+
+    <!-- 声明「本 App 可受益于 NPU」但不强制（与官方 AI Edge Gallery 一致）。
+         ⚠️ 位置有讲究：`<uses-feature>` 必须是 `<manifest>` 的**直接子元素**，
+         放进 `<application>` 会让 AAPT 直接报错
+         （unexpected element <uses-feature> found in <manifest><application>）。 -->
+    <uses-feature android:name="android.hardware.npu" android:required="false"/>
+
+    <application
+        android:label="泡泡猫的Deepseek harness"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:enableOnBackInvokedCallback="true">
+        <!-- ── 端侧推理引擎（LiteRT-LM）要加载的**厂商私有库**声明 ──────────────
+             Android 12+（本 App targetSdk=36）起，应用命名空间只能 dlopen
+             「APK 内自带」/「public.libraries.txt 列出」/「这里声明过」的原生库。
+             LiteRT-LM 的 `liblitertlm_jni.so` 是**运行时 dlopen** 下面这几个库的：
+
+               libOpenCL.so      → GPU(OpenCL) 后端。缺它时该 .so 自己会打印
+                                   「Failed to load OpenCL library with dlopen: 」
+                                   「Failed to load OpenCL for LiteRT.」→ GPU 直接不可用。
+               libcdsprpc.so     → 高通 CDSP/Hexagon（NPU/DSP）通信
+               libvndksupport.so → vendor 库加载辅助
+               libion.so         → 高通 ION 显存/内存分配（GPU 缓冲）
+
+             依据：**官方 Google AI Edge Gallery 的 AndroidManifest 就是这么声明的**
+             （github.com/google-ai-edge/gallery，其 <application> 下有
+             libvndksupport.so / libOpenCL.so / libcdsprpc.so 三条），
+             且这些库名是从我们包内 `liblitertlm_jni.so` 的字符串里逐条对出来的。
+             一律 required="false"：没有这些库的设备照样能装，只是用不了对应后端。 -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false"/>
+        <uses-native-library android:name="libcdsprpc.so" android:required="false"/>
+        <uses-native-library android:name="libvndksupport.so" android:required="false"/>
+        <uses-native-library android:name="libion.so" android:required="false"/>
+        <!-- ── 高通 NPU（Hexagon / AI Engine Direct · QNN）要 dlopen 的库 ──────────
+             库名是从 `litert-npu-runtime-qualcomm:2.3.0` 的
+             `libLiteRtCompilerPlugin_Qualcomm.so` / `libLiteRtDispatch_Qualcomm.so`
+             两个 .so 的字符串里逐条对出来的（它们由 Qualcomm 的运行时在设备上提供）。
+             全部 required="false"：没有的设备照样能装，只是用不了 NPU 档。
+             注：官方那份 AAR 自己只声明了 libcdsprpc.so（我们早已声明）；这里把其余
+             QNN 库一并声明，是为了避免在 Android 12+ 上因缺少声明而 dlopen 失败。 -->
+        <uses-native-library android:name="libQnnHtp.so" android:required="false"/>
+        <uses-native-library android:name="libQnnDsp.so" android:required="false"/>
+        <uses-native-library android:name="libQnnGpu.so" android:required="false"/>
+        <uses-native-library android:name="libQnnIr.so" android:required="false"/>
+        <uses-native-library android:name="libQnnLpai.so" android:required="false"/>
+        <uses-native-library android:name="libQnnSaver.so" android:required="false"/>
+        <uses-native-library android:name="libQnnSystem.so" android:required="false"/>
+        <!-- enableOnBackInvokedCallback 是**必须**的（用户第 10 条反馈的修复前提）：
+             targetSdk ≥ 35 时 Android 默认走"predictive back"，返回手势由**系统**直接
+             处理；Flutter 只有在清单里显式开这个开关后才会注册 OnBackInvokedCallback，
+             把返回事件交给框架里的 PopScope / Navigator。
+             关着的时候实测过：在首页按一次返回 / 边缘侧滑，App 直接被退到后台，
+             Dart 侧一行业务日志都没有（我们的"再滑一次才退"根本没机会执行）。 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- 定时任务保活服务：常驻通知 + 前台服务 -->
+        <service
+            android:name=".DshSchedulerService"
+            android:exported="false"
+            android:stopWithTask="false"
+            android:foregroundServiceType="dataSync" />
+        <!-- 拍照：把照片写到 App 私有目录 attachments/，再把这个 URI 授权给相机应用。
+             authority 必须与 MainActivity 里 FileProvider.getUriForFile 用的完全一致。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- 拍照与语音识别也要声明：Android 11+ 不声明的话，解析这些 Intent
+             会拿不到任何候选（哪怕系统里明明有相机/语音服务）。 -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE"/>
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
+        </intent>
+        <!-- 「打开本机应用」已于 2026-10-10 取消（用户要求），随之删掉了
+             可见 launcher 应用的 <intent> 声明 —— 少一条可见面。 -->
+    </queries>
+</manifest>

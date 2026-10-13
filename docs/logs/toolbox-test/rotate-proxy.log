@@ -1,0 +1,22 @@
+2026-10-04T02:59:06.544Z [rotate] 配置：D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\docs\logs\toolbox-test\rotate-config.json | 组=cat(2 个成员), allbad(2 个成员) | lastGood={} | 日志文件=D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\docs\logs\toolbox-test\rotate-proxy.log
+2026-10-04T02:59:06.586Z [rotate] → cat: model="cat" stream=false 起始成员=deepseek
+2026-10-04T02:59:06.599Z [rotate] cat: deepseek 失败(429)，改用 qwen
+2026-10-04T02:59:06.604Z [rotate] cat: qwen 成功（第 2 个成员顶上）
+2026-10-04T02:59:06.617Z [rotate] → cat: model="cat" stream=false 起始成员=qwen(粘性)
+2026-10-04T02:59:06.620Z [rotate] cat: qwen 成功
+2026-10-04T02:59:06.632Z [rotate] → cat: model="cat" stream=true 起始成员=qwen(粘性)
+2026-10-04T02:59:06.700Z [rotate] cat: qwen 成功
+2026-10-04T02:59:06.703Z [rotate] → allbad: model="allbad" stream=false 起始成员=m1
+2026-10-04T02:59:06.704Z [rotate] allbad: m1 失败(429)，改用 m2
+2026-10-04T02:59:06.705Z [rotate] allbad: m2 失败(429)，没有更多成员可用
+2026-10-04T03:19:35.508Z [rotate] 配置：D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\docs\logs\toolbox-test\rotate-config.json | 组=cat(2 个成员), allbad(2 个成员) | lastGood={} | 日志文件=D:\新建文件夹\新建文件夹\新建文件夹\新建文件夹\dsh-mobile\docs\logs\toolbox-test\rotate-proxy.log
+2026-10-04T03:19:35.547Z [rotate] → cat: model="cat" stream=false 起始成员=deepseek
+2026-10-04T03:19:35.558Z [rotate] cat: deepseek 失败(429)，改用 qwen
+2026-10-04T03:19:35.563Z [rotate] cat: qwen 成功（第 2 个成员顶上）
+2026-10-04T03:19:35.573Z [rotate] → cat: model="cat" stream=false 起始成员=qwen(粘性)
+2026-10-04T03:19:35.576Z [rotate] cat: qwen 成功
+2026-10-04T03:19:35.591Z [rotate] → cat: model="cat" stream=true 起始成员=qwen(粘性)
+2026-10-04T03:19:35.661Z [rotate] cat: qwen 成功
+2026-10-04T03:19:35.675Z [rotate] → allbad: model="allbad" stream=false 起始成员=m1
+2026-10-04T03:19:35.678Z [rotate] allbad: m1 失败(429)，改用 m2
+2026-10-04T03:19:35.679Z [rotate] allbad: m2 失败(429)，没有更多成员可用

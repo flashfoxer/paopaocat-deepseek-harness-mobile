@@ -1,0 +1,8 @@
+device: x86_64
+首页可见: 泡泡猫的DSH | 本机 · moni-ws | 工作区&#10;工作区 | 泡泡猫 | 欢迎来到泡泡猫的DSH | 请帮忙推广一下我的公众号，粉丝太少没有更新动力了 | 我帮你用泡泡猫的DSH，把想法做成成品 | 进行数据分析及可视化 | 进行文档处理 | 做一份幻灯片 | 视频制作工作台 | 换一换
+工作区入口坐标: (940, 276)
+工作区页可见: 返回 | 工作区 | 刷新会话索引 | 新建工作区&#10;新建工作区 | 工作区 = DSH 运行的工作目录（cwd）。当前：moni-ws | /data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws | 正在读磁盘上的历史会话… | 默认工作区 已收起，点击展开&#10;默认工作区&#10;默认&#10;/data/user/0/com.dshmobile.dsh_mobile/files/workspace&#10;点击展开会话 | 切换到 默认工作区&#10;切换 | moni-ws 当前工作区 已收起，点击展开&#10;moni-ws&#10;当前&#10;/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws&#10;点击展开会话 | 本 | 本机用户 | 本地运行时 · 非云端账户 | 本机工作区
+出现「点击展开会话」= True
+收起状态下是否仍显示「N 个会话」= False（应为 False）
+shot: round6_workspace
+展开后出现「N 个会话」= True

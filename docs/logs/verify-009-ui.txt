@@ -1,0 +1,138 @@
+# 0.09 界面侧验证
+时间: 2026-10-04 12:07:47
+
+## 设备
+List of devices attached
+emulator-5554	device
+
+## 1. 首页内置会话
+界面可见的文案（前 40 条）：
+  - 泡泡猫的DSH
+  - 本机 · moni-ws
+  - 工作区
+  - 泡泡猫
+  - 欢迎来到泡泡猫的DSH
+  - v0.09
+  - 请帮忙推广一下我的公众号，粉丝太少没有更新动力了
+  - 我帮你用泡泡猫的DSH，把想法做成成品
+  - 点一条 → 带着对应技能的指令开新会话
+  - 做一份幻灯片：生成真正的 .pptx（不是 HTML 糊弄）
+  - 做一份幻灯片
+  - 生成一张图片：Agnes 文生图（当前免费）
+  - 生成一张图片
+  - 生成一段视频：Agnes 文生视频（异步，等几分钟）
+  - 生成一段视频
+  - 数据分析与可视化：CSV/JSON → 结论 + 图表
+  - 数据分析与可视化
+  - 文档处理：摘要 / 改写 / 纠错 / 转格式
+  - 文档处理
+  - 长文速读提炼：要点 + 时间线，别再让我读完
+  - 长文速读提炼
+  - 换一换
+  - 开始新会话
+  - 首页
+  - 专家
+  - 资料库
+  - 定时任务
+  - 设置
+命中的内置会话标题（6 条）：做一份幻灯片、生成一张图片、生成一段视频、数据分析与可视化、文档处理、长文速读提炼
+有「换一换」按钮：True
+小结：一次显示 6 条（期望 6 条左右，且不应只有老的 4 条）
+「换一换」坐标：(152, 1846)
+第 1 次点击生效
+换一换之后的标题（6 条）：文档处理、表格整理、代码小工具、文件整理归档、中英互译润色、生成学习卡片
+换一换前后是同一批吗：False（期望 False）；这次换掉 5 条（契约要求 ≥4）
+
+## 2. 设置页（多厂家 / 轮换组 / Agnes 预设）
+  含「我的模型」：False
+  含「轮换组」：True
+  含「添加厂家」：True
+  含「添加模型」：False
+  含「Agnes」：True
+  含「免费」：True
+  含「platform.agnes-ai.cn」：True
+设置页各屏可见文案（去重后，前 60 条）：
+  - 设置
+  - 外观
+  - 字号
+  - 全局生效，改完立即应用
+  - 主题
+  - 当前仅深色
+  - 浅色主题需要先把各页面的固定配色抽成主题变量（约二十个文件），尚未做，所以这里是置灰的 —— 不是点了没反应的假开关。
+  - 小
+  - 标准
+  - 大
+  - 特大
+  - 深色
+  - 浅色（未适配）
+  - 模型
+  - 重新测试
+  - 打开填写表单
+  - 设为默认
+  - 删除这条模型
+  - 首页
+  - 专家
+  - 资料库
+  - 定时任务
+  - rotate/cat
+  - Command（聚合，推荐）
+  - deepseek/deepseek-v4.1-flash
+  - https://api.commandcode.ai/provider/v1
+  - 来自本机安全存储（这家厂家自己的那把）
+  - 编辑
+  - 删除厂家
+  - + 添加厂家/模型
+  - Key 只存本机系统安全区（Android Keystore）：不写进 models.json、不进日志、也不会传到别处。留空 = 先只添加厂家，Key 之后再填。
+  - 复制地址
+  - 一键添加 Agnes（免费）
+  - https://platform.agnes-ai.cn
+  - 默认
+  - 删除
+  - + 新建轮换组
+  - 插件
+  - 安装插件
+  - 暂未开放
+  - 按你的要求先留占位。让用户自行安装插件需要一整套校验与回滚机制（插件是能执行任意代码的），在没做完之前不放可点入口。
+  - 文件地址
+  - 运行时目录
+  - 工作目录
+  - 会话记录
+  - 技能目录
+  - 附件目录
+  - 工具脚本
+  - 模型配置
+  - 以上都在 App 私有目录里，其它应用读不到；长按可以复制。
+  - /data/user/0/com.dshmobile.dsh_mobile/files/dshhome
+  - /data/user/0/com.dshmobile.dsh_mobile/files
+  - /data/user/0/com.dshmobile.dsh_mobile/files/dshhome/sessions
+  - /data/user/0/com.dshmobile.dsh_mobile/files/dshhome/skills
+  - /data/user/0/com.dshmobile.dsh_mobile/files/attachments
+  - /data/user/0/com.dshmobile.dsh_mobile/files/tools
+  - /data/user/0/com.dshmobile.dsh_mobile/files/dshhome/model.overlay.yml
+  - 关于
+  - 做这个主要是下班晚上才有时间做，而且本人公众号一直没有人关注，要求不多：），麻烦大家点个关注就行
+  - 应用名
+
+## 4. HTML 产物的预览路径（渲染 vs 源码）
+已把自包含 HTML 放进工作区（files/workspaces/moni-ws/demo.html）
+资料库可见文案：资料库、重新扫描工作区、最近、我的资料、/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws、工作区 4 个文件、文件 demo.html 304 B 刚刚、demo.html、HTML · 304 B · 刚刚、文件 probe.pdf 0 B 11 小时前、probe.pdf、PDF · 0 B · 11 小时前、文件 sandbox_probe.txt 6 B 13 小时前、sandbox_probe.txt、TXT · 6 B · 13 小时前、文件 WORKSPACE-INFO.txt 92 B 1 天前、WORKSPACE-INFO.txt、TXT · 92 B · 1 天前、首页、专家、定时任务、设置
+预览页可见文案：Back、demo.html、分享、App 内网页预览 · 304 B、查看源码、浏览器打开
+  含「查看源码」（= 走的是 HTML 渲染预览）：True
+  含「浏览器打开」：True
+  含「分享」（用户第 1 条）：True
+
+## 3. logcat 关键日志
+- [dsh-toolbox] 已落盘（随包工具箱落盘）：0 条
+- [dsh-skills] 内置技能（内置技能安装统计）：1 条
+    10-04 04:07:57.789 I/flutter (18443): [dsh-skills] 内置技能：新增 0 / 更新 0 / 保留用户改动 0 / 失败 0（根目录 /data/user/0/com.dshmobile.dsh_mobile/files/dshhome/skills）
+- [dsh-expert] AGENTS.md（AGENTS.md 受管区块（执行环境说明））：1 条
+    10-04 04:07:57.964 I/flutter (18443): [dsh-expert] AGENTS.md 受管区块已是最新，跳过写入
+- [dsh-rotate] 代理已就绪：1 条
+    10-04 04:07:59.598 I/flutter (18443): [dsh-rotate] 代理已就绪：127.0.0.1:39321（1 个组）
+- [dsh-model] overlay：1 条
+    10-04 04:07:59.628 I/flutter (18443): [dsh-model] overlay 已生成/升级：默认=rotate/cat，注册 3 项（写入前 3 项），轮换代理端口=39321（overlay 里原为 null）
+- [dsh-library]：3 条
+    10-04 04:08:03.030 I/flutter (18443): [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=3 目录=1 跳过=0 截断=false 错误=0 耗时=776ms
+    10-04 04:09:27.025 I/flutter (18443): [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=4 目录=1 跳过=0 截断=false 错误=0 耗时=152ms
+    10-04 04:09:32.199 I/flutter (18443): [dsh-library] 打开文件 demo.html（304 B）
+- flutter-error：0 条

@@ -1,0 +1,585 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../i18n/app_language.dart';
+import '../ui/theme/dsh_palette.dart';
+
+import '../i18n/dsh_i18n.dart';
+
+/// 外观类设置：**主题皮肤** + 字号缩放 + **界面语言**。持久化用 `SharedPreferences`。
+///
+/// 为什么和模型配置分开存：模型配置（Key / 端点 / model id）是**凭据级**
+/// 信息，走 `flutter_secure_storage`（Android Keystore）；主题字号是无所谓的
+/// 界面偏好，放 SharedPreferences 更合适 —— 也不必每次启动都动一次 Keystore。
+///
+/// 主题这条链路的全貌（改造后）：
+///   1. 本类持有皮肤 id，**只存 `light` / `dark` 两个真值**；
+///   2. `main.dart` 在 `ListenableBuilder` 里把它喂给 `DshColors.applySkin`；
+///   3. 同一层重建 `MaterialApp(theme: buildDshTheme())` —— 全树（含推入的
+///      对话页）跟着重算配色，切主题立即生效。
+///
+/// 「自定义」在本轮是**占位**：它不是一个皮肤、不进 [skinId]、不落盘，
+/// 点了只会由设置页如实说明"还没做"（见 [customPendingNote]）。
+class AppSettings extends ChangeNotifier {
+  AppSettings();
+
+  static const String _kTextScale = 'dsh_text_scale';
+
+  static const String _kSkin = 'dsh_theme_skin';
+  static const String _kLanguage = 'dsh_ui_language';
+
+  /// 本地大模型：**推理后端**与**上下文长度**。
+  ///
+  /// 为什么要落盘（真机 2026-10-09 用户反馈）：这两项以前只存在「本地大模型」页的
+  /// State 里，而那一页是从设置页 `push` 进来的 —— 一返回就被销毁，下次进去全回默认，
+  /// 用户每次调完都得重调一遍。它们本来就只影响"下次启动本地服务"，落盘零副作用。
+  static const String _kLocalBackend = 'dsh_local_backend';
+  static const String _kLocalContext = 'dsh_local_context';
+
+  /// 联网搜索用哪家（`off` / `tavily` / `serper` / `bocha` / `deepseek`）。
+  ///
+  /// 只存**厂家 id**；Key 一律进系统安全区（`ProviderKeys`，键名 `search-<id>`），
+  /// 与模型厂家的 Key 分开存，互不覆盖、也不进日志。
+  static const String _kSearchProvider = 'dsh_search_provider';
+
+  /// **允许 DSH 打开的本机应用**（包名列表，用户显式勾过的）。
+  ///
+  /// 为什么要白名单而不是"每次都弹确认"：请求来自模型（可能 App 在后台），
+  /// 后台弹确认框用户根本看不见 —— 与其搞一个不可靠的确认，不如让**用户事先**
+  /// 决定哪些应用可以被打开，模型无权自行放行。
+
+  /// 上次停在哪个底部 Tab（换页就写一次）。
+  ///
+  /// 为什么要落盘：用户真机反馈「用相机/相册取图回来后会跳回首页」——
+  /// 不管触发原因是 Activity 重建还是别的，**把“停在哪一页”记住**都能让他回到原处，
+  /// 而不是莫名其妙掉回首页。
+  static const String _kLastTab = 'dsh_last_tab';
+
+  /// 「免费模型（无需 Key）」—— **默认关闭**，必须用户显式打开。
+  ///
+  /// 为什么默认关闭、且界面上要写清风险：这条通道是把请求**伪装成官方 CLI** 去用
+  /// OpenCode 的匿名免费额度（上游明确只允许自家客户端用）。它随时可能失效，
+  /// 也不该被当成"本 App 保证提供的免费服务"。详见 `local/zen_proxy.dart` 顶部说明。
+  ///
+  /// ⚠️ 但它**不用写 Key**：上游凭据是公开的字面量 `public`（本地代理自己带），
+  /// 所以任何"去填一个 Key"的提示都是错的（2026-10-11 用户纠正）。
+  static const String _kZenEnabled = 'dsh_zen_free_channel';
+
+  /// 「正在取图」的时间戳（epoch ms，空 = 没有）。
+  ///
+  /// 为什么需要它：取图会离开 App（相机/相册是系统页面），回来的路上 App 可能被
+  /// 系统重建。重建后如果发现"刚才正在取图"，AppShell 会把「本地对话」页**重新推回来**
+  /// —— 这样用户拍完照回来还在聊天页，而不是掉回首页。
+  static const String _kPickInFlight = 'dsh_pick_in_flight';
+
+  /// 「刚才从哪一页去取图」（见 [_pickInFlightFrom]）。
+  ///
+  /// ⚠️ **为什么必须记这一页**（用户 2026-10-12 报的第 1 条后半句：
+  ///    「退出去选其他服务有的时候会跳转到本地会话这个页面」）：
+  ///    以前只记了时间戳，AppShell 重建后**一律**把「本地对话」推回来 ——
+  ///    于是**在影视页选一张参考图**，回来也会被推去本地对话。
+  ///    记下出发页，才能"从哪来回哪去"。
+  static const String _kPickInFlightFrom = 'dsh_pick_in_flight_from';
+
+  /// 本地推理后端的合法 id（与 `LocalModelBackend.name` 对齐）。
+  /// **NPU 已按用户口径取消**（2026-10-08），所以只剩两个。
+  static const Set<String> kLocalBackendIds = <String>{'cpu', 'vulkan'};
+
+  /// 上下文档位：与模型页给的按钮一致。不认识的一律退回 [localContextSize] 默认。
+  static const List<int> kLocalContextSizes = <int>[8192, 16384, 32768];
+
+  /// 默认皮肤。**刻意保持深色**：设计稿 11 页都是深色，直接给老用户换成浅色
+  /// 是一次没被要求的观感突变；浅色在设置里一键可得。
+  static const String kDefaultSkin = 'dark';
+
+  /// 「自定义」按钮的文案与如实说明（占位，不是假开关）。
+  ///
+  /// ⚠️ 这两个常量现在是**中文原文（i18n 的 key）**，不是最终显示文案：
+  /// 渲染处一律再包一层 `context.tr(...)`（见 `settings_tab.dart`）。
+  /// 这么写是为了保住 `const` —— 常量表是编译期的，塞不进运行时查表。
+  static String get customLabel => tr('自定义');
+  static String get customPendingNote =>
+      tr('自定义配色还没做。现在有「浅色 / 深色 / 像素」三套皮肤，点「自定义」不会切主题 —— 也不会把主题切到一个不存在的状态。');
+
+  double _textScale = 1.0;
+
+  /// 生图/生视频是否走本机（见 [_kImageLocal]）。
+  /// 「社区免费通道」是否开启（见 [_kZenEnabled]）。
+  bool _zenEnabled = false;
+  String _skinId = kDefaultSkin;
+  AppLanguage _language = AppLanguage.fallback;
+
+  /// 本地推理后端 id（`cpu` / `vulkan`）。默认 CPU —— 理由见模型页里那段注释
+  /// （Adreno 840 上 Vulkan 长对话段错误，稳字优先）。
+  String _localBackendId = 'cpu';
+
+  /// 本地模型上下文档位。默认 16384：DSH 每轮固定开销就约 3k~7k tokens，
+  /// 8k 会一进会话就见底（见模型页的档位注释）。
+  int _localContextSize = 16384;
+
+  /// 联网搜索厂家 id。
+  ///
+  /// **默认 `bing`（免费・不用 Key）**：用户 2026-10-09 明确要求"两个免费源直接内置"
+  /// —— 意思是打开 🔍 就能用，不该先逼人去申请 Key。Bing 在国内更容易访问，
+  /// 所以它是默认；DuckDuckGo 作为备选，付费那几家留给"要更稳"的人。
+  String _searchProviderId = 'bing';
+
+  /// 上次停在哪一页（见 [_kLastTab]）。
+  int _lastTab = 0;
+
+  /// 「正在取图」的时间戳（见 [_kPickInFlight]）；null = 没有。
+  DateTime? _pickInFlightAt;
+
+  /// 「刚才从哪一页去取图」：`media`（影视）/ `localchat`（本地对话）/ ''（没有）。
+  String _pickInFlightFrom = '';
+
+  /// 口播/短剧**配音**用哪家（`system` / `mimo` / `minimax`）。
+  ///
+  /// 为什么要落盘：用户 2026-10-12 要求把配音做好，而配音来源/音色/语速
+  /// 原来是影视页 State 里的临时变量 —— 一离开页面就回默认，
+  /// 每次生成口播都得重挑一遍（与 [_kLocalBackend] 当初的问题同源）。
+  static const String _kTtsSource = 'dsh_tts_source';
+  static const String _kTtsVoices = 'dsh_tts_voices';
+  static const String _kTtsSpeed = 'dsh_tts_speed';
+
+  /// 允许的配音来源 id（与 `TtsSource.name` 对齐）。**这里刻意不 import
+  /// `data/tts.dart`** —— 设置层是底层，不该被数据层反向依赖。
+  static const Set<String> kTtsSourceIds = <String>{
+    'system',
+    'mimo',
+    'minimax',
+    // 本机离线配音（2026-10-13）：零 Key、离线。
+    'local',
+  };
+
+  String _ttsSourceId = 'system';
+
+  /// 每家各自的音色选择（`{'mimo': '冰糖', 'minimax': 'male-qn-qingse'}`）。
+  ///
+  /// 按家分开存：换一家再换回来，上次挑的音色还在（否则用户会以为"白挑了"）。
+  /// 只存**音色 id 字符串**，不存音色表 —— 表是供应商那边的，随时可能变。
+  Map<String, String> _ttsVoiceBySource = <String, String>{};
+
+  /// 语速倍率（1.0 = 原速）。
+  double _ttsSpeed = 1.0;
+
+  /// 「思考过程」怎么显示（`dsh_thinking_mode`）。
+  ///
+  /// 为什么要有这一项（用户 2026-10-12：「目前手机版的思考过程都是英文的，
+  /// 这个怎么回避」）：**思考用哪种语言是模型训练出来的倾向** —— 我们只能
+  /// 「提高中文概率」（写进 AGENTS.md 受管区块），**不能保证**。
+  /// 所以真正能"彻底不看到英文思考"的办法只有一个：**不显示它**。
+  /// 这一项就是那个开关；默认「折叠」（能看、但默认收起，不抢版面）。
+  static const String _kThinkingMode = 'dsh_thinking_mode';
+
+  /// 允许的取值（与 [kThinkingModes] 的 id 一一对应）。
+  ///
+  /// ⚠️ 名字是**落盘字面量**：改了它 = 老用户的选择静默失效（退回默认折叠）。
+  static const Set<String> kThinkingModeIds = <String>{
+    'collapsed',
+    'expanded',
+    'hidden',
+  };
+
+  String _thinkingModeId = 'collapsed';
+
+  bool _loaded = false;
+
+  /// 全局字号缩放（1.0 = 设计稿原尺寸）
+  double get textScale => _textScale;
+
+  /// 生图/生视频走本机吗。
+  /// 「社区免费通道」是否开启（默认 false）。
+  bool get zenEnabled => _zenEnabled;
+
+  bool get loaded => _loaded;
+
+  /// 当前皮肤 id（`light` / `dark`）。
+  String get skinId => _skinId;
+
+  /// 当前皮肤（色值全在 [DshPalette] 里）。
+  DshPalette get skin => DshPalettes.byId(_skinId);
+
+  /// 当前界面语言。只影响 **App 自己画的界面**，不影响电脑端回传的内容
+  /// （这条边界写在 [AppLanguage] 的文档里，设置页也会如实告诉用户）。
+  AppLanguage get language => _language;
+
+  /// 本地推理后端 id（`cpu` / `vulkan`）。**只影响下次启动本地服务**。
+  String get localBackendId => _localBackendId;
+
+  /// 本地模型上下文档位（8192 / 16384 / 32768）。**只影响下次启动本地服务**。
+  int get localContextSize => _localContextSize;
+
+  /// 联网搜索厂家 id（见 [_kSearchProvider]）。
+  String get searchProviderId => _searchProviderId;
+
+  /// 口播/短剧的配音来源 id（`system` / `mimo` / `minimax`）。
+  String get ttsSourceId => _ttsSourceId;
+
+  /// 某一家上次选的音色 id；没选过 = 空串（渲染处按该家默认兜底）。
+  String ttsVoiceFor(String sourceId) => _ttsVoiceBySource[sourceId] ?? '';
+
+  /// 配音语速倍率（1.0 = 原速）。
+  double get ttsSpeed => _ttsSpeed;
+
+  /// 「思考过程」显示方式 id（`collapsed` / `expanded` / `hidden`）。
+  String get thinkingModeId => _thinkingModeId;
+
+  /// 三档的文案与依据。
+  ///
+  /// ⚠️ `label` / `note` 是**中文原文（i18n key）**，渲染处包 `context.tr`。
+  /// `note` 里那句"唯一能彻底不看到英文思考的办法"是**如实说明**，
+  /// 不是营销话：中文思考只能提高概率（写进 AGENTS.md），不能保证。
+  static List<({String id, String label, String note})> get kThinkingModes =>
+      <({String id, String label, String note})>[
+        (id: 'collapsed', label: tr('折叠'), note: tr('默认收起，想看点一下')),
+        (id: 'expanded', label: tr('展开'), note: tr('全文铺开，思考很长时会占版面')),
+        (
+          id: 'hidden',
+          label: tr('不显示'),
+          note: tr('完全不渲染 —— 唯一能彻底不看到英文思考的办法')
+        ),
+      ];
+
+  /// 允许被打开的应用包名（只读视图）。
+  /// 上次停在哪一页。
+  int get lastTab => _lastTab;
+
+  /// 刚才是不是在取图、且离现在不超过 [within]（默认 3 分钟）。
+  bool pickInFlightWithin([Duration within = const Duration(minutes: 3)]) {
+    final at = _pickInFlightAt;
+    if (at == null) return false;
+    return DateTime.now().difference(at) <= within;
+  }
+
+  /// 刚才**从哪一页**去取图、且离现在不超过 [within]。
+  ///
+  /// 返回 `'media'` / `'localchat'` / `''`（没有在取图）。
+  /// AppShell 重建后据此**从哪来回哪去** —— 在影视页选图就不该被推去本地对话
+  ///（用户 2026-10-12：「退出去选其他服务有的时候会跳转到本地会话这个页面」）。
+  String pickInFlightFromWithin([Duration within = const Duration(minutes: 3)]) {
+    if (!pickInFlightWithin(within)) return '';
+    return _pickInFlightFrom;
+  }
+
+  /// 给 `MaterialApp.themeMode` 用的等价表达（现在只喂一份 theme，留着更直观）。
+  ThemeMode get themeMode => skin.isLight ? ThemeMode.light : ThemeMode.dark;
+
+  /// 字号档位。设计稿正文 14dp 按 1.0 算。
+  ///
+  /// ⚠️ `label` / `note` 同样是**中文原文（i18n key）**，渲染处包 `context.tr`。
+  static List<({double scale, String label, String note})> get kTextScales =>
+      <({double scale, String label, String note})>[
+        (scale: 0.90, label: tr('小'), note: tr('一屏能看更多内容')),
+        (scale: 1.00, label: tr('标准'), note: tr('与设计稿一致')),
+        (scale: 1.15, label: tr('大'), note: tr('更省眼力')),
+        (scale: 1.30, label: tr('特大'), note: tr('适合老花/小屏')),
+      ];
+
+  Future<void> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getDouble(_kTextScale);
+      if (stored != null && stored > 0.5 && stored < 2.0) {
+        _textScale = stored;
+      }
+      final skin = prefs.getString(_kSkin);
+      // 只认真实存在的皮肤 id：老版本没有这个键、或磁盘上写了个不认识的值，
+      // 都退回默认深色，绝不把主题留在一个"空"的状态上。
+      if (skin != null && DshPalettes.all.any((p) => p.id == skin)) {
+        _skinId = skin;
+      }
+      // 语言同理：磁盘上是个不认识的 id 就退回默认中文（[AppLanguage.byId] 兜底），
+      // 不让界面停在一个"没有语言"的状态上。
+      _language = AppLanguage.byId(prefs.getString(_kLanguage));
+      _zenEnabled = prefs.getBool(_kZenEnabled) ?? false;
+      // 本地模型那两项：只认白名单里的值，磁盘上有脏值就退回默认
+      // （绝不把后端留在一个"不认识"的状态上）。
+      final lb = prefs.getString(_kLocalBackend);
+      if (lb != null && kLocalBackendIds.contains(lb)) _localBackendId = lb;
+      final lc = prefs.getInt(_kLocalContext);
+      if (lc != null && kLocalContextSizes.contains(lc)) _localContextSize = lc;
+      _searchProviderId = prefs.getString(_kSearchProvider) ?? 'bing';
+      _lastTab = prefs.getInt(_kLastTab) ?? 0;
+      final pickAt = prefs.getInt(_kPickInFlight) ?? 0;
+      _pickInFlightAt = pickAt > 0
+          ? DateTime.fromMillisecondsSinceEpoch(pickAt)
+          : null;
+      _pickInFlightFrom = prefs.getString(_kPickInFlightFrom) ?? '';
+      // 配音三项：来源只认白名单（磁盘上有脏值就退回系统配音）；
+      // 音色表只认"字典里的字符串键值"，坏 JSON 就当没存过 —— 绝不把界面
+      // 停在一个"不认识"的音色上。
+      final ttsSrc = prefs.getString(_kTtsSource);
+      if (ttsSrc != null && kTtsSourceIds.contains(ttsSrc)) _ttsSourceId = ttsSrc;
+      final ttsSpeed = prefs.getDouble(_kTtsSpeed);
+      if (ttsSpeed != null && ttsSpeed >= 0.5 && ttsSpeed <= 2.0) {
+        _ttsSpeed = ttsSpeed;
+      }
+      final ttsVoices = prefs.getString(_kTtsVoices);
+      if (ttsVoices != null && ttsVoices.trim().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(ttsVoices);
+          if (decoded is Map) {
+            _ttsVoiceBySource = <String, String>{
+              for (final e in decoded.entries)
+                if (e.key is String && e.value is String)
+                  e.key as String: (e.value as String).trim(),
+            };
+          }
+        } catch (e) {
+          debugPrint('[dsh-app-settings] 配音音色表读不出来，按没存过处理：$e');
+        }
+      }
+      // 同步给「进程环境 / 配置指纹」读的那个静态镜像（见 LocalImageServer.localPreferred）。
+      // 「思考过程」：只认白名单（磁盘上有脏值就退回默认「折叠」）。
+      final think = prefs.getString(_kThinkingMode);
+      if (think != null && kThinkingModeIds.contains(think)) {
+        _thinkingModeId = think;
+      }
+    } catch (e) {
+      debugPrint('[dsh-app-settings] load failed: $e');
+    }
+    _loaded = true;
+    notifyListeners();
+  }
+
+  /// 切换界面语言。落盘；落盘失败只影响"下次启动记不记得"，本次切换照常生效
+  /// （与皮肤、字号的处理一致）。
+  Future<void> setLanguage(AppLanguage language) async {
+    if (language == _language) return;
+    _language = language;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kLanguage, language.id);
+      debugPrint('[dsh-app-settings] 语言 = ${language.id}（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 切换皮肤。传进来的 id 必须是真实皮肤，否则忽略（不写坏值）。
+  Future<void> setSkin(String id) async {
+    if (!DshPalettes.all.any((p) => p.id == id)) {
+      debugPrint('[dsh-app-settings] 忽略不存在的皮肤 id：$id');
+      return;
+    }
+    if (id == _skinId) return;
+    _skinId = id;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSkin, id);
+      debugPrint('[dsh-app-settings] 主题 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 开/关「社区免费通道（实验性）」。
+  ///
+  /// ⚠️ 真正的启停（起代理、往模型配置里加/删那批免费模型）由调用方负责 ——
+  /// 见 `data/zen_channel.dart`。这里只记住用户的选择。
+  Future<void> setZenEnabled(bool v) async {
+    if (v == _zenEnabled) return;
+    _zenEnabled = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kZenEnabled, v);
+      debugPrint('[dsh-app-settings] 社区免费通道 = $v');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记住本地推理后端。**只影响下次启动本地服务**（正在跑的服务不受影响，
+  /// 所以模型页在服务运行中会把按钮置灰）。
+  Future<void> setLocalBackend(String id) async {
+    if (!kLocalBackendIds.contains(id)) {
+      debugPrint('[dsh-app-settings] 忽略不认识的推理后端 id：$id');
+      return;
+    }
+    if (id == _localBackendId) return;
+    _localBackendId = id;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kLocalBackend, id);
+      debugPrint('[dsh-app-settings] 本地推理后端 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记住本地模型上下文档位。**只影响下次启动本地服务**。
+  Future<void> setLocalContextSize(int size) async {
+    if (!kLocalContextSizes.contains(size)) {
+      debugPrint('[dsh-app-settings] 忽略不支持的上下文档位：$size');
+      return;
+    }
+    if (size == _localContextSize) return;
+    _localContextSize = size;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kLocalContext, size);
+      debugPrint('[dsh-app-settings] 本地上下文 = $size（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// `lastTab` 是不是**本次进程**里被改过的。
+  ///
+  /// 用户 2026-10-11 口径：「安装以后打开的页面是影视页面，正常应该打开首页」——
+  /// `lastTab` 是**跨启动持久化**的，于是覆盖安装/重启后会落回上次那一页（例如影视）。
+  /// 现在：**冷启动（进程新建）一律回首页**；只有**同进程内**的页面重建
+  /// （Activity 被系统重建、从相机/相册回来）才恢复 —— 那正是这个机制原本的理由。
+  static bool _tabTouchedInThisProcess = false;
+
+  /// 现在可不可以拿 [lastTab] 去恢复页面（见 [_tabTouchedInThisProcess]）。
+  static bool get lastTabRestorable => _tabTouchedInThisProcess;
+
+  /// 记住上次停在哪一页。
+  Future<void> setLastTab(int index) async {
+    if (index == _lastTab) return;
+    _lastTab = index;
+    _tabTouchedInThisProcess = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_kLastTab, index);
+    } catch (_) {}
+  }
+
+  /// 标记「开始取图 / 取图结束」。
+  ///
+  /// 取图期间 App 会离开前台（相机/相册是系统页面），回来的路上可能被系统重建 ——
+  /// 落这个时间戳，重建后 AppShell 才能判断"该把哪一页推回来"。
+  Future<void> setPickInFlight(bool inFlight, {String from = ''}) async {
+    _pickInFlightAt = inFlight ? DateTime.now() : null;
+    // 清除时把出发页一起清掉 —— 否则下一次"没有取图"却还留着上一页的名字。
+    _pickInFlightFrom = inFlight ? from : '';
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(
+          _kPickInFlight,
+          inFlight ? DateTime.now().millisecondsSinceEpoch : 0);
+      await prefs.setString(_kPickInFlightFrom, _pickInFlightFrom);
+    } catch (_) {}
+  }
+
+  /// 记住联网搜索用哪家。
+  Future<void> setSearchProvider(String id) async {
+    if (id == _searchProviderId) return;
+    _searchProviderId = id;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kSearchProvider, id);
+      debugPrint('[dsh-app-settings] 联网搜索 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记住口播/短剧的配音来源。只认 [kTtsSourceIds] 里的值，不写坏数据。
+  Future<void> setTtsSource(String id) async {
+    if (!kTtsSourceIds.contains(id)) {
+      debugPrint('[dsh-app-settings] 忽略不认识的配音来源 id：$id');
+      return;
+    }
+    if (id == _ttsSourceId) return;
+    _ttsSourceId = id;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kTtsSource, id);
+      debugPrint('[dsh-app-settings] 配音来源 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记住某一家选的音色 id（空串 = 回到该家默认音色）。
+  Future<void> setTtsVoice(String sourceId, String voiceId) async {
+    if (!kTtsSourceIds.contains(sourceId)) return;
+    final v = voiceId.trim();
+    if (v.isEmpty) {
+      _ttsVoiceBySource.remove(sourceId);
+    } else {
+      if (_ttsVoiceBySource[sourceId] == v) return;
+      _ttsVoiceBySource = <String, String>{..._ttsVoiceBySource, sourceId: v};
+    }
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kTtsVoices, jsonEncode(_ttsVoiceBySource));
+      debugPrint('[dsh-app-settings] 配音音色($sourceId) = $v（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 记住配音语速倍率。超出 0.5~2.0 的一律忽略（不写坏值）。
+  /// 记住「思考过程」的显示方式。只认 [kThinkingModeIds] 里的值。
+  ///
+  /// 为什么它不是一个"纯界面开关"：它决定**要不要把模型吐出来的思考文本渲染到屏幕上**，
+  /// 而思考的语言不可控（见 [_kThinkingMode] 的说明）—— 所以"不显示"是唯一的硬保证。
+  Future<void> setThinkingMode(String id) async {
+    if (!kThinkingModeIds.contains(id)) {
+      debugPrint('[dsh-app-settings] 忽略不认识的思考显示方式：$id');
+      return;
+    }
+    if (id == _thinkingModeId) return;
+    _thinkingModeId = id;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kThinkingMode, id);
+      debugPrint('[dsh-app-settings] 思考过程 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  Future<void> setTtsSpeed(double speed) async {
+    if (speed < 0.5 || speed > 2.0) {
+      debugPrint('[dsh-app-settings] 忽略越界的语速：$speed');
+      return;
+    }
+    if (speed == _ttsSpeed) return;
+    _ttsSpeed = speed;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_kTtsSpeed, speed);
+      debugPrint('[dsh-app-settings] 配音语速 = $speed（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  Future<void> setTextScale(double scale) async {
+    if (scale == _textScale) return;
+    _textScale = scale;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_kTextScale, scale);
+      debugPrint('[dsh-app-settings] 字号 = $scale');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 当前档位的显示名（找不到就按数值显示）。
+  String get textScaleLabel {
+    for (final o in kTextScales) {
+      if ((o.scale - _textScale).abs() < 0.001) return o.label;
+    }
+    return '${(_textScale * 100).round()}%';
+  }
+}

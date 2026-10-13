@@ -1,0 +1,214 @@
+{
+  "label": "acp-probe-2026-10-02T01-19-04-213Z",
+  "generatedAt": "2026-10-02T01:19:27.304Z",
+  "dshBin": "D:/Programs/PaopaocatDSH/app/lib/bin.js",
+  "sandbox": "D:\\新建文件夹\\新建文件夹\\新建文件夹\\新建文件夹\\dsh-mobile\\fixtures\\acp-sandbox",
+  "steps": [
+    {
+      "step": "initialize-ok",
+      "at": "2026-10-02T01:19:05.973Z",
+      "data": {
+        "requestedProtocolVersion": 1,
+        "negotiated": 1,
+        "agentInfo": {
+          "name": "deepseek-harness-acp",
+          "version": "0.0.1"
+        },
+        "authMethods": [],
+        "agentCapabilities": {
+          "mcpCapabilities": {
+            "http": true
+          },
+          "promptCapabilities": {
+            "image": false,
+            "audio": false,
+            "embeddedContext": false
+          },
+          "sessionCapabilities": {
+            "close": {},
+            "list": {},
+            "resume": {}
+          }
+        }
+      }
+    },
+    {
+      "step": "session-new-ok",
+      "at": "2026-10-02T01:19:06.037Z",
+      "data": {
+        "sessionId": "252fa4e3-c6d1-4c88-b0ec-30a561b91b3f",
+        "keys": [
+          "sessionId",
+          "configOptions"
+        ],
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"com\",\"deepseek/deepseek-v4.1-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-flash\"]",
+                    "name": "DeepSeek-V41-Flash"
+                  },
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-pro\"]",
+                    "name": "DeepSeek-V4-Pro",
+                    "description": "Stronger agentic coding, knowledge, and difficult reasoning; suited to complex or quality-critical tasks at higher cost."
+                  }
+                ]
+              },
+              {
+                "group": "com",
+                "name": "com",
+                "options": [
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4-pro\"]",
+                    "name": "DeepSeek V4 Pro (latest)"
+                  },
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4.1-flash\"]",
+                    "name": "DeepSeek V4.1 Flash"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "step": "prompt-chat-done",
+      "at": "2026-10-02T01:19:09.366Z",
+      "data": {
+        "stopReason": "end_turn",
+        "usage": null,
+        "updates": 2,
+        "updateKinds": [
+          [
+            "agent_message_chunk",
+            1
+          ],
+          [
+            "usage_update",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "step": "prompt-tool-done",
+      "at": "2026-10-02T01:19:25.758Z",
+      "data": {
+        "stopReason": "end_turn",
+        "updates": 15,
+        "permissionRequested": 1,
+        "serverRequests": [
+          "session/request_permission"
+        ],
+        "updateKinds": [
+          [
+            "agent_message_chunk",
+            2
+          ],
+          [
+            "usage_update",
+            5
+          ],
+          [
+            "agent_thought_chunk",
+            4
+          ],
+          [
+            "tool_call",
+            3
+          ],
+          [
+            "tool_call_update",
+            3
+          ]
+        ]
+      }
+    },
+    {
+      "step": "session-list-ok",
+      "at": "2026-10-02T01:19:25.787Z",
+      "data": {
+        "keys": [
+          "sessions"
+        ],
+        "sessions": [
+          {
+            "sessionId": "0e299a79-c41d-4c23-ac51-4b0276a8f0e3",
+            "cwd": "D:\\新建文件夹\\新建文件夹\\新建文件夹\\新建文件夹\\dsh-mobile\\fixtures\\acp-sandbox"
+          },
+          {
+            "sessionId": "f3899029-6d6f-4e44-9545-27fc96bfc650",
+            "cwd": "D:\\新建文件夹\\新建文件夹\\新建文件夹\\新建文件夹\\dsh-mobile\\fixtures\\acp-sandbox"
+          }
+        ]
+      }
+    },
+    {
+      "step": "session-close-ok",
+      "at": "2026-10-02T01:19:25.797Z",
+      "data": {
+        "result": {}
+      }
+    },
+    {
+      "step": "proc-exit",
+      "at": "2026-10-02T01:19:25.879Z",
+      "data": {
+        "code": 0,
+        "signal": null
+      }
+    }
+  ],
+  "frameCount": 31,
+  "updateKinds": {
+    "agent_message_chunk": 2,
+    "usage_update": 5,
+    "agent_thought_chunk": 4,
+    "tool_call": 3,
+    "tool_call_update": 3
+  },
+  "updateCount": 17,
+  "updateBytes": {
+    "min": 59,
+    "max": 3137,
+    "avg": 399
+  },
+  "permissionRequests": [
+    {
+      "sessionId": "252fa4e3-c6d1-4c88-b0ec-30a561b91b3f",
+      "toolCall": {
+        "toolCallId": "call_00_w6xmhparmt3xo2z1e65ue5ck"
+      },
+      "options": [
+        {
+          "optionId": "allow-once",
+          "name": "Allow once",
+          "kind": "allow_once"
+        },
+        {
+          "optionId": "reject-once",
+          "name": "Reject",
+          "kind": "reject_once"
+        }
+      ]
+    }
+  ],
+  "serverRequestMethods": [
+    "session/request_permission"
+  ],
+  "stderrTail": [
+    ""
+  ]
+}

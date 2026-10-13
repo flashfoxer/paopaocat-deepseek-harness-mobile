@@ -1,0 +1,41 @@
+{
+  "port": 1,
+  "note": "这个字段必须原样保留（验证回写不破坏原结构）",
+  "groups": {
+    "cat": {
+      "members": [
+        {
+          "name": "deepseek",
+          "baseUrl": "http://127.0.0.1:28963/v1",
+          "apiKey": "sk-bad-111",
+          "model": "deepseek-chat"
+        },
+        {
+          "name": "qwen",
+          "baseUrl": "http://127.0.0.1:28964/v1",
+          "apiKey": "sk-good-222",
+          "model": "qwen-max"
+        }
+      ]
+    },
+    "allbad": {
+      "members": [
+        {
+          "name": "m1",
+          "baseUrl": "http://127.0.0.1:28963/v1",
+          "apiKey": "sk-1",
+          "model": "m-one"
+        },
+        {
+          "name": "m2",
+          "baseUrl": "http://127.0.0.1:28963/v1",
+          "apiKey": "sk-2",
+          "model": "m-two"
+        }
+      ]
+    }
+  },
+  "lastGood": {
+    "cat": 1
+  }
+}

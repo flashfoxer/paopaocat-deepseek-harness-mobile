@@ -1,0 +1,91 @@
+<h1 style="font-size:23px;line-height:1.5;color:#16203F;margin:8px 0 6px;font-weight:700;">紧急更新：6个版本36条的0.14版本泡泡猫DSH手机版</h1>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">先说声抱歉</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">今天大家在手机上实测报的问题，大部分已经修好了 —— 这次是紧急更新。但想先说清这些事为什么会来：<strong style="color:#16203F;">不是上得急，是想简单了</strong>。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">DSH 原本是<strong style="color:#16203F;">跑在电脑上的</strong>（桌面版）。它能读文件、能跑命令、能调用一堆现成的工具，靠的是电脑上<strong style="color:#16203F;">本来就有的那套东西</strong>：shell、python、字体排版、本地的语音模型……这些在电脑上都是"系统自带"，搬到手机上<strong style="color:#16203F;">一个都没有</strong>。所以把 DSH 装进手机从来不是"下一个包"的事，而是要把这些依赖<strong style="color:#16203F;">一个一个地重新匹配</strong>：有的是重写（手机上用的是系统自带的 sh，写了一层壳去接住原有的调用），有的是换替代品（Word/PPT 那种桌面排版库手机上没有，改成内置 Node 脚本自己生成），有的<strong style="color:#16203F;">根本没有 Android 版本</strong>（后面语音那条就是）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">按"电脑上能跑，手机上也该差不多"的思路估了这件事，<strong style="color:#16203F;">想简单了</strong>。昨天发出去的那一版就是这么来的，大家在手机上撞到的那些问题，今天全部改完了 —— 就是下面编号的这 35 条。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">这三条是大家报得最多的：</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· <strong style="color:#16203F;">画图用不了</strong> —— 点「生成一张图片」，拿到的是 <code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">spawn bash ENOENT</code>（缺 bash 运行时）。同一个 App 里，定时任务那条链路一直是好的 —— 两条路不一致，是没对齐。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· <strong style="color:#16203F;">切模型要选两次</strong> —— 选一次没生效，得再选一次才对。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· <strong style="color:#16203F;">三个点不开的"产物"</strong> —— 让模型画图时，会话里先冒出三个"产物"，一直到图生成完都点不开，只能在资料库里找那张图。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">今天这三条都修好了，而且是<strong style="color:#16203F;">拿证据改的</strong>：在模拟器上造了一个"第一个模型永远失败、第二个正常"的假上游来验证模型轮换，又造了一个"真产出一个文件、只回声那句示例"的假模型来验证产物 —— 每一条修复都能复跑、都有截图。</p>
+<h3 style="font-size:17px;color:#16203F;margin:26px 0 10px;font-weight:700;padding-left:10px;border-left:4px solid #B8860B;">还有一条没修完：语音识别</h3>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">大家反馈过"语音识别无法使用"。这条<strong style="color:#16203F;">还没修好</strong>，如实交代已经试过的几条路：</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">1. <strong style="color:#16203F;">最早只有一条路</strong> —— 把系统的语音识别界面拉起来（<code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">ACTION_RECOGNIZE_SPEECH</code>）。手机上没装可用的识别服务时（不少国产 ROM 没带 Google 语音、厂商服务又不响应），它直接失败，大家只看到一句"没识别到"。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">2. <strong style="color:#16203F;">补上麦克风权限</strong> —— 改成 App 自己录音后，没有录音权限会直接返回 <code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">error=9</code>。这里还做细了一步：<strong style="color:#16203F;">只在真的会用到时才申请</strong>，走系统识别那条路时不白弹一次授权。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">3. <strong style="color:#16203F;">改走 Android 12 以上的"设备端离线识别"</strong> —— 优先用系统预置的离线模型（不联网也能用），识别不到再回退到第 1 条那条系统路；两条都失败会<strong style="color:#16203F;">分情况说清</strong>是"没有离线模型""没有识别服务"还是"没听清"，不再含糊。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">4. <strong style="color:#16203F;">试过内置本地识别</strong>（DSH 自带的那套本地语音模型）—— <strong style="color:#16203F;">走不通</strong>：它的原生库只提供 macOS / Linux / Windows 版本，Android 用的是另一套 C 运行库（bionic），不在支持列表里；而且 int8 模型有 239MB，塞进手机包也不现实。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">所以还在查：到底是系统的识别服务没被暴露出来，还是设备端的离线模型没装。<strong style="color:#16203F;">没修好的不糊弄</strong>：按住说话要是用不了，就是没修好，不用一句"暂不支持"盖过去。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">也是在这件事上最想补一句：这是第一次做这么复杂的 App，很多地方是边做边学。想简单了，代价就是大家在手机上替撞了这些坑。<strong style="color:#16203F;">还请原谅</strong> —— 遇到问题直接在这里留言，下个版本就改。</p>
+<hr style="border:none;border-top:1px dashed #D8D8D8;margin:26px 0;" />
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">今天发了几个版本、改了多少条</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· <strong style="color:#16203F;">今天一天连发了 6 个版本</strong>（其中 1 个是内部验证用的，没有单独发给大家）：一早到晚，改完就发、发完接着改。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· <strong style="color:#16203F;">面向大家的改动一共 36 条</strong>，下面按事情分类一条一条列出来（编号就是这 36 条：其中 35 条跟 App 里「设置 → 关于 → 更新说明」逐条对得上，第 36 条是<strong style="color:#16203F;">「更新说明」这个页面本身</strong> —— 它也是今天才做出来的）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:6px 0 6px 4px;">· 另外还修了一批只有开发时才会碰到的问题（打包脚本、签名与版本码校验、新文案是否真的进包、公众号发布链路等），不占用大家的阅读时间，这里就不展开了。</p>
+<hr style="border:none;border-top:1px dashed #D8D8D8;margin:26px 0;" />
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">一、让「生成文件」这件事真的能用（第 1–5 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">1. <strong style="color:#16203F;">画图、生成视频、生成 PPT，凡是需要 App 真的跑一下命令的事，现在都能跑了</strong> —— 此前会话这条链路自己拼了一份精简的环境变量，没带上手机上的 shell 垫片，而手机上没有 bash，所以只会报"缺 bash 运行时"。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">2. 会话里可以直接调用 App 自带的工具箱脚本（生图 / 生视频 / 生成 .pptx），不用再自己装终端。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">3. 要 PPT 就给<strong style="color:#16203F;">真的 .pptx 文件</strong>（App 内置了生成脚本），不再拿 HTML 顶替。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">4. 生成的是网页时，点开<strong style="color:#16203F;">直接渲染成网页</strong>（也能「查看源码」「浏览器打开」），不再显示一屏代码。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">5. 产物可以直接<strong style="color:#16203F;">分享</strong>出去（走系统分享面板，能发给微信等其它应用）。</p>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">二、产物只出现真正生成的文件（第 6 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">6. 现在产物必须过两道门槛：<strong style="color:#16203F;">文件真的在工作区里存在</strong>，而且<strong style="color:#16203F;">是这次会话写出来的</strong>。以前那三个点不开的"产物"，其实是内置技能文档里的<strong style="color:#16203F;">示例占位名</strong>（文档里写着 <code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">node make-image.mjs "提示词" 输出.png</code>，界面把这句示例里的 <code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">输出.png</code>、<code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">参考图.png</code> 连同一段自检命令都当成了文件）；工作区里本来就有的旧文件也不会再混进来。点开产物就是文件本身，能直接看、直接分享。</p>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">三、模型与 Key（第 7–19 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">7. 一台手机可以同时配<strong style="color:#16203F;">多家服务商</strong>，各家互不覆盖。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">8. 「获取模型」支持<strong style="color:#16203F;">多选</strong>，勾好一次性加进清单。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">9. 新增<strong style="color:#16203F;">「模型轮换组」</strong>：几个模型按设定好的顺序依次尝试，前一个被限流（429）就自动换下一个。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">10. 内置 <strong style="color:#16203F;">Agnes（免费）</strong>：生图 / 生视频的端点和注册地址写在设置里；没填 Key 会如实报错并给出注册地址。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">11. 会话里切换模型<strong style="color:#16203F;">不再重建会话</strong>：聊天记录保留，成功时会提示「已切换到 X（会话保留）」。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">12. 模型设置页重新排过：当前模型 → 我的模型 → 轮换组 → 添加模型（默认收起）→ 内置 Agnes，一眼能看到现在用的是哪一个。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">13. 修好了「填了 Key 却提示没凭据、模型用不了」：会话启动时会把<strong style="color:#16203F;">每个厂家各自的 Key</strong> 正确交给运行时。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">14. 改了 Key 或端点之后<strong style="color:#16203F;">新配置真的会生效</strong>（会自动重建会话）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">15. 只换一个已经登记过的模型时，<strong style="color:#16203F;">保留当前会话与聊天记录</strong>。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">16. 会话里的默认模型<strong style="color:#16203F;">以设置里的为准</strong>，两处不再各说各话，重启也不变。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">17. 模型设置区按大家反馈重排：「我的模型」是几张内置厂家的卡片，点开是介绍 → 去注册 → 获取模型，<strong style="color:#16203F;">只要填 API Key</strong> 再点「测试并保存」；下面是「添加模型」，最后是「轮换池」。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">18. 「测试并保存」成功后<strong style="color:#16203F;">一定会登记到模型</strong>（拉不到真实列表就用内置建议模型，并如实说明）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">19. 会话里的模型面板改成<strong style="color:#16203F;">两级</strong>：先按厂家分组（含「轮换池」一组），点厂家看到它的模型，点模型就切换使用；<strong style="color:#16203F;">切换模型点一次就生效</strong>（此前要选两次），而且会<strong style="color:#16203F;">跟运行时核对</strong>，不会出现"界面说切了、实际还在用旧模型"。</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG1}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 1 · 设置 → 模型：轮换组 / 添加模型 / 内置 Agnes</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG2}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 2 · 会话里的模型面板（两级：先厂家、再模型）</p>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">四、界面（第 20–26 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">20. <strong style="color:#16203F;">会话页右上角那个按钮改成「工作区」</strong>：它原来是「模型设置」，现在点它直接进工作区页 —— 看有哪些工作区、每个工作区下有哪些会话、切工作区、恢复历史会话；和首页右上角那个是<strong style="color:#16203F;">同一个页面</strong>，不用再退出去找。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">21. 会话页顶栏第二行写明<strong style="color:#16203F;">这条会话在哪个工作区</strong>。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">22. 「设置 → 外观」的说明文案重写了：只讲 App 两套皮肤各自长什么样，删掉了以前那句"对齐某网站"的说法。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">23. 界面可以切<strong style="color:#16203F;">浅色 / 深色</strong>，点一下立即生效、重启后保持。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">24. 「自定义」如实做成占位：点了会说明还没做，不会把主题切到一个不存在的状态。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">25. 「插件」一栏改成实话：插件安装暂未开放（要先做完安全校验与回滚机制）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">26. 宽屏老机型（320 像素宽）上会话页顶栏会挤出屏幕 30 像素的问题也修了 —— 会话正在跑、并且已经有产物时最挤。</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG3}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 3 · 会话页：之前 vs 现在（右上角从 ⚙ 变成「工作区」入口，第二行补上工作区名）</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG4}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 4 · 设置页：之前 vs 现在（浅色从"置灰未适配"变成可选；模型区从表单变成厂家卡片）</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG5}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 5 · 浅色主题的首页</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG6}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 6 · 浅色主题的设置页（深色 / 浅色都在「外观」里一键切换）</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG7}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 7 · 点工作区入口进去就是这一页：工作区 + 每个工作区下的会话</p>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">五、会话与日常使用（第 27–34 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">27. 第一次安装、还没配模型时，「开始会话」不再点不动，而是明确告诉大家要先去设置里配一个模型。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">28. 首页内置会话从 4 条扩到 <strong style="color:#16203F;">12 条</strong>（每条带一个技能）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">29. 首页的内置会话改成<strong style="color:#16203F;">一次显示 4 条</strong>，点「换一换」换一整组（点 3 次能看完全部 12 条）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">30. 从屏幕边缘侧滑不再一下就退到后台：第一次只提示，再滑（或再按返回）一次才退。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">31. 新增<strong style="color:#16203F;">「运行日志」</strong>：设置 → 关于里可以一键生成，<strong style="color:#16203F;">导出到文件</strong>或用系统分享发出去；日志里的 API Key 会自动脱敏。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">32. 「分享运行日志」的弹窗里写上了<strong style="color:#16203F;">开发者邮箱</strong>（可长按复制），导出的日志知道该发给谁。</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG8}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 8 · 运行日志：导出弹窗前讲清"日志里包含什么、API Key 会自动脱敏"，并给出开发者邮箱</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">33. 设置 → 关于里新增<strong style="color:#16203F;">「更新说明」</strong>：点开能看到每个版本改了什么，当前版本会标出来，旧版本可以展开 / 收起。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">34. 安装包命名统一成一种格式（<code style="background:#F5F5F5;padding:1px 5px;border-radius:3px;font-size:14px;color:#C7254E;">paopaocat-preview-版本-芯片</code>），不会再出现拿错包的情况。</p>
+<p style="margin:22px 0 6px;"><img src="{{IMG9}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 9 · 更新说明页（这个页面是今天才做出来的）</p>
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">六、语音（第 35–36 条）</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">35. 语音输入<strong style="color:#16203F;">补上了麦克风权限</strong>，并且只在真的会用到时才申请（走系统识别那条路不白弹一次授权）。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">36. 语音改用手机自带的<strong style="color:#16203F;">离线识别</strong>（Android 12 及以上优先），识别不了再回退到系统识别，识别语言跟随手机语言；两条都失败会<strong style="color:#16203F;">分情况说清</strong>是"没有离线模型""没有识别服务"还是"没听清"。</p>
+<hr style="border:none;border-top:1px dashed #D8D8D8;margin:26px 0;" />
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">怎么安装</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;"><strong style="color:#16203F;">直接覆盖安装即可</strong>：签名和上一份一致，装在原来那份上面就行 —— <strong style="color:#16203F;">会话记录、工作区里的文件、配好的模型和 Key 都不会丢</strong>。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">安装包 187.6 MB。<strong style="color:#16203F;">关注本公众号，在公众号里私信发送「888」，就能拿到安装包链接。</strong></p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">装好之后，首页与会话页右上角都是「工作区」（见上面图 3 与图 6 的同一个位置）。</p>
+<hr style="border:none;border-top:1px dashed #D8D8D8;margin:26px 0;" />
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">最后</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">还想让它做什么，或者又踩到什么坑，直接在公众号里留言。</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;"><strong style="color:#16203F;">大家说的，就是下一个版本要修的。</strong></p>
+<hr style="border:none;border-top:1px dashed #D8D8D8;margin:26px 0;" />
+<h2 style="font-size:19px;color:#16203F;margin:30px 0 12px;font-weight:700;padding-left:10px;border-left:5px solid #B8860B;">关注公众号</h2>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">做这个主要是下班晚上才有时间做，而且本人公众号一直没有人关注，要求不多：），麻烦大家点个关注就行</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;"><strong style="color:#16203F;">关注本公众号，私信发送「888」，即可拿到安装包链接。</strong></p>
+<p style="margin:22px 0 6px;"><img src="{{IMG10}}" style="width:100%;max-width:100%;display:block;" /></p><p style="text-align:center;color:#8A8A8A;font-size:13px;margin:0 0 22px;">图 10 · 扫码关注公众号</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;">公众号 ID：paopaocat888</p>
+<p style="font-size:16px;line-height:1.9;color:#3F3F3F;margin:14px 0;letter-spacing:0.3px;"><em>本文截图均来自手机实拍，未做美化。</em></p>

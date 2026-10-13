@@ -1,4 +1,23 @@
-*.apk
-*.aab
-.DS_Store
+# 依赖与构建产物
 node_modules/
+build/
+.dart_tool/
+.gradle/
+*.iml
+.gflutter-plugins-dependencies
+# 敏感：TLS 私钥 / 设备凭据 / 本机配置
+bridge/tls/
+bridge/data/devices.json
+bridge/config.json
+app/android/local.properties
+app/android/key.properties
+*.keystore
+*.pfx
+*.pem
+
+# 构建产物：体积大，不进版本库（交付走文件分发/下载站）
+dist/*.apk
+
+# Python 工具的字节码缓存（tools/ 下是开发用脚本，不随 App 分发）
+__pycache__/
+*.pyc

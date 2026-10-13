@@ -1,0 +1,22 @@
+{
+  "name": "dsh-mobile-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DSH Mobile 桥：把电脑上的 dsh --profile acp（stdio）暴露成手机可连的 WebSocket 服务",
+  "type": "module",
+  "main": "src/bridge.mjs",
+  "bin": {
+    "dsh-mobile-bridge": "./src/bridge.mjs"
+  },
+  "scripts": {
+    "start": "node src/bridge.mjs serve",
+    "pair": "node src/bridge.mjs pair",
+    "devices": "node src/bridge.mjs devices"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

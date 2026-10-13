@@ -1,0 +1,349 @@
+
+========================================================================
+## 1) models.json —— 配置的模型清单（会话页模型面板的真源）
+========================================================================
+{"provider":"com","baseUrl":"https://api.commandcode.ai/provider/v1","selected":"deepseek/deepseek-v4.1-flash","updatedAt":"2026-10-03T10:47:05.753474","models":[{"id":"deepseek/deepseek-v4.1-flash","name":"deepseek/deepseek-v4.1-flash"}]}
+
+========================================================================
+## 2) model.overlay.yml —— DSH 真正读的路由 + 沙箱
+========================================================================
+# 由 App 生成：把 DSH 的模型路由指向用户配置的端点。
+# 覆盖两处是必须的 —— profile 自己的 config 会盖掉 agent-default-model。
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      com:
+        apiKeyEnv: COM_API_KEY
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        models:
+          - id: deepseek/deepseek-v4.1-flash
+            name: deepseek/deepseek-v4.1-flash
+            contextWindow: 1000000
+
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: com
+    model: deepseek/deepseek-v4.1-flash
+
+# ACP 服务器用自己的 config 决定每个新会话的路由，会盖掉 agent-default-model，
+# 所以要单独覆盖这一行 —— 漏掉它的话，对话会退回官方端点并因凭据无效而失败。
+- id: acp
+  name: "@deepseek-ai/dsh-acp"
+  config:
+    provider: com
+    model: deepseek/deepseek-v4.1-flash
+
+# ── Android 沙箱（关键，别删）────────────────────────────────────────
+# DSH 的沙箱后端是 Linux-only（landlock / namespace），Android 上不可用：
+# 只要模式是 read-only / workspace-write，写文件、glob、bash 都会报
+# "no backend usable"，于是模型**根本写不出文件** —— 用户实测"让生成一个 PPT，
+# 资料库看不到"，根因就是文件压根没落到磁盘（不是资料库的 bug）。
+#
+# 所以移动端把部署默认模式设成 danger-full-access = 不套沙箱、直接执行。
+# 安全边界仍在：进程本身被 Android 的应用沙箱（独立 UID）圈住，
+# 模型碰不到其它应用的数据，也出不了 App 私有目录之外。
+- id: sandbox-policy
+  name: "@deepseek-ai/dsh-sandbox-policy"
+  config:
+    mode: danger-full-access
+
+--- 关键字段抽取 ---
+  - id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  baseURL: https://api.commandcode.ai/provider/v1
+  - id: deepseek/deepseek-v4.1-flash
+  name: deepseek/deepseek-v4.1-flash
+  - id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  provider: com
+  model: deepseek/deepseek-v4.1-flash
+  - id: acp
+  name: "@deepseek-ai/dsh-acp"
+  provider: com
+  model: deepseek/deepseek-v4.1-flash
+  - id: sandbox-policy
+  name: "@deepseek-ai/dsh-sandbox-policy"
+  mode: danger-full-access
+
+========================================================================
+## 3) experts.json —— 专家开关状态
+========================================================================
+{
+  "enabled": [
+    "academic-anthropologist"
+  ],
+  "updatedAt": "2026-10-03T04:07:36.003930"
+}
+
+
+========================================================================
+## 4) AGENTS.md —— 已开专家的 brief（每会话都注入）
+========================================================================
+<!-- dsh-mobile:enabled-experts:begin（由 App 生成，请勿手改；开关变化会重写这一段）-->
+
+## 已启用的专家（DSH 手机版「专家」页开启）
+
+用户在手机上开启了以下专家角色。当任务落在其职责范围内时，请按该专家的身份与工作方式作答；一次只承担与当前任务相关的角色，并在回答里说明你正在以哪名专家身份工作。
+
+### 人类学家
+
+- 职责：文化体系、仪式、亲属关系、信仰系统和民族志方法专家——构建有生活气息而非凭空捏造的、文化上连贯自洽的社会
+- 工作要点：### 设计文化上连贯自洽的社会 · 构建在人类学上合理的亲属制度、社会组织和权力结构 · 创造在社会中发挥实际功能的仪式实践、信仰系统和宇宙观 · 确保生计方式、经济和社会结构相互一致 · **默认要求**：每个文化元素都必须服务于某种功能（社会凝聚、资源管理、身份认同形成、冲突解决）  ### 评估文化真实性 · 识别文化陈词滥调和浅层借用——推动实现更深层、更真实的文化设计 · 检查文化元素之间的内部一致性 · 验证被借用的元素在其原始语境中是否被正确理解 · 评估文化内部的张力和矛盾是否存在（没有乌托邦）  ### 构建活的文化 · 设计交换系统（互惠、再分配、市场——依据波兰尼的分类） · 创造遵循范盖内普模型的通过仪式（分离 → 阈限 → 融合） · 构建反映社会实际关切和环境的宇宙观 · 设计不依赖现代国家机器的社会控制机制
+
+<!-- dsh-mobile:enabled-experts:end -->
+
+
+
+========================================================================
+## 5) workspaces.json —— 工作区登记表
+========================================================================
+{
+  "version": 1,
+  "current": "/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws",
+  "workspaces": [
+    {
+      "name": "默认工作区",
+      "path": "/data/user/0/com.dshmobile.dsh_mobile/files/workspace",
+      "isDefault": true,
+      "createdAt": 0
+    },
+    {
+      "name": "moni-ws",
+      "path": "/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws",
+      "isDefault": false,
+      "createdAt": 1790997298432
+    }
+  ]
+}
+
+========================================================================
+## 6) 工作区目录内容（资料库扫这里）
+========================================================================
+total 32
+drwx------ 2 u0_a192 u0_a192 4096 2026-10-03 14:21 .
+drwx------ 3 u0_a192 u0_a192 4096 2026-10-03 03:14 ..
+-rw------- 1 u0_a192 u0_a192   92 2026-10-03 03:14 WORKSPACE-INFO.txt
+-rw------- 1 u0_a192 u0_a192    6 2026-10-03 14:21 sandbox_probe.txt
+
+
+========================================================================
+## 7) 会话历史目录
+========================================================================
+total 40
+drwx------  4 u0_a192 u0_a192 4096 2026-10-03 08:44 --data-data-com.dshmobile.dsh_mobile-files--
+drwx------ 13 u0_a192 u0_a192 4096 2026-10-03 01:50 --data-user-0-com.dshmobile.dsh_mobile-files-workspace--
+drwx------ 13 u0_a192 u0_a192 4096 2026-10-03 14:20 --data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--
+drwx------  5 u0_a192 u0_a192 4096 2026-10-03 03:19 .
+drwx------  5 u0_a192 u0_a192 4096 2026-10-03 04:07 ..
+
+--- 每个会话目录 ---
+files/dshhome/sessions:
+--data-data-com.dshmobile.dsh_mobile-files--
+--data-user-0-com.dshmobile.dsh_mobile-files-workspace--
+--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--
+
+files/dshhome/sessions/--data-data-com.dshmobile.dsh_mobile-files--:
+session-33376b45-f0af-4db9-9030-427ee200bde7
+session-f65bedf2-987f-4f35-af51-f10c1a381f04
+
+files/dshhome/sessions/--data-data-com.dshmobile.dsh_mobile-files--/session-33376b45-f0af-4db9-9030-427ee200bde7:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-data-com.dshmobile.dsh_mobile-files--/session-f65bedf2-987f-4f35-af51-f10c1a381f04:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--:
+18227fb1-c78a-463a-ac3a-9d01ddd95da8
+222d10ea-bf39-4d7f-ae36-619931a02a77
+2ae5bc91-f155-40ac-840d-f3507622d8d2
+53038f75-5450-48d8-b11f-7ea3cf66d84f
+56f6a9e9-accf-4a1f-bb5f-feeb34eb2678
+8eae164f-f39f-4ecb-8cd0-6df5c9161e80
+9112ef74-b185-4557-9053-5358d4f8b738
+92dbfe6f-8f96-4b0b-a21f-f504b1222b1e
+ac56af04-13b5-43e4-9631-443ba5f4f525
+bcd31869-710b-47fc-8fb3-244c61720cfc
+c7e12eb1-88b3-4743-9b91-2ae0c8193d04
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/18227fb1-c78a-463a-ac3a-9d01ddd95da8:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/222d10ea-bf39-4d7f-ae36-619931a02a77:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/2ae5bc91-f155-40ac-840d-f3507622d8d2:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/53038f75-5450-48d8-b11f-7ea3cf66d84f:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/56f6a9e9-accf-4a1f-bb5f-feeb34eb2678:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/8eae164f-f39f-4ecb-8cd0-6df5c9161e80:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/9112ef74-b185-4557-9053-5358d4f8b738:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/92dbfe6f-8f96-4b0b-a21f-f504b1222b1e:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/ac56af04-13b5-43e4-9631-443ba5f4f525:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/bcd31869-710b-47fc-8fb3-244c61720cfc:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspace--/c7e12eb1-88b3-4743-9b91-2ae0c8193d04:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--:
+0dcabaea-aa03-43f1-aaf4-d56564042612
+268a3dcc-f881-4640-8e62-fdf447274163
+3494d159-6939-45c5-883a-cdf2956885a7
+84447ad7-629c-4c3e-bcc0-ef34ac9c5f92
+8c98ba14-9543-4f36-a082-d854cc1b90d4
+9dc1a821-a164-4d5b-b81f-dacd2acc2b9d
+aec14d63-2d8d-4c60-8450-d9bfd3767bb8
+afa981e5-f15c-411f-acc0-38b1af3afbe0
+c578fcdd-c565-4c54-bd1c-f5bd723b11b6
+e8313ffc-df90-400e-8382-e4e226ecdc30
+e99c2b72-9c82-4fde-af3b-c26a3012f567
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/0dcabaea-aa03-43f1-aaf4-d56564042612:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/268a3dcc-f881-4640-8e62-fdf447274163:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/3494d159-6939-45c5-883a-cdf2956885a7:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/84447ad7-629c-4c3e-bcc0-ef34ac9c5f92:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/8c98ba14-9543-4f36-a082-d854cc1b90d4:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/9dc1a821-a164-4d5b-b81f-dacd2acc2b9d:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/aec14d63-2d8d-4c60-8450-d9bfd3767bb8:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/afa981e5-f15c-411f-acc0-38b1af3afbe0:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/c578fcdd-c565-4c54-bd1c-f5bd723b11b6:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/e8313ffc-df90-400e-8382-e4e226ecdc30:
+session.lock
+session.v4.jsonl.zstd
+
+files/dshhome/sessions/--data-user-0-com.dshmobile.dsh_mobile-files-workspaces-moni-ws--/e99c2b72-9c82-4fde-af3b-c26a3012f567:
+session.lock
+session.v4.jsonl.zstd
+
+
+========================================================================
+## 8) schedules.json —— 定时任务
+========================================================================
+{"schedules":[{"id":"sch-smoke","name":"SMOKE-TASK","prompt":"Reply with exactly SCHED-OK","repeat":"once","hour":8,"minute":44,"weekdays":[1],"enabled":false,"createdAt":"2026-10-03T08:44:06.000","lastRunAt":"2026-10-03T08:45:02.136060","lastOk":true,"nextRunAt":null,"lastSummary":"SCHED-OK"}],"runs":[{"at":"2026-10-03T08:45:02.136060","ok":true,"summary":"SCHED-OK","missed":false,"taskName":"SMOKE-TASK"}]}
+
+========================================================================
+## 9) skills 目录
+========================================================================
+ls: files/dshhome/skills: No such file or directory
+
+
+========================================================================
+## 10) logcat 里的链路证据（cwd / 扫描目录 / 模型）
+========================================================================
+  10-03 10:09:36.154  3473  3473 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:09:41.781  3473  3473 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1554ms
+  10-03 10:10:17.081  3473  3473 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:10:39.378  3473  3473 I flutter : [chat] ACP session ready: c578fcdd-c565-4c54-bd1c-f5bd723b11b6 model=未配置模型 cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 10:17:15.016  4912  4912 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:17:18.201  4912  4912 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1001ms
+  10-03 10:17:47.488  4912  4912 I flutter : [dsh-ws] 磁盘会话索引：15 条
+  10-03 10:42:31.783  5432  5432 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:42:34.996  5432  5432 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=801ms
+  10-03 10:43:14.365  5432  5432 I flutter : [dsh-ws] 磁盘会话索引：15 条
+  10-03 10:44:06.470  5625  5625 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:44:10.724  5625  5625 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=721ms
+  10-03 10:44:28.253  5625  5625 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:44:36.423  5625  5625 I flutter : [chat] ACP session ready: 84447ad7-629c-4c3e-bcc0-ef34ac9c5f92 model=未配置模型 cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 10:47:06.346  5895  5895 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 10:47:09.996  5895  5895 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1152ms
+  10-03 10:47:27.393  5895  5895 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 10:47:47.824  5895  5895 I flutter : [chat] ACP session ready: aec14d63-2d8d-4c60-8450-d9bfd3767bb8 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 10:47:53.693  5895  5895 I flutter : [dsh-ws] 登记会话 aec14d63（moni-ws）共 1 条
+  10-03 11:02:10.042  6538  6538 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:02:13.363  6538  6538 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=545ms
+  10-03 11:02:47.361  6644  6644 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:02:50.134  6644  6644 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=462ms
+  10-03 11:03:08.029  6644  6644 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:03:23.257  6644  6644 I flutter : [chat] ACP session ready: 268a3dcc-f881-4640-8e62-fdf447274163 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:03:34.398  6644  6644 I flutter : [dsh-ws] 登记会话 268a3dcc（moni-ws）共 1 条
+  10-03 11:06:57.649  7103  7103 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:07:00.725  7103  7103 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=423ms
+  10-03 11:10:02.523  7321  7321 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:10:05.948  7321  7321 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1080ms
+  10-03 11:10:24.122  7321  7321 I flutter : [dsh-nav] open chat page (initialText=进行文档处理 resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:10:39.544  7321  7321 I flutter : [chat] ACP session ready: 8c98ba14-9543-4f36-a082-d854cc1b90d4 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:10:50.422  7321  7321 I flutter : [dsh-ws] 登记会话 8c98ba14（moni-ws）共 1 条
+  10-03 11:11:44.299  7525  7525 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:11:47.727  7525  7525 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=483ms
+  10-03 11:12:03.923  7525  7525 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:12:13.551  7525  7525 I flutter : [chat] ACP session ready: 9dc1a821-a164-4d5b-b81f-dacd2acc2b9d model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:13:24.144  7785  7785 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:13:27.322  7785  7785 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=471ms
+  10-03 11:13:44.866  7785  7785 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:13:54.082  7785  7785 I flutter : [chat] ACP session ready: e99c2b72-9c82-4fde-af3b-c26a3012f567 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:14:57.525  8069  8069 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:15:00.574  8069  8069 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=605ms
+  10-03 11:15:18.369  8069  8069 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:15:26.471  8069  8069 I flutter : [chat] ACP session ready: 0dcabaea-aa03-43f1-aaf4-d56564042612 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:16:04.268  8069  8069 I flutter : [dsh-ws] 登记会话 0dcabaea（moni-ws）共 1 条
+  10-03 11:46:59.275  8519  8519 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:47:03.092  8519  8519 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=1302ms
+  10-03 11:47:20.950  8519  8519 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 11:47:39.702  8519  8519 I flutter : [chat] ACP session ready: e8313ffc-df90-400e-8382-e4e226ecdc30 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 11:48:53.739  8775  8775 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:48:56.683  8775  8775 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=528ms
+  10-03 11:50:13.814  8920  8920 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 11:50:16.687  8920  8920 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=512ms
+  10-03 14:19:04.286  9635  9635 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 14:19:08.185  9635  9635 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=945ms
+  10-03 14:20:00.140  9722  9722 I flutter : [dsh-ws] 载入 2 个工作区，当前=moni-ws（/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws）
+  10-03 14:20:03.315  9722  9722 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=445ms
+  10-03 14:20:21.209  9722  9722 I flutter : [dsh-nav] open chat page (initialText=- resume=- cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws)
+  10-03 14:20:40.636  9722  9722 I flutter : [chat] ACP session ready: 3494d159-6939-45c5-883a-cdf2956885a7 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/
+  10-03 14:21:04.667  9722  9722 I flutter : [dsh-ws] 登记会话 3494d159（moni-ws）共 1 条

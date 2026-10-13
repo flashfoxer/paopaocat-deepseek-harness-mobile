@@ -1,0 +1,8 @@
+回复完成（第 2 次轮询）
+
+=== 磁盘上找 sandbox_probe.txt ===
+✅ 找到了文件：
+files/workspaces/moni-ws/sandbox_probe.txt
+
+--- 内容 ---
+hello

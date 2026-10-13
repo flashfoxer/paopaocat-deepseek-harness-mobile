@@ -1,0 +1,51 @@
+=== 权限请求相关日志（132 条）===
+10-03 11:01:45.014   543   735 D SafetySourceDataValidator: No cert check requested for package com.google.android.permissioncontroller
+10-03 11:01:45.071   543   565 D SafetySourceDataValidator: No cert check requested for package com.google.android.permissioncontroller
+10-03 11:01:45.079   543  2974 D SafetySourceDataValidator: No cert check requested for package com.google.android.permissioncontroller
+10-03 11:01:45.098   543  1078 D SafetySourceDataValidator: No cert check requested for package com.google.android.permissioncontroller
+10-03 11:01:45.143   543   543 W AlarmManager: Package com.dshmobile.dsh_mobile, uid 10192 lost permission to set exact alarms!
+10-03 11:01:45.181   543   565 D SafetySourceDataValidator: No cert check requested for package com.google.android.permissioncontroller
+10-03 11:01:46.165  6413  6497 I native  : I0000 00:00:1791025306.165220    6497 permission-checker.cc:82] Creating PermissionChecker based on ACL with config_version 1 having 12 permissions defined.
+10-03 11:02:02.631   543  2859 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.dshmobile.dsh_mobile/.MainActivity} with LAUNCH_SINGLE_TOP from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+10-03 11:02:05.107   543   627 D ActivityManager: freezing 1299 com.google.android.permissioncontroller
+10-03 11:02:39.014   543  1078 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.dshmobile.dsh_mobile/.MainActivity} with LAUNCH_SINGLE_TOP from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+10-03 11:03:44.491  6644  6644 I flutter : [chat] thought: The sandbox can't run commands. Let me try with sandbox_permissions danger-full-access? The policy says ask. I should attempt the narrowest wider mode. The error says switch consumer to danger-full-access. But the guidance: "sandbox_permissions: The narrowest wider sandbox mode for a one-shot retry of the exact command the sandbox just denied". The denied op was listing files. Let me try workspace-write first? It already was workspace-write and refused because no backend. So retry with danger-full-access.
+10-03 11:03:44.647  6644  6644 I flutter : [chat] 权限请求 kind=null title=null raw=
+
+=== 权限弹层当前可见文本（完整）===
+Agent 请求执行操作
+要执行的内容：
+工具调用 call_00_tkkaiig6om418l7edaa8tewg
+拒绝
+允许一次
+
+=== 设置页可见文本（滚动后，完整）===
+设置
+运行时目录&#10;工作目录&#10;会话记录&#10;技能目录&#10;附件目录&#10;工具脚本&#10;模型配置&#10;以上都在 App 私有目录里，其它应用读不到；长按可以复制。
+关于
+做这个主要是下班晚上才有时间做，而且本人公众号一直没有人关注，要求不多：），麻烦大家点个关注就行&#10;应用名&#10;基于 DeepSeek Harness 的本地运行时，除模型接口外不依赖任何服务器。
+首页&#10;首页
+专家&#10;专家
+资料库&#10;资料库
+定时任务&#10;定时任务
+设置&#10;设置
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome
+/data/user/0/com.dshmobile.dsh_mobile/files
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/sessions
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/skills
+/data/user/0/com.dshmobile.dsh_mobile/files/attachments
+/data/user/0/com.dshmobile.dsh_mobile/files/tools
+/data/user/0/com.dshmobile.dsh_mobile/files/dshhome/model.overlay.yml
+公众号 ID：paopaocat888
+泡泡猫的Deepseek harness
+
+=== 检查项 ===
+  [MISS] 有「文件地址」
+  [OK] 有「关于」
+  [OK] 有求关注文案
+  [OK] 有「公众号 ID：paopaocat888」
+  [OK] 路径含 sessions
+  [OK] 路径含 attachments
+
+=== 二维码白底检测 ===
+下半屏最白的一行 y=1348，白像素采样数=113（数值大说明有白色方块=二维码）

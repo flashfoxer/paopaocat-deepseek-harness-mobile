@@ -1,0 +1,6 @@
+===== wechat publish @ 2026-10-03T11:22:07.723Z =====
+title: 重大发布，手机版的智能体，泡泡猫DSH预览版
+publish flag: false
+FAIL at token: {"errcode":40164,"errmsg":"invalid ip 59.48.173.218 ipv6 ::ffff:59.48.173.218, not in whitelist rid: 6ac0e560-2f9437b2-39e3f9c9"}
+提示: 40164 = 调用来源 IP 不在公众号后台的 IP 白名单里。
+      去 公众号后台 -> 设置与开发 -> 基本配置 -> IP 白名单 添加报错里那个 IP。

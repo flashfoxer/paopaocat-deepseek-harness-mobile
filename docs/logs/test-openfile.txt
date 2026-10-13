@@ -1,0 +1,25 @@
+创建 probe.pdf: 
+工作区内容: WORKSPACE-INFO.txt probe.pdf sandbox_probe.txt 
+
+=== 1) 切换即刷新 ===
+  [OK] 切到资料库后新增扫描日志 1 条
+  最新: obile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=3 目录=1 跳过=0 截断=false 错误=0 耗时=132ms
+  资料库可见: 资料库 | 重新扫描工作区 | 最近 | 我的资料 | /data/user/0/com.dshmobile.dsh_mobile/fi | 文件 probe.pdf 0 B 刚刚&#10;probe.pdf&#10;pr | 文件 sandbox_probe.txt 6 B 1 小时前&#10;sandb | 文件 WORKSPACE-INFO.txt 92 B 13 小时前&#10;WO
+
+=== 3) 原生打开通道 ===
+  点 probe.pdf @ (540, 991)
+  预览页可见: Back | probe.pdf | 这个格式 App 内不能预览 | .pdf 类型（0 B）&#10;交给系统里能打开它的应用试试： | 用其它应用打开 | /data/user/0/com.dshmobile.dsh_mobile/fi
+  [OK] 有「用其它应用打开」按钮 @ (540, 1420)
+
+  原生日志:
+    10-03 10:09:46.109  1277  1752 I SemanticLocation: 	at android.content.ContextWrapper.openFileInput(ContextWrapper.java:249)
+    10-03 10:09:46.109  1277  1752 I SemanticLocation: 	at android.content.ContextWrapper.openFileInput(ContextWrapper.java:249)
+    10-03 10:09:46.109  1277  1752 I SemanticLocation: 	at android.content.ContextWrapper.openFileInput(ContextWrapper.java:249)
+    10-03 16:18:38.269 11839 11839 I DshLocal: openFile -> /data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws/probe.pdf (application/pdf)
+  Dart 日志:
+    10-03 16:18:38.278 11839 11839 I flutter : [dsh-library] 外部打开 probe.pdf -> ok
+  [OK] 打开了原生通道（有日志）
+
+=== 2) 设置页模型段（收起态）===
+  [MISS] 有「我的模型」
+  [MISS] 有「该模型已就绪」或「模型已配置」

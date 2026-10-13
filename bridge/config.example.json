@@ -1,0 +1,9 @@
+{
+  "dshBin": "D:/Programs/PaopaocatDSH/app/lib/bin.js",
+  "cwd": "C:/Users/25894/dsh-mobile-workspace",
+  "permissionMode": "workspace-write",
+  "host": "127.0.0.1",
+  "port": 8788,
+  "patches": ["acp-model.overlay.yml"],
+  "dataDir": "data"
+}

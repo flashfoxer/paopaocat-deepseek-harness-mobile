@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-09",
+  "note": "知识库清单。知识库 = 本地大模型可以直接查的资料（离线百科/手册/你自己的笔记）。**它和服务端模型无关**：查到的片段会被折进「本地对话」那一轮的问题里，走的还是同一条注入通道。所有条目都必须写明许可：只收明确允许再分发的数据（如维基百科 CC BY-SA），不收没有授权的站点内容。⚠️ 本清单**不含随包样例**（用户 2026-10-09 决定：样本库不要内置）—— 装完 App 必须先下载或从手机导入，才有知识库可用。",
+  "packs": [
+    {
+      "id": "zhwiki-cn-2307",
+      "name": "知识库",
+      "kind": "encyclopedia",
+      "format": "json-array",
+      "textField": "completion",
+      "bundled": false,
+      "fileName": "zhwiki-cn-2307.json",
+      "bytes": 524489333,
+      "sha256": "3a4dcb0e1b37436358d6cc5de28300071d55367395381958eba9fd38b3d78e32",
+      "entries": 254547,
+      "license": "CC BY-SA 4.0",
+      "note": "实测数据（2026-10-09 把整包 254,547 条逐条数过，不再是抽样估算）：JSON 数组，字段 `completion` 是条目正文、`source` 记来源；524,489,333 字节（≈500 MiB）/ 254,547 条，条目长度中位 452 字，首段（“XX 是…”定义句）在，抽检「晋城」能命中。合规实测（脚本见仓库 tools/kb-compliance-scan.py）：这是第三方数据集作者过滤过的清洗版 —— 已清掉一大批条目，但过滤是黑名单式的、不完整，仍含少量政治与社会争议条目。⚠️ 两个实测结论请一起看：① 关键词扫描（41 个高危词）对该包前 400 条**全部为 0 命中**，但把前 400 条**逐条通读**却找出 **5 条不宜预置的内容**（详见 docs/KB-COMPLIANCE-2026-10-09.md）—— “没有敏感词”不等于“没有敏感内容”，这也是本 App 决定不内置样本的原因；② 它**并没有**过滤掉列表页/消歧义页，实测仍含 **1,897 条消歧义页**（0.75%），此前那句“过滤掉了列表页/消歧义页”是把数据集作者的说法当成实测，已订正。内容不代表本应用的观点。短板如实说：它是 2023-07 的快照，之后新增/改动的条目没有。数据来源：第三方公开数据集（名字与地址不在这里列出）。",
+      "sources": [
+        {
+          "label": "hf-mirror（HF 国内镜像・实测 2.13 MB/s）",
+          "url": "https://hf-mirror.com/datasets/pleisto/wikipedia-cn-20230720-filtered/resolve/main/wikipedia-cn-20230720-filtered.json",
+          "priority": 0
+        },
+        {
+          "label": "HuggingFace 官方（国内多半连不上）",
+          "url": "https://huggingface.co/datasets/pleisto/wikipedia-cn-20230720-filtered/resolve/main/wikipedia-cn-20230720-filtered.json",
+          "priority": 1
+        }
+      ]
+    }
+  ]
+}

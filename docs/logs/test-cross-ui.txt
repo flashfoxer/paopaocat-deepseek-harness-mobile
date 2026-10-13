@@ -1,0 +1,57 @@
+=== 1) 最新一次会话的完整 cwd ===
+  10-03 11:47:39.702  8519  8519 I flutter : [chat] ACP session ready: e8313ffc-df90-400e-8382-e4e226ecdc30 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+  10-03 14:20:40.636  9722  9722 I flutter : [chat] ACP session ready: 3494d159-6939-45c5-883a-cdf2956885a7 model=deepseek/deepseek-v4.1-flash cwd=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws
+
+=== 2) 资料库可见文本 ===
+  资料库
+  重新扫描工作区
+  最近
+  我的资料
+  /data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws&#10;工作区 2 个文件
+  文件 sandbox_probe.txt 6 B 43 分钟前&#10;sandbox_probe.txt&#10;sandbox_probe.txt&#10;
+  文件 WORKSPACE-INFO.txt 92 B 11 小时前&#10;WORKSPACE-INFO.txt&#10;WORKSPACE-INFO.txt&
+  首页&#10;首页
+  专家&#10;专家
+  资料库&#10;资料库
+  定时任务&#10;定时任务
+  设置&#10;设置
+
+  最新扫描日志: 10-03 14:20:03.315  9722  9722 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=1 目录=1 跳过=0 截断=false 错误=0 耗时=445ms
+  最新扫描日志: 10-03 15:04:58.149 10827 10827 I flutter : [dsh-library] 工作区=/data/user/0/com.dshmobile.dsh_mobile/files/workspaces/moni-ws（工作区登记表 workspaces.json（当前工作区）） 文件=2 目录=1 跳过=0 截断=false 错误=0 耗时=463ms
+
+=== 3) 会话页可见（找专家入口）===
+  返回
+  新会话
+  本机
+  设置
+  内容由AI生成
+  添加附件
+  按住说话
+  当前模型 deepseek/deepseek-v4.1-flash&#10;deepseek/deepseek-v4.1-flash
+  首页&#10;首页
+  专家&#10;专家
+  资料库&#10;资料库
+  定时任务&#10;定时任务
+  设置&#10;设置
+  点「专家」入口 @ (324, 2265)
+
+=== 3b) 专家中心可见 ===
+  专家
+  技能
+  全部 321
+  学术 7
+  公司经营 6
+  设计 11
+  工程 68
+  已开启 1 位 · 同一时间只生效一位，开新的会自动关掉旧的
+  人类学家 已开启&#10;&#129460;&#10;人类学家&#10;学术&#10;文化体系、仪式、亲属关系、信仰系统和民族志方法专家——
+  地理学家 未开启&#10;&#127757;&#10;地理学家&#10;学术&#10;自然地理与人文地理、气候系统、制图学和空间分析专家——
+  历史学家 未开启&#10;&#128220;&#10;历史学家&#10;学术&#10;历史分析、分期、物质文化和史学方法专家——验证历史一致
+  叙事学家 未开启&#10;&#128214;&#10;叙事学家&#10;学术&#10;叙事理论、故事结构、人物弧线和文学分析专家——基于从普
+  心理学家 未开启&#10;&#129504;&#10;心理学家&#10;学术&#10;人类行为、人格理论、动机和认知模式专家——基于临床和研
+  统计学家 未开启&#10;&#128202;&#10;统计学家&#10;学术&#10;设计实验方案，处理调查和试验数据，做统计推断与显著性检
+  首页&#10;首页
+  专家&#10;专家
+
+  [OK] 出现已开专家「人类学家」
+  [MISS] 不该出现未开的「地理学家」

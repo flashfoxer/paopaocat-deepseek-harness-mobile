@@ -1,0 +1,186 @@
+{
+  "label": "acp-probe-2026-10-02T01-22-13-907Z",
+  "generatedAt": "2026-10-02T01:22:28.694Z",
+  "dshBin": "D:/Programs/PaopaocatDSH/app/lib/bin.js",
+  "sandbox": "C:\\Users\\25894\\dsh-mobile-sandbox",
+  "steps": [
+    {
+      "step": "initialize-ok",
+      "at": "2026-10-02T01:22:15.667Z",
+      "data": {
+        "requestedProtocolVersion": 1,
+        "negotiated": 1,
+        "agentInfo": {
+          "name": "deepseek-harness-acp",
+          "version": "0.0.1"
+        },
+        "authMethods": [],
+        "agentCapabilities": {
+          "mcpCapabilities": {
+            "http": true
+          },
+          "promptCapabilities": {
+            "image": false,
+            "audio": false,
+            "embeddedContext": false
+          },
+          "sessionCapabilities": {
+            "close": {},
+            "list": {},
+            "resume": {}
+          }
+        }
+      }
+    },
+    {
+      "step": "session-new-ok",
+      "at": "2026-10-02T01:22:15.729Z",
+      "data": {
+        "sessionId": "a33e54c9-8412-4971-ba64-44740f1c5ece",
+        "keys": [
+          "sessionId",
+          "configOptions"
+        ],
+        "configOptions": [
+          {
+            "id": "model",
+            "name": "Model",
+            "category": "model",
+            "type": "select",
+            "currentValue": "[\"com\",\"deepseek/deepseek-v4.1-flash\"]",
+            "options": [
+              {
+                "group": "deepseek-official",
+                "name": "DeepSeek",
+                "options": [
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-flash\"]",
+                    "name": "DeepSeek-V41-Flash"
+                  },
+                  {
+                    "value": "[\"deepseek-official\",\"deepseek-v4-pro\"]",
+                    "name": "DeepSeek-V4-Pro",
+                    "description": "Stronger agentic coding, knowledge, and difficult reasoning; suited to complex or quality-critical tasks at higher cost."
+                  }
+                ]
+              },
+              {
+                "group": "com",
+                "name": "com",
+                "options": [
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4-pro\"]",
+                    "name": "DeepSeek V4 Pro (latest)"
+                  },
+                  {
+                    "value": "[\"com\",\"deepseek/deepseek-v4.1-flash\"]",
+                    "name": "DeepSeek V4.1 Flash"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "step": "prompt-chat-done",
+      "at": "2026-10-02T01:22:21.905Z",
+      "data": {
+        "stopReason": "end_turn",
+        "usage": null,
+        "updates": 3,
+        "updateKinds": [
+          [
+            "agent_thought_chunk",
+            1
+          ],
+          [
+            "agent_message_chunk",
+            1
+          ],
+          [
+            "usage_update",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "step": "prompt-tool-done",
+      "at": "2026-10-02T01:22:27.119Z",
+      "data": {
+        "stopReason": "end_turn",
+        "updates": 6,
+        "permissionRequested": 0,
+        "serverRequests": [],
+        "updateKinds": [
+          [
+            "agent_thought_chunk",
+            2
+          ],
+          [
+            "agent_message_chunk",
+            2
+          ],
+          [
+            "usage_update",
+            3
+          ],
+          [
+            "tool_call",
+            1
+          ],
+          [
+            "tool_call_update",
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "step": "session-list-ok",
+      "at": "2026-10-02T01:22:27.168Z",
+      "data": {
+        "keys": [
+          "sessions"
+        ],
+        "sessions": []
+      }
+    },
+    {
+      "step": "session-close-ok",
+      "at": "2026-10-02T01:22:27.177Z",
+      "data": {
+        "result": {}
+      }
+    },
+    {
+      "step": "proc-exit",
+      "at": "2026-10-02T01:22:27.284Z",
+      "data": {
+        "code": 0,
+        "signal": null
+      }
+    }
+  ],
+  "frameCount": 21,
+  "updateKinds": {
+    "agent_thought_chunk": 2,
+    "agent_message_chunk": 2,
+    "usage_update": 3,
+    "tool_call": 1,
+    "tool_call_update": 1
+  },
+  "updateCount": 9,
+  "updateBytes": {
+    "min": 59,
+    "max": 767,
+    "avg": 237
+  },
+  "permissionRequests": [],
+  "serverRequestMethods": [],
+  "stderrTail": [
+    ""
+  ]
+}

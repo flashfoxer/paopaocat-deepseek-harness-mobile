@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 明文（HTTP / ws）流量的策略。
+     
+     ## 为什么这里有明文
+     
+     本 App 明确支持"**明文 ws** 连局域网里的电脑端桥"这一模式
+     （见电脑端目录里的 `start-bridge-ws.cmd`，用户文档里也写着"明文，仅私有网络"）。
+     桥的主机地址**由用户自己填**，所以无法用域名白名单枚举 —— 这就是 base-config
+     必须允许明文的原因。
+
+     ## ⚠️ 这一份**不是**收紧，只是把原来那个裸布尔值（android:usesCleartextTraffic="true"）
+     换成一个**写明理由的策略文件**（审计 P2 建议收紧）。
+     
+     为什么不照抄网上那套"默认拒绝 + 只放 127.0.0.1"的模板：那会让上面那条局域网明文
+     模式**在真机上直接失败**，而本机**没有设备可以验证**。宁可把理由写清楚，
+     也不要把一个未经验证的收紧塞进包里 —— 那正是"升级后某个模式悄悄不能用了"的来源。
+     
+     以后真要收紧，需要先做两件事：
+       1. 在真机上确认"明文 ws 连局域网桥"这条路是否还需要支持（若不再支持，
+          可以把 base-config 改成 false，只留本机地址）；
+       2. 确认该收紧不会影响到 Dart/node 侧自己的 socket（它们的明文策略未必走这里）。
+     -->
+<network-security-config>
+    <!-- 允许明文：理由见上。**行为与改动前一致**，不假装已收紧。 -->
+    <base-config cleartextTrafficPermitted="true" />
+
+    <!-- 下面几条只是把"已知必须明文"的本机地址显式写明，
+         便于以后收紧时一眼看到从哪下手（当前与 base-config 同义）。 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <!-- Android 模拟器里访问宿主机的固定地址 -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

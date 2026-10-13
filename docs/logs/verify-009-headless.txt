@@ -1,0 +1,205 @@
+# 0.09 端到端验证（设备侧）
+时间: 2026-10-04 12:00:42
+
+## 设备
+List of devices attached
+emulator-5554	device
+
+## 路径
+nativeLibDir=/data/app/~~t7tvEwetwWZf2rr59582xw==/com.dshmobile.dsh_mobile-jrgIHDmLWqzQU6yskNGSng==/lib
+cpuAbi=x86_64
+
+## push
+D:\dev\uiverify\v009\v009-device.sh: 1 file pushed, 0 skipped. 0.3 MB/s (4249 bytes in 0.013s)
+chmod rc=0 
+
+## 设备侧输出（run-as）
+/data/local/tmp/v009.sh[16]: node: inaccessible or not found
+/data/local/tmp/v009.sh[16]: node: inaccessible or not found
+ls: verify.pptx: No such file or directory
+== 1. 工具箱 / shim 是否落盘 ==
+total 184
+-rw------- 1 u0_a192 u0_a192 17376 2026-10-04 03:34 make-image.mjs
+-rw------- 1 u0_a192 u0_a192 40074 2026-10-04 03:34 make-pptx.mjs
+-rw------- 1 u0_a192 u0_a192 23563 2026-10-04 03:34 make-video.mjs
+-rw------- 1 u0_a192 u0_a192 28409 2026-10-04 03:49 probe-entry.mjs
+-rw-rw-rw- 1 u0_a192 u0_a192   391 2026-10-04 03:49 probe.mjs
+-rw------- 1 u0_a192 u0_a192   379 2026-10-04 04:00 rotate-config.json
+-rw------- 1 u0_a192 u0_a192 29826 2026-10-04 04:00 rotate-proxy.mjs
+-rw-rw-rw- 1 u0_a192 u0_a192     0 2026-10-04 03:40 t.sh
+total 52
+-rw------- 1 u0_a192 u0_a192 20982 2026-10-04 03:34 android-exec-shim.cjs
+-rw------- 1 u0_a192 u0_a192  1908 2026-10-02 08:23 android-fs-shim.cjs
+-rw------- 1 u0_a192 u0_a192   929 2026-10-02 08:23 android-shim-flock.js
+-rw------- 1 u0_a192 u0_a192  1820 2026-10-02 08:23 android-shim-require-builtin.js
+
+== 1b. 内置技能（<DSH_HOME>/skills）==
+code-tool
+data-analysis
+doc-digest
+doc-processing
+file-organize
+make-image
+make-slides
+make-video
+sheet-cleanup
+study-cards
+translate-polish
+weekly-report
+SKILL.md 数量: 12
+
+== 1c. AGENTS.md 受管区块（执行环境 + 生图/生视频规则）==
+DSH_ANDROID_TOOLBOX 出现次数: 4
+make-video.mjs 出现次数: 1
+平台注册地址出现次数: 1
+
+== 2. overlay 原文（不在设备侧解析：toybox 的 grep 在这个 ERE 上会 segfault，实测过）==
+# 由 App 生成：把 DSH 的模型路由指向用户配置的端点。
+# 覆盖两处是必须的 —— profile 自己的 config 会盖掉 agent-default-model。
+# 这里会把**所有**厂家一起写进来，切厂家不会丢配置。
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      bogus:
+        apiKeyEnv: BOGUS_API_KEY
+        api: openai-completions
+        baseURL: "http://127.0.0.1:9/v1"
+        models:
+          - id: nope-model
+            name: "nope"
+            contextWindow: 1000000
+      com:
+        apiKeyEnv: COM_API_KEY
+        api: openai-completions
+        baseURL: "https://api.commandcode.ai/provider/v1"
+        models:
+          - id: deepseek/deepseek-v4.1-flash
+            name: "deepseek-v4.1-flash"
+            contextWindow: 1000000
+      rotate:
+        apiKeyEnv: ROTATE_API_KEY
+        api: openai-completions
+        baseURL: "http://127.0.0.1:39321/v1"
+        models:
+          - id: cat
+            name: "cat（轮换组）"
+            contextWindow: 1000000
+
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: rotate
+    model: cat
+
+# ACP 服务器用自己的 config 决定每个新会话的路由，会盖掉 agent-default-model，
+# 所以要单独覆盖这一行 —— 漏掉它的话，对话会退回官方端点并因凭据无效而失败。
+- id: acp
+  name: "@deepseek-ai/dsh-acp"
+  config:
+    provider: rotate
+    model: cat
+
+# ── Android 沙箱与执行环境（关键，别删）────────────────────────
+# 1) 沙箱后端是 Linux-only（landlock / namespace），Android 上不可用：
+#    read-only / workspace-write 下写文件、glob、bash 都会报
+#    "no backend usable"，模型根本写不出文件。
+# 2) 所以移动端默认 danger-full-access = 不套沙箱、直接执行。
+#    安全边界仍在：进程被 Android 应用沙箱（独立 UID）圈住，
+#    模型碰不到其它应用的数据，也出不了 App 私有目录之外。
+- id: sandbox-policy
+  name: "@deepseek-ai/dsh-sandbox-policy"
+  config:
+    mode: danger-full-access
+
+== 3. 执行环境 shim：bash -c / node / make-pptx（不调模型）==
+BASH_OK
+v26.4.0
+[make-pptx] ok slides=2 notes=0 parts=16 bytes=9065 out=/data/user/0/com.dshmobile.dsh_mobile/files/v009/shim-verify.pptx
+-rw-rw-rw- 1 u0_a192 u0_a192   91 2026-10-04 04:00 outline.json
+-rw-rw-rw- 1 u0_a192 u0_a192 9065 2026-10-04 04:00 shim-verify.pptx
+[shim-test] exit=0
+
+== 3b. 生成的 pptx 是不是合法 ZIP ==
+-rw-rw-rw- 1 u0_a192 u0_a192 9065 2026-10-04 04:00 /data/user/0/com.dshmobile.dsh_mobile/files/v009/shim-verify.pptx
+0000000   P   K 003 004
+
+== 3c. Agnes 脚本：没配 Key 时必须给出注册地址（不许假装成功）==
+错误：没有配置 AGNES_API_KEY，无法生成图片。
+       请先到 https://platform.agnes-ai.cn 免费注册，拿到 API Key 后填到「设置 → 模型 → Agnes（免费）」这一项（App 会以 AGNES_API_KEY 环境变量注入）。
+       图片模型目前免费（官方口径：所有输出档位与输入参考图当前均免费；免费政策如有调整，以平台最新公告为准）。
+make-image 退出码=0
+错误：没有配置 AGNES_API_KEY，无法生成视频。
+       请先到 https://platform.agnes-ai.cn 免费注册，拿到 API Key 后填到「设置 → 模型 → Agnes（免费）」这一项（App 会以 AGNES_API_KEY 环境变量注入）。
+       视频模型当前限时免费（原价 ¥0.15/秒，现价 ¥0/秒）；免费政策如有调整，以 Agnes AI 平台最新公告为准。
+make-video 退出码=0
+== 4. 模型端到端（headless，真调模型）==
+
+```console
+$ echo "SHELL_OK"; echo "--- which/node ---"; command -v node; node -v; echo "--- toolbox ---"; echo "DSH_ANDROID_TOOLBOX=$DSH_ANDROID_TOOLBOX"; echo "DSH_ANDROID_NODE_BIN=$DSH_ANDROID_NODE_BIN"; echo "--- pwd ---"; pwd; echo "--- ls toolbox ---"; ls -l "$DSH_ANDROID_TOOLBOX" 2>&1 | head -30
+SHELL_OK
+--- which/node ---
+node
+v26.4.0
+--- toolbox ---
+DSH_ANDROID_TOOLBOX=/data/user/0/com.dshmobile.dsh_mobile/files/toolbox
+DSH_ANDROID_NODE_BIN=/data/app/~~t7tvEwetwWZf2rr59582xw==/com.dshmobile.dsh_mobile-jrgIHDmLWqzQU6yskNGSng==/lib/x86_64/libnode.so
+--- pwd ---
+/data/user/0/com.dshmobile.dsh_mobile/files/v009
+--- ls toolbox ---
+total 184
+-rw------- 1 u0_a192 u0_a192 17376 2026-10-04 03:34 make-image.mjs
+-rw------- 1 u0_a192 u0_a192 40074 2026-10-04 03:34 make-pptx.mjs
+-rw------- 1 u0_a192 u0_a192 23563 2026-10-04 03:34 make-video.mjs
+-rw------- 1 u0_a192 u0_a192 28409 2026-10-04 03:49 probe-entry.mjs
+-rw-rw-rw- 1 u0_a192 u0_a192 391 2026-10-04 03:49 probe.mjs
+-rw------- 1 u0_a192 u0_a192 584 2026-10-04 04:00 rotate-config.json
+-rw------- 1 u0_a192 u0_a192 29826 2026-10-04 04:00 rotate-proxy.mjs
+-rw-rw-rw- 1 u0_a192 u0_a192 0 2026-10-04 03:40 t.sh
+```
+
+要点：`bash -c` 由 mksh 承担、node v26.4.0 可用、`make-pptx.mjs` 确实在工具箱里。
+
+## 2) 写大纲 + 生成真 .pptx + 自检
+
+先说一句：`outline.json` 之前**已存在**（内容是你上一条留下的 `{"title":"shim 验证",...}`），按文件策略我先读再覆盖，现在内容是你要的那份：
+
+```console
+$ node -e "console.log(require('node:fs').readFileSync('outline.json','utf8'))"
+{"title":"执行环境验证","slides":[{"title":"第一条","bullets":["bash 能跑","node 能跑"]}]}
+```
+
+生成 pptx（**真跑，成功**）：
+
+```console
+$ node "$DSH_ANDROID_TOOLBOX/make-pptx.mjs" outline.json "执行环境验证.pptx"
+[make-pptx] ok slides=2 notes=0 parts=16 bytes=9100 out=/data/user/0/com.dshmobile.dsh_mobile/files/v009/执行环境验证.pptx
+[exit code: 0]
+```
+
+确认文件存在 + 体积：
+
+```console
+$ ls -l "执行环境验证.pptx"
+-rw-rw-rw- 1 u0_a192 u0_a192 9100 2026-10-04 04:01 执行环境验证.pptx
+
+$ node -e "const f=require('node:fs');const b=f.readFileSync('执行环境验证.pptx');console.log('字节',b.length,'头两字节',b.subarray(0,2).toString())"
+字节 9100 头两字节 PK
+```
+
+## 结论
+
+- **产物路径**：`/data/user/0/com.dshmobile.dsh_mobile/files/v009/执行环境验证.pptx`
+- **体积**：9100 字节（约 8.9 KB）；头两字节 `PK`，是真的 ZIP/OOXML 包，不是 HTML 改名的。
+- **页数**：2 页（自动封面「执行环境验证」 + 内容页「第一条 / bash 能跑 / node 能跑」）。
+- 体积偏小是因为只有 1 页内容（`parts=16`），页数多了会到几十 KB；这是真 pptx，结构完整可被 PowerPoint/WPS 打开。
+- 可以在 App 的「资料库」里预览和分享这个文件。
+---- 产物 ----
+total 64
+-rw-rw-rw- 1 u0_a192 u0_a192 9103 2026-10-04 03:38 exec-env-check.pptx
+-rw-rw-rw- 1 u0_a192 u0_a192  104 2026-10-04 04:01 outline.json
+-rw-rw-rw- 1 u0_a192 u0_a192 9065 2026-10-04 04:00 shim-verify.pptx
+-rw-rw-rw- 1 u0_a192 u0_a192 1095 2026-10-04 03:38 verify.mjs
+-rw-rw-rw- 1 u0_a192 u0_a192 9100 2026-10-04 04:01 执行环境验证.pptx
+
+== 完成 ==

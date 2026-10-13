@@ -1,0 +1,41 @@
+# DSH Mobile · ACP profile 模型覆盖层
+#
+# 为什么需要它：`dsh --profile acp` 的默认模板用官方 DeepSeek 端点 +
+# DEEPSEEK_API_KEY，而本机可用的路由是自定义 provider（commandcode.ai + COM_API_KEY）。
+# 用 `--patch <本文件>` 在 profile 层之上叠加，避免改动 $DSH_HOME/profiles/acp 本身。
+#
+# 用法：
+#   node <dsh>/lib/bin.js --profile acp --patch <本文件>
+#
+# 注意：这里的 provider/model 是本机示例值。桥发布时应把它做成可配置项，
+#      而不是硬编码——用户可能用官方 DeepSeek、其它兼容端点或本地模型。
+
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      com:
+        apiKeyEnv: COM_API_KEY
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        models:
+          - id: deepseek/deepseek-v4-pro
+            name: DeepSeek V4 Pro (latest)
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash
+            contextWindow: 1000000
+
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: com
+    model: deepseek/deepseek-v4.1-flash
+
+# 关键：ACP 服务器用它自己的 config 决定每个新会话的路由，
+# 会覆盖 agent-default-model。默认模板写的是官方 DeepSeek + DEEPSEEK_API_KEY。
+- id: acp
+  name: "@deepseek-ai/dsh-acp"
+  config:
+    provider: com
+    model: deepseek/deepseek-v4.1-flash

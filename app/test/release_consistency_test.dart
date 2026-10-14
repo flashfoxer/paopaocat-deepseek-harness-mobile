@@ -17,11 +17,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('发版口径自洽（升版时必须三处同时改）', () {
-    test('changelog 第一条就是 kAppVersion', () {
+    test('changelog 里「当前版本」那条就是 kAppVersion（跳过「下一版」活条目）', () {
       expect(kChangelog, isNotEmpty);
-      expect(kChangelog.first.version, kAppVersion,
-          reason: 'kAppVersion 是 $kAppVersion，而更新说明第一条是 '
-              '${kChangelog.first.version} —— 升版要两处一起改');
+      // 「下一版」是**活条目**（用户 2026-10-14 定的习惯）：改完功能 / 修完 bug 就写进它，
+      // 出包那天再把它改成「当前版本」。所以这里比的是**跳过它之后**那条。
+      // 「它必须存在、且排在最前」由 test/changelog_test.dart 单独钉住（那条测试
+      // 管“有没有写”，这条测试管“版本号对不对”，职责分开）。
+      final first = kChangelog.firstWhere(
+        (n) => !(n.status ?? '').contains('下一版'),
+        orElse: () => kChangelog.first,
+      );
+      expect(first.version, kAppVersion,
+          reason: 'kAppVersion 是 $kAppVersion，而「当前版本」那条是 '
+              '${first.version} —— 升版要两处一起改');
     });
 
     test('「当前版本」只能有一条，且就是第一条', () {

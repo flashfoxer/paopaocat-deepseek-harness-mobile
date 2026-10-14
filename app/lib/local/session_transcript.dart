@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'dsh_runtime.dart';
+import 'session_failure_store.dart';
 
 /// 读取一条已持久化会话的**历史对话**，用于在界面上回放。
 ///
@@ -59,13 +60,27 @@ class SessionTranscript {
 
 /// 一条可回放的消息。
 class SessionTranscriptMessage {
-  const SessionTranscriptMessage({required this.role, required this.text});
+  const SessionTranscriptMessage({
+    required this.role,
+    required this.text,
+    this.detail,
+  });
 
-  /// `user` 或 `assistant`
+  /// `user` / `assistant` / `notice`
+  ///
+  /// `notice` 不是转录里的事件，是 App 侧补的一条"这次没回上来 + 原因"
+  /// （见 `local/session_failure_store.dart`）。界面要把它画成**失败提示**，
+  /// 不能画成助手回答 —— 那会变成"模型说了这句话"的假象。
   final String role;
   final String text;
 
+  /// 技术细节（原始报错）。只有 `notice` 会带。
+  final String? detail;
+
   bool get isUser => role == 'user';
+
+  /// 是不是"没有回答"那条提示
+  bool get isNotice => role == 'notice';
 }
 
 /// 内嵌的 node 解码脚本。
@@ -191,6 +206,29 @@ process.stdout.write(JSON.stringify({
 }));
 ''';
 
+/// 把 App 侧记下的"这次没回上来"合并成回放里的最后一条 `notice`（缺陷 C）。
+///
+/// 只在**最后一条是用户消息**时合并 —— 那说明这一轮确实没有助手回复；
+/// 若最后一条是助手消息，说明后面成功过了，挂个过期的失败提示只会误导。
+/// 另外失败必须发生在会话创建之后（防跨会话串 id 的极端情况）。
+///
+/// 抽成纯函数是为了能直接测（[loadSessionTranscript] 要真跑一个 node 进程）。
+void mergeFailureNotice(
+  List<SessionTranscriptMessage> messages,
+  SessionFailureRecord? failure,
+  DateTime? createdAt,
+) {
+  if (failure == null || messages.isEmpty || !messages.last.isUser) return;
+  final createdMs = createdAt?.millisecondsSinceEpoch ?? 0;
+  if (failure.at < createdMs) return;
+  messages.add(SessionTranscriptMessage(
+    role: 'notice',
+    text: failure.friendly,
+    detail: failure.detail,
+  ));
+  debugPrint('[dsh-transcript] 合并一条失败记录（${failure.friendly}）');
+}
+
 /// 从设备上的会话文件里读出历史对话。
 ///
 /// 返回 null 表示**读不到**（会话文件找不到 / node 报错）—— 调用方要如实提示，
@@ -261,6 +299,10 @@ Future<SessionTranscript?> loadSessionTranscript({
           : createdRaw.toInt();
       created = DateTime.fromMillisecondsSinceEpoch(ms);
     }
+
+    // 缺陷 C：把 App 记下的"这次没回上来"合并成一条 `notice` 挂在末尾。
+    final failure = readSessionFailure(runtime: runtime, sessionId: sessionId);
+    mergeFailureNotice(messages, failure, created);
 
     final transcript = SessionTranscript(
       title: decoded['title']?.toString(),

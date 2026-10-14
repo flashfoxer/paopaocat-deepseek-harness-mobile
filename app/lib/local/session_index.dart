@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../data/workspace_store.dart';
 import 'acp_client.dart';
 import 'dsh_runtime.dart';
+import 'session_projcache.dart';
 
 /// 读磁盘上的会话索引（= ACP `session/list`）。
 ///
@@ -32,10 +33,33 @@ Future<List<DshSession>> listPersistedSessions(
   try {
     final rows = await acp.listSessions();
     debugPrint('[ws-index] session/list 返回 ${rows.length} 条');
-    return [
-      for (final r in rows)
-        DshSession(id: r.sessionId, cwd: r.cwd, createdAt: r.createdAt),
-    ];
+    // 顺手给每条会话标一个「是不是 0 消息空壳」（缺陷 A 的第二半）。
+    //
+    // 判据全在本地文件上（投影缓存 + 转录大小，见 session_projcache.dart），
+    // **不额外起进程、不改协议**。标出来之后由界面决定要不要显示 ——
+    // 这里不删任何东西：磁盘上的会话目录一个都不动，用户的数据永远还在。
+    final sizes = scanTranscriptSizes(runtime.nodeHome);
+    var shells = 0;
+    final out = <DshSession>[];
+    for (final r in rows) {
+      final state = sessionContentState(
+        dshHome: runtime.nodeHome,
+        sessionId: r.sessionId,
+        transcriptBytes: sizes,
+      );
+      final empty = state == SessionContentState.empty;
+      if (empty) shells++;
+      out.add(DshSession(
+        id: r.sessionId,
+        cwd: r.cwd,
+        createdAt: r.createdAt,
+        emptyShell: empty,
+      ));
+    }
+    if (shells > 0) {
+      debugPrint('[ws-index] 其中 $shells 条是 0 消息空壳（列表里不显示；磁盘上仍在，没删）');
+    }
+    return out;
   } finally {
     // 无论成功失败都要把进程收掉：真机上多一个常驻 node 就是多一份内存。
     await acp.close();

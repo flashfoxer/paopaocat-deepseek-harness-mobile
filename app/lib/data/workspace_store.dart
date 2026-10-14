@@ -72,6 +72,7 @@ class DshSession {
     this.title,
     this.live = false,
     this.createdAt,
+    this.emptyShell = false,
   });
 
   /// 真实的 ACP sessionId（`session/resume` 就吃这个）
@@ -92,6 +93,15 @@ class DshSession {
 
   /// 本次运行期间真的对话过
   bool live;
+
+  /// 这条磁盘会话是**0 消息空壳**（打开过、一句没发；见 `local/session_projcache.dart`）。
+  ///
+  /// 谁标的：`listPersistedSessions`（读投影缓存 + 转录大小），**只标不删** ——
+  /// 磁盘上的目录、转录文件一个字节都不动，只是列表里不列出来。
+  ///
+  /// 为什么必须标出来：设备实测 48 条会话里 17 条是空壳（最老的 4 条转录只有
+  /// 175 B，连一条消息都没有），它们把真会话淹了，用户以为"对话被删了"。
+  bool emptyShell;
 
   bool get hasTitle => title != null && title!.trim().isNotEmpty;
 
@@ -220,21 +230,26 @@ class WorkspaceStore extends ChangeNotifier {
       title: custom,
       live: s.live,
       createdAt: s.createdAt,
+      emptyShell: s.emptyShell,
     );
   }
 
   /// 某个工作区下的会话：本次运行的真实会话在前，磁盘索引的历史会话随后。
   ///
   /// 同一个 sessionId 只出现一次（live 覆盖 disk —— live 那份有真实标题）。
+  /// **0 消息空壳不列**（[DshSession.emptyShell]）：磁盘上还在，只是不显示 ——
+  /// 列表里每一条点开都该有内容（缺陷 A 的验收标准）。
   List<DshSession> sessionsOf(String path) {
     final out = <DshSession>[];
     final seen = <String>{};
     for (final s in _live) {
       if (s.cwd != path) continue;
+      if (s.emptyShell) continue;
       if (seen.add(s.id)) out.add(_withCustomTitle(s));
     }
     for (final s in _disk) {
       if (s.cwd != path) continue;
+      if (s.emptyShell) continue;
       if (seen.add(s.id)) out.add(_withCustomTitle(s));
     }
     return out;
@@ -242,7 +257,13 @@ class WorkspaceStore extends ChangeNotifier {
 
   int get totalLiveSessions => _live.length;
 
+  /// 磁盘上查到多少条会话（**含**空壳 —— 这个数字是"磁盘上有几条"，不是"列表显示几条"）
   int get totalDiskSessions => _disk.length;
+
+  /// 其中被判为 0 消息空壳、因此**没列出来**的条数。
+  ///
+  /// 界面要如实说出这个差值，否则用户看到"磁盘 48 条"却只数出 31 条，会以为仍在丢。
+  int get hiddenEmptySessions => _disk.where((s) => s.emptyShell).length;
 
   // ------------------------------------------------------------------ 载入 / 落盘
 

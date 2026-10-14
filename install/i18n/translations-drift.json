@@ -2968,5 +2968,30 @@
     "en": "This download is the **lite package** (no runtime) — this device already has it, so that data is saved.",
     "ja": "今回ダウンロードするのは**軽量パッケージ**（実行環境を含まない）です —— この端末には既にあるため、その分の通信量を節約できます。",
     "ko": "이번에 내려받는 것은 **경량 패키지**(실행 환경 미포함)입니다 — 이 기기에 이미 있으므로 그만큼 데이터를 절약합니다."
+  },
+  "还没开始对话，正在按新模型准备会话…": {
+    "en": "No conversation has started yet — preparing the session for the new model…",
+    "ja": "まだ会話を始めていません。新しいモデルでセッションを準備しています…",
+    "ko": "아직 대화를 시작하지 않았습니다. 새 모델로 세션을 준비하는 중…"
+  },
+  "这条没能发出去：会话没能建起来，可以再试一次。": {
+    "en": "This message wasn't sent: the session couldn't be created. Please try again.",
+    "ja": "このメッセージは送れませんでした。セッションを作成できませんでした。もう一度お試しください。",
+    "ko": "이 메시지는 전송되지 않았습니다. 세션을 만들지 못했습니다. 다시 시도해 주세요."
+  },
+  "没有回答": {
+    "en": "No reply",
+    "ja": "回答なし",
+    "ko": "응답 없음"
+  },
+  "磁盘历史会话 {0} 条（其中 {1} 条是空会话，没列出来）": {
+    "en": "{0} sessions on disk ({1} empty ones not listed)",
+    "ja": "ディスク上の履歴セッション {0} 件（うち {1} 件は空のセッションのため非表示）",
+    "ko": "디스크의 지난 세션 {0}개(빈 세션 {1}개는 목록에서 제외)"
+  },
+  "磁盘历史会话 {0} 条": {
+    "en": "{0} saved sessions on disk",
+    "ja": "ディスク上の履歴セッション {0} 件",
+    "ko": "디스크 기록 세션 {0}개"
   }
 }

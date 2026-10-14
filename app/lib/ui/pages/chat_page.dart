@@ -8,6 +8,7 @@ import '../../local/acp_client.dart';
 import '../../local/dsh_runtime.dart';
 import '../../local/local_model_server.dart';
 import '../../local/rotate_log.dart';
+import '../../local/session_failure_store.dart';
 import '../../local/session_transcript.dart';
 import '../../data/api_error_text.dart';
 import '../../data/configured_models.dart';
@@ -260,7 +261,17 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 当前要恢复的会话 id。初始来自 [ChatPage.resumeSessionId]；
   /// 恢复失败用户可以点「改为新建会话」，这时会被清成 null。
+  ///
+  /// ⚠️ 它同时还是"**本页正在用哪个会话**"的唯一记录：新建会话成功后必须写回
+  /// （见 [_createSession]），否则任何一次重建都会另开一个会话（缺陷 B）。
   String? _resumeId;
+
+  /// 正在创建会话的那一次调用（连点发送 / 建会话期间切模型时只允许一次）。
+  Future<String>? _sessionCreation;
+
+  /// 正在"建会话 + 发第一条"这段异步窗口里 —— 防连点发两条
+  /// （缺陷 D `a prompt is already in flight` 的一半来源就在这里）。
+  bool _sendBusy = false;
 
   /// 这次会话是不是"恢复来的"（用来在界面上如实标注"DSH 不回放历史消息"）
   bool _resumed = false;
@@ -462,11 +473,14 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     if (!mounted) return;
-    // 两种退回重建的理由要分开说：一个是"进程里的旧配置不会热更新"（配置变了），
+    // 三种退回重建的理由要分开说：一个是"还没开始对话"（没有会话可切），
+    // 一个是"进程里的旧配置不会热更新"（配置变了），
     // 一个是"这个模型/组合切不过去"（老运行时 / 没注册过）。
-    final reason = configChanged
-        ? context.tr('模型配置变了（Key / 端点 / 模型清单），进程里的旧配置不会热更新，正在重建会话…')
-        : context.tr('这个模型没法在当前会话里直接切，正在重建会话…');
+    final reason = _sessionId == null
+        ? context.tr('还没开始对话，正在按新模型准备会话…')
+        : configChanged
+            ? context.tr('模型配置变了（Key / 端点 / 模型清单），进程里的旧配置不会热更新，正在重建会话…')
+            : context.tr('这个模型没法在当前会话里直接切，正在重建会话…');
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -565,6 +579,8 @@ class _ChatPageState extends State<ChatPage> {
       _toolRawById.clear();
       _messages.clear();
     });
+    // 重建 = 换进程：创建中的那个 Future 作废（它的 id 属于旧进程，不能用）。
+    _sessionCreation = null;
     // 进程换了，"运行时在跑哪个模型"这个已知事实作废，等新会话自己报。
     _liveRoute = null;
     await _start();
@@ -610,13 +626,13 @@ class _ChatPageState extends State<ChatPage> {
         onLog: (m) => debugPrint('[chat]$m'),
       );
 
-      // 恢复已有会话 or 新建会话。
+      // 恢复已有会话 or **延后**新建会话。
       //
       // 恢复走 ACP `session/resume`（设备上实测可用：恢复后模型仍记得之前的上下文，
       // 但**不回放历史消息** —— 这是协议行为，界面要如实标注，不能假装消息还在）。
       // 任何失败都**不吞**：把原因显示出来，并给一个"改为新建会话"的出口。
       final wantResume = _resumeId;
-      String sessionId;
+      String? sessionId;
       if (wantResume != null && wantResume.isNotEmpty) {
         try {
           await acp.resumeSession(wantResume, ws);
@@ -639,7 +655,18 @@ class _ChatPageState extends State<ChatPage> {
           return;
         }
       } else {
-        sessionId = await acp.newSession(ws);
+        // ⚠️ 这里**刻意不建会话**（缺陷 A 的修法，2026-10-14）。
+        //
+        // 为什么不能在这里建：ACP `session/new` 一被调用，DSH 立刻在磁盘上写出
+        // `<sessionId>/session.v4.jsonl.zstd` —— 那一行就是列表里"点开全空"的一条。
+        // 设备实测（见 docs/CHANGES-2026-10-14.md §2）：48 条会话里 17 条 0 消息空壳，
+        // 而诊断日志里 22 次「打开聊天页（未指定会话）」有 **12 次**在 120 秒内一句没发。
+        // 用户翻列表看到一堆空白，结论就是"我的对话被删了"。
+        //
+        // 现在改成：进程照旧先起来（该热的身都热好），**第一条消息到达时才建会话**
+        // —— 见 [_ensureSession]。没聊过的页面不再往磁盘上留任何东西。
+        sessionId = null;
+        debugPrint('[chat] 进程就绪；会话延后到第一条消息再创建（不再产生 0 消息空壳）');
       }
       if (!mounted) {
         await acp.close();
@@ -691,7 +718,7 @@ class _ChatPageState extends State<ChatPage> {
         // 带的 configOptions 报出来的）—— 不是界面上那个选中项。
         _liveRoute = acp.liveModelRoute;
       });
-      debugPrint('[chat] ACP session ready: $sessionId '
+      debugPrint('[chat] ACP ready: session=${sessionId ?? '（延后创建）'} '
           'model=${widget.models.selectedName} 运行时报=$_liveRoute cwd=$ws');
     } catch (e) {
       debugPrint('[chat] ACP start failed: $e');
@@ -701,6 +728,50 @@ class _ChatPageState extends State<ChatPage> {
         _startError = '$e';
       });
     }
+  }
+
+  /// 第一条消息到达时才创建会话（缺陷 A/B 的修法，2026-10-14）。
+  ///
+  /// 两条缺陷同源，所以一起修：
+  ///
+  ///   * **A 空壳**：`session/new` 一调用就落盘一个会话目录。以前在 `_start()`
+  ///     里无条件建，于是"点开聊天页看一眼就走"也会留下一个 0 消息会话。
+  ///     现在只有**真的发消息**才建。
+  ///   * **B 切模型换会话**：建完必须把 id 记进 [_resumeId]。以前只存 `_sessionId`，
+  ///     而 `_start()` 判断"恢复还是新建"只看 `_resumeId` —— 本页新建的会话
+  ///     `_resumeId` 一直是 null，于是**任何**一次重建都会走新建分支换个新 id。
+  ///     日志实证：23:06:42.064 打印"会话未重建" → 42.185 进程退出 → 43.717
+  ///     `session created: 348524f2`，旧会话 c6a74bd7 被留在列表里。
+  ///
+  /// 并发只允许一次（连点发送、建会话期间刚好切模型）：多次调用共享同一个 Future。
+  Future<String> _ensureSession() {
+    final running = _sessionCreation;
+    if (running != null) return running;
+    final f = _createSession();
+    _sessionCreation = f;
+    f.whenComplete(() {
+      if (identical(_sessionCreation, f)) _sessionCreation = null;
+    });
+    return f;
+  }
+
+  Future<String> _createSession() async {
+    final acp = _acp;
+    if (acp == null) throw StateError('会话进程还没起来');
+    final id = await acp.newSession(_cwd);
+    // 期间页面重建过（进程换了）→ 这个 id 不能算数，让调用方如实报错重来，
+    // 否则会把消息发到一个已经没有页面在用的会话上。
+    if (_acp != acp) throw StateError('会话进程刚被重建，请再发一次');
+    _resumeId = id;
+    _live?.sessionId = id;
+    if (mounted) {
+      setState(() => _sessionId = id);
+    } else {
+      _sessionId = id;
+    }
+    debugPrint('[chat] 第一条消息到达 → 创建会话 $id'
+        '（已记进 _resumeId，此后重建走 resume 不再换会话）');
+    return id;
   }
 
   /// 接上一个**已经在跑**的会话（注册表里已经有它的进程与消息）。
@@ -1288,8 +1359,33 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _send() async {
     final text = _input.text.trim();
     final acp = _acp;
-    final sessionId = _sessionId;
-    if (text.isEmpty || _running || acp == null || sessionId == null) return;
+    if (text.isEmpty || _running || _sendBusy || acp == null) return;
+
+    // 会话**在这一刻**才创建（缺陷 A），并且创建后记住 id（缺陷 B）——
+    // 见 [_ensureSession] 的注释。建不出来就如实说，不把这条消息吞掉。
+    final String sessionId;
+    if (_sessionId != null) {
+      sessionId = _sessionId!;
+    } else {
+      _sendBusy = true;
+      try {
+        sessionId = await _ensureSession();
+      } catch (e) {
+        debugPrint('[chat] 建会话失败，这条没发出去：$e');
+        if (mounted) {
+          setState(() => _messages.add(ChatMsg(
+                text: context.tr('这条没能发出去：会话没能建起来，可以再试一次。'),
+                role: ChatRole.assistant,
+                failed: true,
+                detail: '$e',
+              )));
+        }
+        return;
+      } finally {
+        _sendBusy = false;
+      }
+      if (!mounted) return;
+    }
 
     _input.clear();
     // 记下这一轮的开始时刻 —— 顶栏据此显示「已等 M:SS」（审计 P1-1）。
@@ -1326,11 +1422,31 @@ class _ChatPageState extends State<ChatPage> {
         lastError = null;
         // 这一轮结束了，顺手更新"轮换池本次用哪个成员"（不是轮换池时自己会清空）。
         unawaited(_refreshRotateNote());
+        // 成功了 → 把之前那条"没回上来"的失败记录擦掉（缺陷 C 的收尾），
+        // 否则重新打开会话还会挂一条过期的失败提示。
+        unawaited(clearSessionFailure(
+          runtime: widget.runtime,
+          sessionId: sessionId,
+        ));
         break;
       } catch (e) {
         lastError = e;
         debugPrint('[chat] prompt failed（第 $attempt 次）: $e');
         final msg = e.toString().toLowerCase();
+        // 缺陷 D：**超时不等于运行时那边停了** —— 它的 prompt 可能还在飞。
+        // 不补一发 cancel，下一次发送就会撞上
+        // `Invalid params: a prompt is already in flight for this session`
+        // （设备日志里这个错 4 次，其中 2 次紧跟 ACP 超时 —— 就是这条链）。
+        if (e is TimeoutException ||
+            msg.contains('超时') ||
+            msg.contains('timeout')) {
+          try {
+            await acp.cancel(sessionId);
+            debugPrint('[chat] 上一轮超时 → 已发 session/cancel 收尾');
+          } catch (ce) {
+            debugPrint('[chat] 超时后 cancel 失败（仍按超时处理）：$ce');
+          }
+        }
         // 这几类重试没有意义，只会再失败一次、还把界面刷花：
         //   · **超时**：重试 = 让用户再干等一遍，静默时间直接翻倍
         //     （旧代码就是这样拿到"最长静默 10 分钟"的 —— 审计 P1-1）；
@@ -1368,6 +1484,19 @@ class _ChatPageState extends State<ChatPage> {
                 failed: true,
                 detail: f.detail),
           ));
+      // 缺陷 C：同时记进 App 侧的失败账本。
+      //
+      // 为什么不能只靠界面这条气泡：它是**内存**里的，退出再进来就没了；
+      // 而 DSH 的会话转录只在失败时落 `assistant/attempt` + `llm/retry*`，
+      // **不落错误事件**（写入方是运行时，不在本仓库）。所以回放时会出现
+      // "我发了话、没有回答、也没有任何说明"。记一份之后，
+      // `session_transcript.dart` 回放时会把原因合并成一条"没有回答"。
+      unawaited(recordSessionFailure(
+        runtime: widget.runtime,
+        sessionId: sessionId,
+        friendly: f.friendly,
+        detail: f.detail,
+      ));
     }
     if (mounted) {
       setState(() {
@@ -2154,19 +2283,39 @@ class _ChatPageState extends State<ChatPage> {
                     );
                   }
                   final m = t.messages[i];
+                  // `notice` 是 App 侧补的"这次没回上来 + 原因"（缺陷 C），
+                  // 画成失败提示 —— **不能**画成助手回答，那会变成"模型说了这句"的假象。
+                  final label = m.isNotice
+                      ? context.tr('没有回答')
+                      : m.isUser
+                          ? context.tr('你')
+                          : context.tr('助手');
+                  final labelColor = m.isNotice
+                      ? DshColors.err
+                      : m.isUser
+                          ? DshColors.accent
+                          : DshColors.textDim;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          m.isUser ? context.tr('你') : context.tr('助手'),
-                          style: TextStyle(
-                            color:
-                                m.isUser ? DshColors.accent : DshColors.textDim,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          children: [
+                            if (m.isNotice) ...[
+                              Icon(Icons.error_outline,
+                                  size: 11, color: DshColors.err),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              label,
+                              style: TextStyle(
+                                color: labelColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -2174,11 +2323,27 @@ class _ChatPageState extends State<ChatPage> {
                           maxLines: 10,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: DshColors.text,
+                            color: m.isNotice ? DshColors.err : DshColors.text,
                             fontSize: 11.5,
                             height: 1.5,
                           ),
                         ),
+                        // 技术细节（原始报错）：小字、暗色，默认就显示 ——
+                        // 这条本来就是给"想弄清楚为什么"的人看的。
+                        if (m.detail != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              m.detail!,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: DshColors.textFaint,
+                                fontSize: 10,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   );

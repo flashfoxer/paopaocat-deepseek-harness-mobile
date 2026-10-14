@@ -321,7 +321,9 @@ class _StatusLine extends StatelessWidget {
                 const SizedBox(width: 5),
                 Text(
                   store.indexLoaded
-                      ? context.tr('磁盘历史会话 {0} 条', [store.totalDiskSessions])
+                      ? (store.hiddenEmptySessions > 0
+                          ? context.tr('磁盘历史会话 {0} 条（其中 {1} 条是空会话，没列出来）', [store.totalDiskSessions, store.hiddenEmptySessions])
+                          : context.tr('磁盘历史会话 {0} 条', [store.totalDiskSessions]))
                       : context.tr('磁盘历史会话：未读取'),
                   style: TextStyle(color: DshColors.textFaint, fontSize: 10.5),
                 ),

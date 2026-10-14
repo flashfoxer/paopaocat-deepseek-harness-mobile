@@ -121,20 +121,25 @@ android {
 
     sourceSets {
         getByName("main") {
-            // ⚠️ **不再把 `$dshNodeRoot/app-assets` 混进来**（2026-10-14，L3 包瘦身）。
+            // ── 运行时 zip 打不打进包里：**默认不打** ────────────────────────────────
+            //   * 不打（精简包，65 MiB）：**App 内更新专用** —— 老用户手机里早就
+            //     有那份运行时了，再下一遍纯属浪费，这就是省下来的 32 MB；
+            //   * 打（完整包，97 MiB）：**给全新安装用** —— 设
+            //     `DSH_ANDROID_INCLUDE_RUNTIME=1` 再出包。
             //
-            // 那里只有一个文件：`dsh-runtime.zip`（32.1 MB / 进 APK 后占 30.1 MB），
-            // 是整个包里**最大且最该外置**的一块 —— 它是 DSH 的依赖树（26,495 个条目），
-            // 属于"装完就用、之后每次更新都不该重下"的那类数据。
+            // ⚠️ **为什么必须保留完整包**（2026-10-14 用户指出的硬伤）：
+            // 精简包在没有运行时的情况下**连界面都进不去** —— 用户装完、手机没网，
+            // 就彻底打不开。瘦身省的是"更新时的流量"，绝不能拿"新装能不能用"去换。
+            // 两个包的 versionCode 与签名**完全相同**，可以互相覆盖安装。
             //
-            // 现在它由 App 首次启动时**按需下载**（`lib/local/runtime_bootstrap.dart`），
-            // 落盘到 `files/runtime.zip` —— 这**正是**原生侧 `unpack()` 一直在读的路径
-            // （0.15 起就是把 asset 拷到那儿再解压的），所以原生那边的解包逻辑一行不用改。
-            //
-            // **老用户完全不受影响**：他们 `files/` 里早就有这个 zip（0.15~0.74 都是
-            // 随包拷过去的），`isRuntimeReady()` 直接为 true、根本不进「准备运行时」那一页。
-            // 只有全新安装 / 清了应用数据，才需要下这一次（下载时代替了原先的"从 asset 拷"）。
-            assets.srcDirs("src/main/assets")
+            // 老用户完全不受影响：他们 `files/` 里早就有那个 zip（0.15~0.74 都是
+            // 随包拷过去的），`isRuntimeReady()` 直接为 true、根本不进「准备运行环境」那一页。
+            val includeRuntime =
+                (System.getenv("DSH_ANDROID_INCLUDE_RUNTIME") ?: "") == "1"
+            assets.srcDirs(
+                if (includeRuntime) listOf("src/main/assets", "$dshNodeRoot/app-assets")
+                else listOf("src/main/assets")
+            )
             // 引擎目录不存在时**不报错**：没跑过引擎构建脚本的机器照样能出包
             // （只是没有端侧模型能力，UI 会如实提示"引擎不存在"）。
             val dirs = mutableListOf("src/main/jniLibs", "$dshNodeRoot/jnilibs")

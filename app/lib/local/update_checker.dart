@@ -59,10 +59,36 @@ class UpdateManifestError implements Exception {
 ///
 /// 字段与 `update.json` 一一对应；只有 [version] 和 [url] 是必需的 ——
 /// 少了 `size`/`sha256` 只影响"能不能精确显示与校验"，不该让整次检查失败。
+/// 这次更新该下**哪个包**（[UpdateInfo.pickVariant] 的结果）。
+///
+/// 有它之后，"下哪个包"只在**一处**决定 —— 界面不自己拼 URL、也不自己猜大小，
+/// 免得出现"按精简包显示体积、实际下了完整包"这种对不上账的事。
+class UpdateVariant {
+  const UpdateVariant({
+    required this.url,
+    required this.includesRuntime,
+    this.size,
+    this.sha256,
+  });
+
+  final String url;
+  final int? size;
+  final String? sha256;
+
+  /// 这个包里**含运行时**（装完即用、无网也能打开）。
+  final bool includesRuntime;
+
+  /// 给界面显示的一行小字：让用户知道自己下的是哪一个。
+  String get label => includesRuntime ? tr('含运行环境') : tr('仅更新');
+}
+
 class UpdateInfo {
   const UpdateInfo({
     required this.version,
     required this.url,
+    this.urlFull,
+    this.sizeFull,
+    this.sha256Full,
     this.versionCode,
     this.size,
     this.sha256,
@@ -74,8 +100,19 @@ class UpdateInfo {
   /// 版本号，例如 `0.75`。
   final String version;
 
-  /// APK 直链（Release 附件）。
+  /// APK 直链（Release 附件）。**这是"精简包"** —— 不含运行时，
+  /// 给"手机里已经有运行时"的老用户更新用（省 32 MB）。
   final String url;
+
+  /// **完整包**直链（含运行时，装完即用）。清单里没有这个字段时为 null。
+  ///
+  /// 为什么要有它：精简包在**没有运行时**的机器上连界面都进不去 ——
+  /// 所以"新装 / 清了数据"这种情况必须拿完整包，不能只给精简包。
+  final String? urlFull;
+
+  /// 完整包的大小与哈希（显示与校验用；与 [size]/[sha256] 各管一个包）。
+  final int? sizeFull;
+  final String? sha256Full;
 
   /// Android 的 versionCode（能拿到就比它，比字符串更可靠）。
   final int? versionCode;
@@ -129,12 +166,34 @@ class UpdateInfo {
     return UpdateInfo(
       version: version,
       url: url,
+      urlFull: _optString(decoded, 'urlFull'),
+      sizeFull: _optInt(decoded, 'sizeFull'),
+      sha256Full: _optString(decoded, 'sha256Full')?.toLowerCase(),
       versionCode: _optInt(decoded, 'versionCode'),
       size: _optInt(decoded, 'size'),
       sha256: _optString(decoded, 'sha256'),
       minVersionCode: _optInt(decoded, 'minVersionCode'),
       publishedAt: _optString(decoded, 'publishedAt'),
       notes: notes,
+    );
+  }
+
+  /// 按"这台机器上有没有运行时"挑一个包 —— 这是 0.75 那次硬伤的修法。
+  ///
+  /// * **已经有运行时**（老用户更新，绝大多数情况）→ 拿**精简包**，省 32 MB；
+  /// * **还没有**（全新安装、或用户清了应用数据）→ 拿**完整包**（装完即用，
+  ///   无网也能打开）。清单里没写 `urlFull` 时只能退回精简包 ——
+  ///   那种情况下 App 会在「准备运行环境」那一步现下运行时（有明确提示与进度）。
+  UpdateVariant pickVariant({required bool runtimeReady}) {
+    final full = urlFull;
+    if (runtimeReady || full == null) {
+      return UpdateVariant(url: url, size: size, sha256: sha256, includesRuntime: false);
+    }
+    return UpdateVariant(
+      url: full,
+      size: sizeFull,
+      sha256: sha256Full,
+      includesRuntime: true,
     );
   }
 

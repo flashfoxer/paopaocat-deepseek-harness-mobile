@@ -2371,6 +2371,10 @@ class _UpdateSectionState extends State<_UpdateSection> {
   InstallEnv? _env;
   String? _ioNotice;
 
+  /// 这一次下的是哪个包（精简 / 完整）—— 界面拿它显示大小与"含不含运行环境"。
+  /// 下载结束后仍留着，好让"已下载"那一段也能说清下的是哪一个。
+  UpdateVariant? _variant;
+
   /// 正在编辑的源地址。**只有点「保存」才落盘** —— 边打字边存的话，
   /// 用户打到一半（地址还不完整）就会把设置里的值覆盖成半截。
   late final TextEditingController _sourceCtrl =
@@ -2456,15 +2460,19 @@ class _UpdateSectionState extends State<_UpdateSection> {
   /// 用 URL 的最后一段（Release 附件本来就叫 `paopaocat-preview-0.75-arm64-v8a.apk`）；
   /// 拿不到就按版本号造一个 —— 文件名只影响"用户自己去看文件时认不认得出来"，
   /// 安全性靠 sha256 与签名，不靠名字。
-  String _fileNameFor(UpdateInfo info) {
-    final seg = Uri.tryParse(info.url)?.pathSegments;
+  String _fileNameFor(String url) {
+    final seg = Uri.tryParse(url)?.pathSegments;
     final last = (seg == null || seg.isEmpty) ? '' : seg.last;
     if (last.toLowerCase().endsWith('.apk') && last.length > 4) return last;
-    return 'paopaocat-${info.version}-arm64-v8a.apk';
+    return 'paopaocat-update-arm64-v8a.apk';
   }
 
   Future<void> _download(UpdateInfo info) async {
     if (_phase == _UpdPhase.downloading) return;
+    // 挑包：手机里**已经有运行时**（老用户更新，绝大多数情况）→ 下精简包，省 32 MB；
+    // **还没有**（全新安装 / 清了数据）→ 下完整包，装完即用、无网也能打开。
+    // 这一句是 0.75 那次"没网就打不开"硬伤的修法。
+    final variant = info.pickVariant(runtimeReady: widget.runtime.isUnpacked);
     final dir = '${widget.runtime.filesDir}/updates';
     final token = ApkDownloadCancelToken();
     setState(() {
@@ -2474,14 +2482,15 @@ class _UpdateSectionState extends State<_UpdateSection> {
       _ioNotice = null;
       _sig = null;
       _apkPath = null;
+      _variant = variant;
     });
     final downloader = ApkDownloader(dir: dir);
     try {
       final res = await downloader.download(
-        url: info.url,
-        fileName: _fileNameFor(info),
-        expectSha256: info.sha256,
-        expectBytes: info.size,
+        url: variant.url,
+        fileName: _fileNameFor(variant.url),
+        expectSha256: variant.sha256,
+        expectBytes: variant.size,
         cancel: token,
         onProgress: (p) {
           if (!mounted) return;
@@ -2894,7 +2903,7 @@ class _UpdateSectionState extends State<_UpdateSection> {
                         style: const TextStyle(fontSize: 11.5)),
                   ),
                 TextButton(
-                  onPressed: () => _openUrl(info.url),
+                  onPressed: () => _openUrl(_variant?.url ?? info.url),
                   style: TextButton.styleFrom(
                       padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
                   child: Text(context.tr('改用浏览器下载'),
@@ -2914,6 +2923,10 @@ class _UpdateSectionState extends State<_UpdateSection> {
 
       // ── 还没下（默认）
       case _UpdPhase.idle:
+        // 这一次会下哪个包，界面要**提前**说清（大小、含不含运行环境）——
+        // 别让用户点了下载才发现"怎么有 97 MB"。
+        final v = _variant ??
+            info.pickVariant(runtimeReady: widget.runtime.isUnpacked);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
@@ -2922,14 +2935,24 @@ class _UpdateSectionState extends State<_UpdateSection> {
               child: FilledButton.icon(
                 onPressed: () => _download(info),
                 icon: const Icon(Icons.download, size: 18),
-                label: Text(info.size != null && info.size! > 0
-                    ? context.tr('下载到本机（{0}）', [formatBytes(info.size)])
+                label: Text(v.size != null && v.size! > 0
+                    ? context.tr('下载到本机（{0}）', [formatBytes(v.size!)])
                     : context.tr('下载到本机')),
               ),
             ),
+            const SizedBox(height: 4),
+            Text(
+              widget.runtime.isUnpacked
+                  ? context.tr('这次下的是**精简包**（不含运行环境）—— 这台手机上已经有了，'
+                      '所以能省下那份流量。')
+                  : context.tr('这次下的是**完整包**（含运行环境）—— 因为这台手机上还没有，'
+                      '这样装完就能直接打开、不需要联网再补。'),
+              style: TextStyle(
+                  color: DshColors.textFaint, fontSize: 11, height: 1.45),
+            ),
             const SizedBox(height: 6),
             TextButton(
-              onPressed: () => _openUrl(info.url),
+              onPressed: () => _openUrl(v.url),
               style: TextButton.styleFrom(
                   padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
               child: Text(context.tr('或者用浏览器下载'),

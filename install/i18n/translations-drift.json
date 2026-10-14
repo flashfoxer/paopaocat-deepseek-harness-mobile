@@ -2948,5 +2948,25 @@
     "en": "First run: set up the runtime",
     "ja": "初回起動：実行環境の準備",
     "ko": "첫 실행: 실행 환경 준비"
+  },
+  "仅更新": {
+    "en": "Update only",
+    "ja": "更新のみ",
+    "ko": "업데이트 전용"
+  },
+  "含运行环境": {
+    "en": "Includes runtime",
+    "ja": "実行環境を含む",
+    "ko": "실행 환경 포함"
+  },
+  "这次下的是**完整包**（含运行环境）—— 因为这台手机上还没有，这样装完就能直接打开、不需要联网再补。": {
+    "en": "This download is the **full package** (runtime included) — this device does not have it yet, so the app can be opened right after installing, with no further download.",
+    "ja": "今回ダウンロードするのは**完全パッケージ**（実行環境を含む）です —— この端末にはまだ無いため、インストール後すぐに開けます（追加のダウンロードは不要）。",
+    "ko": "이번에 내려받는 것은 **전체 패키지**(실행 환경 포함)입니다 — 이 기기에 아직 없기 때문에, 설치 후 바로 열 수 있고 추가 다운로드가 필요 없습니다."
+  },
+  "这次下的是**精简包**（不含运行环境）—— 这台手机上已经有了，所以能省下那份流量。": {
+    "en": "This download is the **lite package** (no runtime) — this device already has it, so that data is saved.",
+    "ja": "今回ダウンロードするのは**軽量パッケージ**（実行環境を含まない）です —— この端末には既にあるため、その分の通信量を節約できます。",
+    "ko": "이번에 내려받는 것은 **경량 패키지**(실행 환경 미포함)입니다 — 이 기기에 이미 있으므로 그만큼 데이터를 절약합니다."
   }
 }

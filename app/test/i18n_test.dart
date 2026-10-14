@@ -124,7 +124,9 @@ void main() {
       // ⚠️ 2026-10-14 1636 → 1646：L3 包瘦身（运行时不再随包，改为首次启动下载）——
       //    「准备运行环境」那一页多了一个下载阶段（+12），并删掉 2 条旧说明
       //    （原文写着"随包的运行环境"，已经不成立了）。
-      expect(kEnTable.length, 1646);
+      // ⚠️ 2026-10-14 1646 → 1650：修掉"全新安装 + 无网就打不开"那个硬伤后，
+      //    更新卡片要**提前说清这次下的是哪个包**（精简 / 完整），+4。
+      expect(kEnTable.length, 1650);
       expect(kJaTable.length, kEnTable.length);
       expect(kKoTable.length, kEnTable.length);
     });

@@ -670,17 +670,25 @@ class _SessionTile extends StatelessWidget {
                       style: TextStyle(color: DshColors.text, fontSize: 12.5),
                     ),
                     const SizedBox(height: 2),
+                    // 意见 2（2026-10-15）：「会话都是可以显示时间和用了多少 tok」。
+                    // 时间来自 ACP `session/list` 的 createdAt（取不到就如实说"时间未知"）；
+                    // 用量来自投影缓存，**取不到就不显示那一段**（不编 0）。
                     Text(
-                      session.hasTitle
-                          ? context.tr('本次运行 · 可恢复')
-                          // 用户问过「这些历史会话是什么时候的事」，所以把
-                          // ACP session/list 的 createdAt 显示出来；取不到就如实说"时间未知"。
-                          : context.tr('历史会话 · {0} · {1} · DSH 未提供标题', [
-                              session.shortId,
-                              session.createdLabel.isEmpty
-                                  ? '时间未知'
-                                  : session.createdLabel
-                            ]),
+                      <String>[
+                        session.hasTitle
+                            ? context.tr('本次运行 · {0}', [
+                                session.createdLabel.isEmpty
+                                    ? '刚刚'
+                                    : session.createdLabel
+                              ])
+                            : context.tr('历史会话 · {0} · {1} · DSH 未提供标题', [
+                                session.shortId,
+                                session.createdLabel.isEmpty
+                                    ? '时间未知'
+                                    : session.createdLabel
+                              ]),
+                        if (session.tokensLabel.isNotEmpty) session.tokensLabel,
+                      ].join(' · '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style:

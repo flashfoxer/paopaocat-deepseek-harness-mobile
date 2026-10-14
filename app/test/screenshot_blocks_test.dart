@@ -284,6 +284,8 @@ void main() {
       tester,
       'block-01-home.png',
       TaskHomeView(
+        // 首页要拿 AppSettings 画那条公告栏（用户 2026-10-15 第 3 条）。
+        appSettings: AppSettings(),
         onOpenChat: ({String? initialText}) {},
         onOpenWorkspace: () {},
         workspaceName: '默认工作区',
@@ -293,7 +295,7 @@ void main() {
     );
   });
 
-  testWidgets('块-工作台入口页', (tester) async {
+  testWidgets('块-创作台入口页', (tester) async {
     await shotOf(tester, 'block-02-workbench.png', workbench());
   });
 
@@ -308,7 +310,7 @@ void main() {
         ScheduledPage(store: store, runner: runner));
   });
 
-  // ───────────────────────────── 工作台的每个功能
+  // ───────────────────────────── 创作台的每个功能
 
   testWidgets('块-生图', (tester) async {
     await shotOf(tester, 'block-05-image.png', workbench(seg: 0));

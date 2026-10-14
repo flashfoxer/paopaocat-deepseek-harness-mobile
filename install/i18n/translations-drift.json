@@ -2993,5 +2993,130 @@
     "en": "{0} saved sessions on disk",
     "ja": "ディスク上の履歴セッション {0} 件",
     "ko": "디스크 기록 세션 {0}개"
+  },
+  "回创作台": {
+    "en": "Back to Studio",
+    "ja": "スタジオに戻る",
+    "ko": "스튜디오로 돌아가기"
+  },
+  "创作台": {
+    "en": "Studio",
+    "ja": "スタジオ",
+    "ko": "스튜디오"
+  },
+  "创作台 · {0}": {
+    "en": "Studio · {0}",
+    "ja": "スタジオ · {0}",
+    "ko": "스튜디오 · {0}"
+  },
+  "没有找到可以剪的视频。\n这里列的是「作品」里生成过的视频 + 工作区里的视频；两个地方都空的话，先去「创作台 → 生视频」生成一段，或把视频放进工作区。": {
+    "en": "No videos to clip.\nThis lists videos generated in Works plus videos in the workspace; if both are empty, generate one first in Studio → Generate video, or put a video into the workspace.",
+    "ja": "切り取れる動画がありません。\nここには「作品」で生成した動画とワークスペース内の動画が並びます。どちらも空のときは、まず「スタジオ → 動画を生成」で作るか、動画をワークスペースに入れてください。",
+    "ko": "자를 수 있는 동영상이 없습니다.\n여기에는 작품에서 생성한 동영상과 작업 공간의 동영상이 나옵니다. 둘 다 비어 있다면 먼저 「스튜디오 → 동영상 생성」으로 만들거나 동영상을 작업 공간에 넣어 주세요."
+  },
+  "角色现在是**打字**的：本机还没有「朗读回复」（语音合成在「创作台 → 口播/短剧」那条线上，不在会话里）——想让角色出声要另做一层，已列入后续。": {
+    "en": "For now characters **type**: this device has no read-aloud replies yet (speech synthesis lives on the Studio → Voice-over / Short drama line, not inside a session) — giving a character a voice needs another layer, and that is on the list.",
+    "ja": "今のところキャラクターは**文字**です：本機にはまだ「読み上げ返答」がありません（音声合成は「スタジオ → ナレーション/ショートドラマ」のライン上にあり、会話の中にはありません）——キャラクターに声を与えるにはもう一層必要で、今後に予定しています。",
+    "ko": "지금 캐릭터는 **타이핑**입니다: 이 기기에는 아직 '읽어주는 답변'이 없습니다(음성 합성은 '스튜디오 → 내레이션/숏드라마' 라인에 있고 대화 안에는 없습니다) — 캐릭터에게 목소리를 주려면 한 겹 더 필요하며, 이후 과제로 두었습니다."
+  },
+  "这三个就是设置里那几个模型（文本模型 = 首页新会话用的那个；图形/视频 = 「设置 → 图像 / 视频模型」），在这儿改等于在设置里改 —— 创作台生成时会**直接用**这里选的。": {
+    "en": "These are the same models as in Settings (text model = the one new chats use; image/video = Settings → Image / Video models). Changing them here is the same as changing them there — the studio will use exactly these when generating.",
+    "ja": "この三つは設定にあるものと同じです（テキストモデル＝新しい会話で使うもの、画像/動画＝「設定 → 画像 / 動画モデル」）。ここで変えるのは設定で変えるのと同じで、スタジオの生成はここで選んだものを使います。",
+    "ko": "이 세 가지는 설정에 있는 것과 같습니다 (텍스트 모델 = 새 대화에서 쓰는 것, 이미지/동영상 = 설정 → 이미지 / 동영상 모델). 여기서 바꾸는 것은 설정에서 바꾸는 것과 같고, 스튜디오 생성은 여기서 고른 것을 사용합니다."
+  },
+  "这次创作台用哪三个模型": {
+    "en": "Which three models should the studio use?",
+    "ja": "今回スタジオで使う三つのモデル",
+    "ko": "이번 스튜디오에서 사용할 세 가지 모델"
+  },
+  "公告": {
+    "en": "Notices",
+    "ja": "お知らせ",
+    "ko": "공지"
+  },
+  "公告：{0}": {
+    "en": "Notice: {0}",
+    "ja": "お知らせ：{0}",
+    "ko": "공지: {0}"
+  },
+  "上次同步：{0}": {
+    "en": "Last synced: {0}",
+    "ja": "最終同期：{0}",
+    "ko": "마지막 동기화: {0}"
+  },
+  "这份是本地缓存的公告，还没有和远端对上时间": {
+    "en": "This is the locally cached notice list; it has not been matched against the remote yet.",
+    "ja": "これはローカルにキャッシュされたお知らせで、まだリモートと時刻を突き合わせていません。",
+    "ko": "로컬에 캐시된 공지이며, 아직 원격과 시간을 맞추지 않았습니다."
+  },
+  "查看详情（链接已复制）": {
+    "en": "View details (link copied)",
+    "ja": "詳細を見る（リンクをコピーしました）",
+    "ko": "자세히 보기(링크 복사됨)"
+  },
+  "泡泡猫（点一下它会说话）": {
+    "en": "Paopao Cat (tap it and it talks)",
+    "ja": "パオパオ猫（タップすると喋ります）",
+    "ko": "파오파오 고양이(누르면 말해요)"
+  },
+  "喵～今天想聊点什么？": {
+    "en": "Meow~ what shall we talk about today?",
+    "ja": "にゃ〜今日は何を話そうか？",
+    "ko": "야옹~ 오늘은 무슨 얘기 할까?"
+  },
+  "点一下「创作台 · 生图」，我给你画一张。": {
+    "en": "Tap Studio · Image and I'll draw you one.",
+    "ja": "「スタジオ · 画像生成」をタップすれば一枚描いてあげるよ。",
+    "ko": "'스튜디오 · 이미지 생성'을 누르면 한 장 그려줄게."
+  },
+  "你的会话我都看着呢，一条都没丢。": {
+    "en": "I'm keeping an eye on all your sessions — not a single one is lost.",
+    "ja": "あなたのセッションはちゃんと見てるよ、一つも失ってない。",
+    "ko": "네 세션은 내가 다 지키고 있어, 하나도 안 잃었어."
+  },
+  "发消息前记得先把模型选好哦。": {
+    "en": "Pick your model before you send a message, okay?",
+    "ja": "メッセージを送る前にモデルを選んでね。",
+    "ko": "메시지를 보내기 전에 모델을 골라 두는 거 잊지 마."
+  },
+  "写小说、做游戏、剪视频 —— 我都能陪你干。": {
+    "en": "Novels, games, video editing — I can do them all with you.",
+    "ja": "小説もゲームも動画編集も —— 全部いっしょにできるよ。",
+    "ko": "소설도, 게임도, 영상 편집도 — 다 같이 할 수 있어."
+  },
+  "别光戳我呀，去发一句话试试嘛。": {
+    "en": "Don't just poke me — go send a message and try it out.",
+    "ja": "つつくだけじゃなくて、一言送ってみてよ。",
+    "ko": "그냥 찌르지만 말고, 한마디 보내 봐."
+  },
+  "已切换到 {0}（会话没重建，上下文还在）": {
+    "en": "Switched to {0} (the session wasn't rebuilt — context is intact)",
+    "ja": "{0} に切り替えました（セッションは再作成されず、文脈はそのままです）",
+    "ko": "{0}(으)로 전환했습니다(세션이 재생성되지 않아 문맥이 유지됩니다)"
+  },
+  "长按上面的二维码 → 直接唤起微信扫一扫": {
+    "en": "Long-press the QR code above → opens WeChat's scanner directly",
+    "ja": "上の QR コードを長押し → 微信のスキャンを直接起動",
+    "ko": "위 QR 코드를 길게 누르면 → 위챗 스캔이 바로 열립니다"
+  },
+  "已打开微信扫一扫 —— 对着上面这张二维码扫一下就行。": {
+    "en": "WeChat's scanner is open — just point it at the QR code above.",
+    "ja": "微信のスキャンを開きました —— 上の QR コードを読み取ってください。",
+    "ko": "위챗 스캔을 열었습니다 — 위 QR 코드를 비추면 됩니다."
+  },
+  "这台机器上没找到微信，可以自己打开微信扫一扫再扫这张图。": {
+    "en": "No WeChat found on this device — open WeChat's scanner yourself and scan this image.",
+    "ja": "この端末に微信が見つかりません —— ご自身で微信のスキャンを開いてこの画像を読み取ってください。",
+    "ko": "이 기기에서 위챗을 찾지 못했습니다 — 직접 위챗 스캔을 열어 이 이미지를 비추세요."
+  },
+  "没能唤起微信（{0}），可以自己打开微信扫一扫。": {
+    "en": "Couldn't open WeChat ({0}) — open WeChat's scanner yourself.",
+    "ja": "微信を起動できませんでした（{0}）—— ご自身で微信のスキャンを開いてください。",
+    "ko": "위챗을 열지 못했습니다({0}) — 직접 위챗 스캔을 열어 주세요."
+  },
+  "本次运行 · {0}": {
+    "en": "This run · {0}",
+    "ja": "今回の実行 · {0}",
+    "ko": "이번 실행 · {0}"
   }
 }

@@ -337,6 +337,16 @@ class MainActivity : FlutterActivity() {
                     // 返回 "ok" 或 "no_app"（没有任何可接收分享的应用时交给 Dart 如实提示）。
                     // subject 是可选的（聊天/邮件类接收方会拿它当标题）。
                     "openUrl" -> openUrlInBrowser(call.argument<String>("url"), result)
+                    // 直接用**微信的扫一扫**打开（用户 2026-10-15 第 8 条要求：
+                    // 「关于」那个公众号二维码长按要能唤起微信扫描、进公众号）。
+                    //
+                    // 为什么不是"App 自己识别二维码"：App 里根本没有相机扫码这一层
+                    // （要加 CameraX + 权限 + 识别库，几 MB 加一整套权限），而微信
+                    // 自己就有扫一扫。`weixin://dl/scan` 是微信公开支持的唤起入口，
+                    // 拉起后用户在微信里对着屏幕上的二维码扫即可。
+                    //
+                    // 返回 "ok" / "no_wechat"（没装微信）/ "failed:<msg>"，交给 Dart 说人话。
+                    "openWechatScan" -> openWechatScan(result)
                     // 用**系统自带的 TTS**把文本合成成 WAV 文件（口播/短剧的配音）。
                     //
                     // 为什么是系统 TTS 而不是某个云厂商：这是给**网友**用的 App，
@@ -798,6 +808,29 @@ class MainActivity : FlutterActivity() {
      * 安全约束：**只允许 http/https**。不然界面上一旦被拼进 `file://` 或
      * `intent://` 之类的值，就可能变成一个奇怪的跳转（甚至本地文件外泄路径）。
      */
+    /// 唤起**微信扫一扫**（`weixin://dl/scan`）。
+    ///
+    /// 两条边界必须说清（都是"如实"，不是失败）：
+    ///   * **没装微信** → 返回 `no_wechat`，Dart 侧提示"可以自己打开微信扫一扫"，
+    ///     绝不能假装跳过去了；
+    ///   * **装了但厂商拦截了协议**（部分 ROM 会拦非 http(s) 的 implicit intent）→
+    ///     返回 `failed:<msg>`，同样如实走提示那条路。
+    private fun openWechatScan(result: MethodChannel.Result) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("weixin://dl/scan"))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            Log.i(TAG, "openWechatScan -> weixin://dl/scan")
+            result.success("ok")
+        } catch (e: android.content.ActivityNotFoundException) {
+            Log.w(TAG, "openWechatScan: 没装微信或没有应用接收 weixin://")
+            result.success("no_wechat")
+        } catch (e: Throwable) {
+            Log.w(TAG, "openWechatScan failed: ${e.message}")
+            result.success("failed:${e.message}")
+        }
+    }
+
     private fun openUrlInBrowser(url: String?, result: MethodChannel.Result) {
         val u = url?.trim().orEmpty()
         if (u.isEmpty()) {

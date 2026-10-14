@@ -72,6 +72,13 @@ class LiveSession extends ChangeNotifier {
   /// 进程初始化用的配置指纹（配置变了要重建进程，判断在页面侧）。
   String? spawnConfigKey;
 
+  /// 起这个进程时"**当前选中那条路由自己的管路**"（见 `state/spawn_signature.dart`）。
+  ///
+  /// 页面重建/切页回来时要读回它：切模型的判据是这份（不是整份配置），
+  /// 丢了它就只能退回"整份配置变了就重建"的老口径 —— 用户改别的厂家时
+  /// 会把正在聊的会话重启一遍（用户 2026-10-15 第 1 条要修的就是这个）。
+  String? spawnRoutePlumbing;
+
   /// 运行时实际生效的模型 route。
   String? liveRoute;
 

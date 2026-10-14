@@ -65,20 +65,20 @@ void main() {
     ));
     await tester.pump(const Duration(milliseconds: 50));
 
-    // 2026-10-12（用户提议）：这一页现在**先给一屏功能入口**（工作台），
+    // 2026-10-12（用户提议）：这一页现在**先给一屏功能入口**（创作台），
     // 点进去才是那个功能。默认帮调用方进「生图」—— 这样各条断言写的
     // "一进来就能看到生图的东西"仍然成立；要测入口屏本身的传 `enter: null`。
     if (initialSeg == null && enter != null) {
       // ⚠️ `pumpWidget` 对**同一类型**的 widget 会复用 State（例如一个测试里
       //    第二次 pump 只为改 refreshTick）—— 那时可能已经停在某个详情页，
-      //    所以要**先回工作台**再点入口。
-      if (find.byTooltip('回工作台').evaluate().isNotEmpty) {
-        await tester.tap(find.byTooltip('回工作台'));
+      //    所以要**先回创作台**再点入口。
+      if (find.byTooltip('回创作台').evaluate().isNotEmpty) {
+        await tester.tap(find.byTooltip('回创作台'));
         await tester.pumpAndSettle();
       }
       final entry = find.ancestor(
           of: find.text(enter), matching: find.byType(InkWell));
-      expect(entry, findsWidgets, reason: '工作台上找不到入口「$enter」');
+      expect(entry, findsWidgets, reason: '创作台上找不到入口「$enter」');
       await tester.tap(entry.first);
       await tester.pumpAndSettle();
     }
@@ -113,16 +113,16 @@ void main() {
   /// 点一个东西 —— 它可能是两类控件：
   ///
   ///   ① **详情页里的选项**（例如口播页的「配音来源」）仍然是 `ChoiceChip`；
-  ///   ② **工作台上的功能入口**（生图/生视频/…）现在是一行卡片（`InkWell`），
+  ///   ② **创作台上的功能入口**（生图/生视频/…）现在是一行卡片（`InkWell`），
   ///      不再是模式 chip（2026-10-12 用户提议改成"入口屏 + 详情页"）。
   ///
-  /// 所以先按 chip 找，找不到就**先回工作台再点那个入口** —— 这样各条测试的
+  /// 所以先按 chip 找，找不到就**先回创作台再点那个入口** —— 这样各条测试的
   /// 调用点不用改。
   Future<void> tapMode(WidgetTester tester, String label) async {
     var target = find.ancestor(
         of: find.text(label), matching: find.byType(ChoiceChip));
     if (target.evaluate().isEmpty) {
-      final back = find.byTooltip('回工作台');
+      final back = find.byTooltip('回创作台');
       if (back.evaluate().isNotEmpty) {
         await tester.tap(back);
         await tester.pumpAndSettle();
@@ -130,29 +130,29 @@ void main() {
       target = find.ancestor(
           of: find.text(label), matching: find.byType(InkWell));
     }
-    expect(target, findsWidgets, reason: '找不到「$label」（既不是选项，也不是工作台入口）');
+    expect(target, findsWidgets, reason: '找不到「$label」（既不是选项，也不是创作台入口）');
     final t = target.first;
     await tester.ensureVisible(t);
     await tester.tap(t);
     await tester.pumpAndSettle();
   }
 
-  testWidgets('工作台入口屏：六个生成模式 + 三条创作线都在，且各带一句说明', (tester) async {
+  testWidgets('创作台入口屏：六个生成模式 + 三条创作线都在，且各带一句说明', (tester) async {
     // 用户 2026-10-12 提议：这一页先给一屏功能入口，点进去才是详情。
     await pump(tester, enter: null);
-    expect(find.text('工作台'), findsOneWidget, reason: '入口屏的标题');
+    expect(find.text('创作台'), findsOneWidget, reason: '入口屏的标题');
     // 六个"生成模式"（走 _openFunction 的表单）……
     for (final m in <String>['生图', '生视频', '修图', '口播', '短剧']) {
-      expect(find.text(m), findsOneWidget, reason: '工作台上缺了「$m」入口');
+      expect(find.text(m), findsOneWidget, reason: '创作台上缺了「$m」入口');
     }
-    // 「作品」**2026-10-12 起不在工作台**了（用户反馈第 4 条：挪进「资料库」）——
+    // 「作品」**2026-10-12 起不在创作台**了（用户反馈第 4 条：挪进「资料库」）——
     // 所以这里反向断言，防止以后有人"顺手"又把它加回入口屏。
     expect(find.text('作品'), findsNothing,
-        reason: '「作品」已挪到「资料库」右上角，不该再出现在工作台入口屏');
+        reason: '「作品」已挪到「资料库」右上角，不该再出现在创作台入口屏');
     // ……再加三条**不是表单**的创作线：画图表（弹层）、小说改游戏（说明页）、
     // AI 角色（说明页）。它们的形状和上面六个不一样，混在一起容易在改版时被漏掉。
     for (final m in <String>['剪辑', '画图表', '创作 · 小说改游戏', 'AI 角色（实验）']) {
-      expect(find.text(m), findsOneWidget, reason: '工作台上缺了「$m」入口');
+      expect(find.text(m), findsOneWidget, reason: '创作台上缺了「$m」入口');
     }
     // 每个入口都要写清"点进去能干什么"（不许只给一个名字让人猜）
     expect(find.textContaining('一句话或一张参考图'), findsOneWidget);
@@ -160,8 +160,8 @@ void main() {
     expect(find.textContaining('选一个功能开始'), findsOneWidget);
     expect(find.textContaining('每局都有目标和结束条件'), findsOneWidget,
         reason: 'AI 角色那一格要说清"有目标"，否则会被当成又一个聊天入口');
-    // 入口屏上不该有"回工作台"（我们就在工作台）
-    expect(find.byTooltip('回工作台'), findsNothing);
+    // 入口屏上不该有"回创作台"（我们就在创作台）
+    expect(find.byTooltip('回创作台'), findsNothing);
   });
 
   testWidgets('点「AI 角色（实验）」进的是开局牌说明页，不是又一个表单', (tester) async {
@@ -177,22 +177,22 @@ void main() {
     expect(find.text('深夜电台'), findsOneWidget);
     // 边界要写在页面上（不许把"不能朗读回复"这种事实藏起来）
     expect(find.text('边界（如实说）'), findsOneWidget);
-    // 这一页是**推入**的：原路能回工作台
+    // 这一页是**推入**的：原路能回创作台
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
-    expect(find.text('工作台'), findsOneWidget);
+    expect(find.text('创作台'), findsOneWidget);
   });
 
-  testWidgets('点入口进详情页：标题变成「工作台 · 生图」，且有一条回工作台的路',
+  testWidgets('点入口进详情页：标题变成「创作台 · 生图」，且有一条回创作台的路',
       (tester) async {
     await pump(tester, enter: null);
     await tapMode(tester, '生图');
-    expect(find.text('工作台 · 生图'), findsOneWidget);
+    expect(find.text('创作台 · 生图'), findsOneWidget);
     expect(find.text('生成图片'), findsOneWidget, reason: '进到生图页了');
-    // 回工作台 → 又看到那一屏入口
-    await tester.tap(find.byTooltip('回工作台'));
+    // 回创作台 → 又看到那一屏入口
+    await tester.tap(find.byTooltip('回创作台'));
     await tester.pumpAndSettle();
-    expect(find.text('工作台'), findsOneWidget);
+    expect(find.text('创作台'), findsOneWidget);
     expect(find.text('生视频'), findsOneWidget, reason: '回到入口屏，六个入口都在');
   });
 
@@ -373,7 +373,7 @@ void main() {
     expect(find.text('时长（秒）'), findsNothing);
   });
 
-  // （原「六个模式都在」那条已并入上面新写的**工作台入口屏**测试：
+  // （原「六个模式都在」那条已并入上面新写的**创作台入口屏**测试：
   //   现在六个功能是入口屏上的六行卡片，不是详情页顶上的六个 chip，
   //   断言点也换了 —— 入口屏要连"每个入口带一句说明"一起查。）
 

@@ -8,6 +8,7 @@ import '../ui/theme/dsh_palette.dart';
 // 只为一个地址校验函数（`looksLikeUpdateSource`）+ 那个"本进程内最后一次结果"的类型
 // （`UpdateCheckResult`）—— 地址与检查逻辑放在 local 层，设置层不该反过来定义它们。
 import '../local/update_checker.dart';
+import '../local/broadcast_feed.dart';
 import '../local/update_source.dart';
 
 import '../i18n/dsh_i18n.dart';
@@ -291,6 +292,22 @@ class AppSettings extends ChangeNotifier {
 
   /// 本进程内最后一次检查更新的结果（见 [_lastUpdateResult]）。
   UpdateCheckResult? get lastUpdateResult => _lastUpdateResult;
+
+  /// 首页那条滚动公告（来自仓库里的 `notice.json`）。
+  ///
+  /// 为什么不落盘：它描述的是"远端现在挂着什么"，跨启动会过期；落盘那份在
+  /// `notice_cache.json` 里（离线兜底用，见 local/broadcast_feed.dart），
+  /// 启动时会先读缓存再拉新的 —— 于是这个字段永远只代表**当前显示的这份**。
+  BroadcastFeed? _broadcastFeed;
+
+  /// 当前要显示的公告（可能来自缓存、可能来自刚拉到的；没有就是 null → 首页不画那一条）。
+  BroadcastFeed? get broadcastFeed => _broadcastFeed;
+
+  /// 换一份公告（传 null = 清掉）。
+  void setBroadcastFeed(BroadcastFeed? feed) {
+    _broadcastFeed = feed;
+    notifyListeners();
+  }
 
   /// 存下"刚查过"的结果（内存 + 通知界面）。
   ///

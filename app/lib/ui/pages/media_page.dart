@@ -85,7 +85,7 @@ class MediaPage extends StatefulWidget {
 
   /// **带首句开一个新会话**（交回壳层去做 —— 只有它知道怎么推会话页）。
   ///
-  /// 用在哪：「工作台 → 创作 · 小说改游戏」那一页的「开始一个改编会话」按钮。
+  /// 用在哪：「创作台 → 创作 · 小说改游戏」那一页的「开始一个改编会话」按钮。
   /// 创作这条线的执行主体是**会话里的模型**，所以"开始创作"的正确做法就是
   /// 开一个带起始指令的会话，而不是我们自己写一套 UI 去驱动它。
   final void Function(String prompt)? onStartPrompt;
@@ -96,10 +96,10 @@ class MediaPage extends StatefulWidget {
   /// **会话模型库**（文本模型）。可以为 null（测试里单独 pump 这一页时）——
   /// 那时右上角就不显示「文本模型」那一行，而不是显示一个点了没反应的。
   ///
-  /// 用在哪：工作台右上角那个「模型」按钮（用户 2026-10-12 真机反馈第 9 条）。
+  /// 用在哪：创作台右上角那个「模型」按钮（用户 2026-10-12 真机反馈第 9 条）。
   final ModelStore? models;
 
-  /// 进来就停在**哪一个模式**（null = 停在"工作台"入口屏）。
+  /// 进来就停在**哪一个模式**（null = 停在"创作台"入口屏）。
   ///
   /// 用在哪：**「作品」入口搬到「资料库」之后**（用户 2026-10-12 真机反馈第 4 条），
   /// 资料库那边点「作品」就是直接推这一页、并让它落在 `5`（作品库）——
@@ -115,7 +115,7 @@ class _MediaPageState extends State<MediaPage> {
 
   int _seg = 0; // 0 生图 / 1 生视频 / 2 修图 / 3 口播 / 4 短剧 / 5 作品（见 _modes）
 
-  /// 是不是停在「工作台」那一屏（入口屏）。
+  /// 是不是停在「创作台」那一屏（入口屏）。
   ///
   /// 默认 true：**一进来先看到功能入口**，而不是某个功能的长表单
   /// （用户 2026-10-12 提议的「点按钮进详情页」形态）。
@@ -798,7 +798,7 @@ class _MediaPageState extends State<MediaPage> {
     _toast(context.tr('已取消。'));
   }
 
-  /// 工作台入口屏列出来的模式。**下标即 [_seg] 的取值**。
+  /// 创作台入口屏列出来的模式。**下标即 [_seg] 的取值**。
   ///
   /// ⚠️ 2026-10-12（真机反馈第 4 条）：**「作品」从这张表里去掉了** ——
   ///    用户的说法是「作品改到资料库就可以了，因为可以看到资料库」。
@@ -1148,25 +1148,25 @@ class _MediaPageState extends State<MediaPage> {
     return Scaffold(
       backgroundColor: DshColors.bg,
       appBar: AppBar(
-        // 2026-10-12（用户提议）：底部那一项从「影视」改名「**工作台**」。
+        // 2026-10-12（用户提议）：底部那一项从「影视」改名「**创作台**」。
         // 理由：这一页早就不止影视了（生图/修图/口播/短剧/作品都在这儿），
-        // 叫「影视」名不副实，而"工作台"既能容纳现有的、也能容纳以后加的功能。
+        // 叫「影视」名不副实，而"创作台"既能容纳现有的、也能容纳以后加的功能。
         title: Text(_launcher
-            ? context.tr('工作台')
-            : context.tr('工作台 · {0}', [_modeLabel(context, _seg)])),
-        // 进到某个功能里时，左上角给「回工作台」（这是"入口/详情分离"的关键：
+            ? context.tr('创作台')
+            : context.tr('创作台 · {0}', [_modeLabel(context, _seg)])),
+        // 进到某个功能里时，左上角给「回创作台」（这是"入口/详情分离"的关键：
         // 用户永远有一条明确的路退回那一屏按钮）。
         leading: _launcher
             ? null
             : IconButton(
-                tooltip: context.tr('回工作台'),
+                tooltip: context.tr('回创作台'),
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () => setState(() => _launcher = true),
               ),
         actions: <Widget>[
           // 原来是"小钥匙"（点了跳去设置配 Key）。用户 2026-10-12 真机反馈第 9 条
           // 要求把它换成**三个模型的选择**：「文本模型 / 图形模型 / 视频模型，
-          // 都是读取设置里边的模型，但是工作台会应用这些模型」。
+          // 都是读取设置里边的模型，但是创作台会应用这些模型」。
           // 所以这个按钮现在读写的**就是设置里那两份数据**，不另开一份配置。
           IconButton(
             tooltip: context.tr('这次用哪三个模型'),
@@ -1220,7 +1220,7 @@ class _MediaPageState extends State<MediaPage> {
         _ => Icons.grid_view_outlined,
       };
 
-  /// 「工作台」这一屏：**功能入口列表**。
+  /// 「创作台」这一屏：**功能入口列表**。
   ///
   /// 为什么要有这一屏（用户 2026-10-12 提议）：原来 6 个模式挤在同一个长表单顶上，
   /// 一进来就是一整页输入框与选项，**用户得先滚一遍才知道这儿有哪几个功能**。
@@ -1246,7 +1246,7 @@ class _MediaPageState extends State<MediaPage> {
             onTap: () => _openFunction(m.value),
           ),
         const SizedBox(height: 2),
-        // 2026-10-12（用户问「OpenCut 能不能复刻到工作台」）：**剪辑**。
+        // 2026-10-12（用户问「OpenCut 能不能复刻到创作台」）：**剪辑**。
         // 结论是"那种多轨时间线剪辑器搬不动"，但它的**最小可用子集**能真跑 ——
         // 用随包的 ffmpeg 剪一段/拼接/抽音频/抽一帧/压小（见 ClipPage 的说明）。
         // 它是**编辑已有素材**，与上面六个"生成模式"是两回事，所以单独一格。
@@ -1279,7 +1279,7 @@ class _MediaPageState extends State<MediaPage> {
             ),
           ),
         ),
-        // 2026-10-12（用户「做成工作台里的一格」）：**AI 角色（实验）** ——
+        // 2026-10-12（用户「做成创作台里的一格」）：**AI 角色（实验）** ——
         // 让模型演一个角色、而且有目标与结束条件（不是"和 AI 聊天"）。
         _workbenchEntry(
           icon: Icons.theater_comedy_outlined,
@@ -1467,10 +1467,10 @@ class _MediaPageState extends State<MediaPage> {
   ///
   /// ## 为什么不另存一份配置（用户 2026-10-12 真机反馈第 9 条）
   ///
-  /// 他那句话是「都是读取设置里边的模型，但是工作台会应用这些模型」—— 关键在
+  /// 他那句话是「都是读取设置里边的模型，但是创作台会应用这些模型」—— 关键在
   /// **"读取设置里边的"**：所以三个槽位直接读写设置里那两份数据
   /// （文本 = 会话模型 `ModelStore`；图形/视频 = `media-models.json`），
-  /// 在这里改等于在设置里改。否则会出现"设置页显示 A、工作台生成用 B"这种
+  /// 在这里改等于在设置里改。否则会出现"设置页显示 A、创作台生成用 B"这种
   /// 用户永远查不出来的错位。
   Future<void> _showModelSheet() async {
     final text = widget.models?.selected;
@@ -1485,7 +1485,7 @@ class _MediaPageState extends State<MediaPage> {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(context.tr('这次工作台用哪三个模型'),
+                child: Text(context.tr('这次创作台用哪三个模型'),
                     style: TextStyle(
                         color: DshColors.text,
                         fontSize: 14,
@@ -1551,7 +1551,7 @@ class _MediaPageState extends State<MediaPage> {
               child: Text(
                 context.tr('这三个就是设置里那几个模型（文本模型 = 首页新会话用的那个；'
                     '图形/视频 = 「设置 → 图像 / 视频模型」），在这儿改等于在设置里改 —— '
-                    '工作台生成时会**直接用**这里选的。'),
+                    '创作台生成时会**直接用**这里选的。'),
                 style: TextStyle(
                     color: DshColors.textFaint, fontSize: 11, height: 1.5),
               ),

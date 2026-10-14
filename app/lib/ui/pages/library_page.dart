@@ -66,7 +66,7 @@ class LibraryPage extends StatefulWidget {
   /// 打开**作品库**（图片/视频的九宫格）。
   ///
   /// 2026-10-12 真机反馈第 4 条：用户要求「作品改到资料库就可以了」——
-  /// 所以在资料库右上角给一个入口。视图本身还是工作台那一套（不复制代码），
+  /// 所以在资料库右上角给一个入口。视图本身还是创作台那一套（不复制代码），
   /// 由壳层推入 `MediaPage(initialSeg: 5)`（见 app_shell 的接线）。
   final VoidCallback? onOpenWorks;
 
@@ -175,8 +175,8 @@ class _LibraryPageState extends State<LibraryPage> {
             children: <Widget>[
               // 「作品」入口（用户 2026-10-12 真机反馈第 4 条）：
               // 「作品我认为改到资料库就可以了，因为可以看到资料库」——
-              // 所以它从工作台的入口屏挪到了这里。
-              // 视图本身没搬：由壳层推入工作台那一页并让它直接落在「作品库」
+              // 所以它从创作台的入口屏挪到了这里。
+              // 视图本身没搬：由壳层推入创作台那一页并让它直接落在「作品库」
               // （`MediaPage(initialSeg: 5)`），这样九宫格只有一份实现。
               if (widget.onOpenWorks != null)
                 IconButton(

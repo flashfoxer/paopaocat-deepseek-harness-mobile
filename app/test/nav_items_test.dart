@@ -17,14 +17,14 @@ void main() {
   test('底部导航 5 项，顺序是 首页 / 影视 / 资料库 / 定时任务 / 设置', () {
     final labels = DshBottomNav.items.map((i) => i.label).toList();
     expect(labels,
-        <String>['首页', '工作台', '资料库', '定时任务', '设置']);
+        <String>['首页', '创作台', '资料库', '定时任务', '设置']);
     // 「专家」不能再出现在底部（它现在是设置页里的入口）
     expect(labels.contains('专家'), isFalse);
   });
 
-  test('「工作台」现在是第 2 个 Tab（原名「影视」，2026-10-12 改名）', () {
+  test('「创作台」现在是第 2 个 Tab（原名「影视」，2026-10-12 改名）', () {
     final labels = DshBottomNav.items.map((i) => i.label).toList();
-    final media = labels.indexOf('工作台');
+    final media = labels.indexOf('创作台');
     expect(media, 1, reason: '撤下「本地大模型」后它前移到这里');
     expect(labels[media + 1], '资料库', reason: '后面的顺序不该被打乱');
   });
@@ -37,7 +37,7 @@ void main() {
     // chat_page: 附件菜单「定时任务」= pop({'tab': 3})
     expect(labels.indexOf('定时任务'), 3,
         reason: "chat_page 的 pop({'tab': 3}) 依赖这个值");
-    // 工作台自己的「去设置」也走回调（壳层传 5），不写死
-    expect(labels.indexOf('工作台'), 1);
+    // 创作台自己的「去设置」也走回调（壳层传 5），不写死
+    expect(labels.indexOf('创作台'), 1);
   });
 }

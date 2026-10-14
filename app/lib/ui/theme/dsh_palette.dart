@@ -59,6 +59,13 @@ class DshPalette {
     ///
     /// ⚠️ 只给默认值、不加 `required`：浅色/深色两套皮肤一行都不用改。
     this.radiusScale = 1.0,
+    /// 像素/终端皮肤：**换一整套视觉**，不只是换色。
+    ///
+    /// 用户 2026-10-15 第 6 条原话：「像素主题变化不大或者说根本没有变化，
+    /// 我要的是大变样子，界面字体风格和其他两个完全不一样的」。
+    /// 它一开：字体换等宽（`DshMetrics.fontFamily`）、描边加粗到 2dp、
+    /// 面板改成不透明实心板、投影换成**无模糊的硬方块**、底纹加扫描线。
+    this.pixelStyle = false,
     // ── 光晕阴影
     required this.panelShadow,
     required this.accentShadow,
@@ -147,6 +154,9 @@ class DshPalette {
   final Color onOk;
 
   /// 圆角缩放（见构造里的说明）。
+  /// 是不是"像素/终端"那套视觉（总闸在 `DshMetrics.pixelStyle`，别在别处判皮肤 id）。
+  final bool pixelStyle;
+
   final double radiusScale;
 
   /// 面板光晕（浅色 = `--glow-soft` 0 18px 44px -24px rgba(24,50,100,.30)）
@@ -333,6 +343,7 @@ class DshPalettes {
         label: tr('像素'),
         brightness: Brightness.dark,
         radiusScale: 0,
+        pixelStyle: true,
         // 近黑的靛蓝底（CRT 关着的那种感觉），刻意比深色皮肤更冷、更暗。
         bg: const Color(0xFF14161F),
         bgSoft: const Color(0xFF1B1E2A),
@@ -362,20 +373,25 @@ class DshPalettes {
         busy: const Color(0xFFFFC24B),
         err: const Color(0xFFFF6B7A),
         onOk: const Color(0xFF04201A),
+        // ⚠️ 像素皮肤的阴影是**无模糊的硬方块**（blurRadius 0 + 纯位移）——
+        //    柔和光晕是材料感的语言，属于另两套皮肤；这里要的是"贴纸/像素块"。
         panelShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x80000000),
-            blurRadius: 30,
-            offset: Offset(0, 14),
-            spreadRadius: -20,
+            color: Color(0xCC000000),
+            blurRadius: 0,
+            offset: Offset(4, 4),
+          ),
+          BoxShadow(
+            color: Color(0x33FFFFFF),
+            blurRadius: 0,
+            offset: Offset(-2, -2),
           ),
         ],
         accentShadow: const <BoxShadow>[
           BoxShadow(
-            color: Color(0x7357F2C1),
-            blurRadius: 22,
-            offset: Offset(0, 8),
-            spreadRadius: -12,
+            color: Color(0x9957F2C1),
+            blurRadius: 0,
+            offset: Offset(3, 3),
           ),
         ],
       );

@@ -616,6 +616,8 @@ class _AppShellState extends State<AppShell> {
     final pages = <Widget>[
       TaskHomeView(
         models: widget.models,
+        // 首页那条滚动公告读它（启动时由 main.dart 拉一次，见 local/broadcast_feed.dart）。
+        appSettings: widget.appSettings,
         // 下标 5 = 底部「设置」（见 DshBottomNav.items 的顺序：加了「影视」后设置右移一位）。
         // 首页在"还没有模型"时要有一个直达设置的动作 —— 用户实测反馈第 4 条：
         // 首次安装没配模型时，首页那个「开始」按钮点了没有有效引导。
@@ -638,10 +640,10 @@ class _AppShellState extends State<AppShell> {
         // 「去设置配 Key」交给壳层做 —— 只有它知道最新下标（这次就因为它知道，
         // 才不会重演"写死下标 → 跳错页"）。
         onOpenSettings: () => _goToTab(4),
-        // 「工作台 → 创作」里那些「开始…会话」按钮：带首句开一个新会话。
+        // 「创作台 → 创作」里那些「开始…会话」按钮：带首句开一个新会话。
         // ⚠️ **不能再用 `_openChatForSkill`** —— 那个方法（见下方）在会话关闭后
         //    会**再推一个「专家 → 技能」页**，那是给「用对话生成技能」这条流程准备的
-        //    （生成完技能要让人立刻看到）。工作台借用它的时候，用户在会话页按返回
+        //    （生成完技能要让人立刻看到）。创作台借用它的时候，用户在会话页按返回
         //    就会被弹到专家页，表现成"点了就跳去专家技能页、没法往下走"
         //    —— 2026-10-12 真机反馈第 6/7/8 条就是这么来的。
         onStartPrompt: (prompt) => _openChat(initialText: prompt),
@@ -651,8 +653,8 @@ class _AppShellState extends State<AppShell> {
       ),
       LibraryPage(
         refreshTick: _pageTicks[2],
-        // 「作品」从工作台入口屏挪到了资料库（用户 2026-10-12 真机反馈第 4 条）：
-        // 这里推的是**同一个工作台页**，只是让它直接落在「作品库」那一格，
+        // 「作品」从创作台入口屏挪到了资料库（用户 2026-10-12 真机反馈第 4 条）：
+        // 这里推的是**同一个创作台页**，只是让它直接落在「作品库」那一格，
         // 所以九宫格视图只有一份（见 MediaPage.initialSeg）。
         onOpenWorks: () => Navigator.of(context).push(
           MaterialPageRoute<void>(

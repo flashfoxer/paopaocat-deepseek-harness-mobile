@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../app_version.dart';
 import '../../data/builtin_starters.dart';
+import '../../state/app_settings.dart';
 import '../../state/model_store.dart';
 import '../theme/dsh_tokens.dart';
-import '../widgets/brand_logo.dart';
+import '../widgets/announce_bar.dart';
+import '../widgets/mascot_speech.dart';
 import '../widgets/workspace_entry.dart';
 
 import '../../i18n/dsh_i18n.dart';
@@ -54,7 +56,11 @@ class TaskHomeView extends StatefulWidget {
     required this.workspaceName,
     required this.models,
     required this.onOpenModelSettings,
+    required this.appSettings,
   });
+
+  /// 首页那条滚动公告读它（`AppSettings.broadcastFeed`，启动时拉一次，见 main.dart）。
+  final AppSettings appSettings;
 
   /// 点「开始新会话」/ 点一条内置会话 → 进对话页（可带一句预填文本）
   final void Function({String? initialText}) onOpenChat;
@@ -226,6 +232,7 @@ class _TaskHomeViewState extends State<TaskHomeView> {
                 onOpenWorkspace: widget.onOpenWorkspace,
                 onOpenModelSettings: widget.onOpenModelSettings,
                 onTapStarter: _onTapStarter,
+                settings: widget.appSettings,
               ),
             ),
           ),
@@ -319,6 +326,7 @@ class _ScrollBody extends StatelessWidget {
     required this.onOpenWorkspace,
     required this.onOpenModelSettings,
     required this.onTapStarter,
+    required this.settings,
   });
 
   /// 滚动层的可用高度（dp），由外层 LayoutBuilder 传入。
@@ -337,6 +345,9 @@ class _ScrollBody extends StatelessWidget {
   final VoidCallback onOpenModelSettings;
   final void Function(BuiltinStarter starter) onTapStarter;
 
+  /// 首页公告栏读它（见 [AnnounceBar]）。
+  final AppSettings settings;
+
   // ---- 各块的固定高度（dp，实测值）----
   // 这些数字是**在模拟器上 dump 语义树量出来的真实值**（1080x2400 / dpr 2.625），
   // 不是估算：标题行 [203,256] 状态行 [266,311] / 标语 [617,695] /
@@ -352,6 +363,13 @@ class _ScrollBody extends StatelessWidget {
   static const double topLeadGap = 10; // 顶栏 → 猫头 logo
   static const double logoLeadGap = 4; // logo → 标语
   static const double taglineLeadGap = 6; // 标语 → 推广文案
+
+  /// 版本号下面那条公告栏占的高度（含它与上下两块之间的间距）。
+  ///
+  /// ⚠️ 它**必须**计入 `fixed`：首页是"内容不足一屏、按比例分配留白"的布局，
+  /// 少算这一块会让内容整体下移、把 `换一换` 顶出屏（历史上 6 行内置会话
+  /// 那 +82dp 就是这么处理的，见 [_gapWeights] 的说明）。
+  static const double announceBlock = AnnounceBar.height + taglineLeadGap;
 
   /// 设计稿里 3 段**跨块**留白的原始比例（单位：设计像素）。
   ///   顶栏底 293 → logo 377        = 84（本页修正：OCR 重叠，取 30）
@@ -386,6 +404,7 @@ class _ScrollBody extends StatelessWidget {
         logoLeadGap +
         taglineBlock +
         taglineLeadGap +
+        announceBlock +
         welfareBlock +
         noticeH +
         _TipBlock.totalHeight;
@@ -404,7 +423,7 @@ class _ScrollBody extends StatelessWidget {
         SizedBox(height: topLeadGap + gaps[0]),
         // 皮肤是运行时变量：这里不能 const（const 实例换肤时会被原样复用、颜色不刷新）
         // ignore: prefer_const_constructors
-        _BrandBlock(),
+        _BrandBlock(settings: settings),
         SizedBox(height: gaps[1]),
         _TipBlock(
           visible: visible,
@@ -588,7 +607,10 @@ class _TopBar extends StatelessWidget {
 /// 设计稿 y：logo 377~465 / 标语 445~530 / 福利 518~564。
 /// （注意 logo 与标语的 OCR 框重叠 —— 见 [_ScrollBody] 的说明。）
 class _BrandBlock extends StatelessWidget {
-  const _BrandBlock();
+  const _BrandBlock({required this.settings});
+
+  /// 公告栏读它（`AppSettings.broadcastFeed`）。
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -600,7 +622,8 @@ class _BrandBlock extends StatelessWidget {
           child: Center(
             // 品牌 logo：与桌面启动器图标**同一份美术**（见 widgets/brand_logo.dart），
             // 素材由 install/make-icon.py 从 design/launcher-icon-source.png 生成。
-            child: BrandLogo(size: 70),
+            // 2026-10-15（用户第 4 条）：点它会弹一句"对话的样子"的话 —— 见 mascot_speech.dart。
+            child: MascotSpeech(size: 70),
           ),
         ),
         const SizedBox(height: _ScrollBody.logoLeadGap),
@@ -633,8 +656,15 @@ class _BrandBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: _ScrollBody.taglineLeadGap),
-        SizedBox(
-          height: _ScrollBody.welfareBlock,
+        // 公告 / 广告位滚动栏（用户 2026-10-15 第 3 条：**放在版本号下面**）。
+        // 内容是仓库根目录 notice.json 里的 items；拉不到就什么都不显示。
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: DshMetrics.pagePad),
+          child: AnnounceBar(settings: settings),
+        ),
+        // 与 `announceBlock` 的记账严格对应：这一块占 AnnounceBar.height + 这个间距。
+        const SizedBox(height: _ScrollBody.taglineLeadGap),
+        SizedBox(height: _ScrollBody.welfareBlock,
           child: Center(
             child: Text(
               context.tr('请帮忙推广一下我的公众号，粉丝太少没有更新动力了'),

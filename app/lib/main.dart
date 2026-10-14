@@ -16,6 +16,7 @@ import 'data/zen_channel.dart';
 import 'local/dsh_runtime.dart';
 // 「检查更新」：启动后台查一次（结果塞进 AppSettings，设置页自己会读）。
 import 'local/update_checker.dart';
+import 'local/broadcast_feed.dart';
 import 'state/app_settings.dart';
 import 'state/model_store.dart';
 import 'state/provider_keys.dart';
@@ -178,6 +179,10 @@ class _DshMobileAppState extends State<DshMobileApp> {
                   DshGridBackground(
                     bgColor: DshColors.bg,
                     glowColor: DshColors.bgGlow,
+                    // 像素皮肤多一层扫描线（其余皮肤保持"干净的近黑底 + 柔光"，
+                    // 用户当年明确否掉过网格线，别把它加回来）。
+                    scanlines: DshMetrics.pixelStyle,
+                    scanlineColor: DshColors.line,
                   ),
                   child ?? const SizedBox.shrink(),
                 ],
@@ -416,6 +421,9 @@ class _LocalShellState extends State<LocalShell> {
       // ⚠️ 必须**在启动流程的最后**、且**不 await**：网络不通时这次请求要等满
       // 超时，绝不能让它拖慢"App 能不能打开"。
       unawaited(_autoCheckUpdate());
+      // 首页那条滚动公告：同样**启动后后台拉一次**（不 await、失败静默、不卡启动）。
+      // 先读本地缓存再拉新的，所以断网也能看到上次那份（见 local/broadcast_feed.dart）。
+      unawaited(_autoFetchBroadcast(runtime.filesDir));
     } catch (e) {
       debugPrint('[dsh-shell] init failed: $e');
       if (!mounted) return;
@@ -453,6 +461,33 @@ class _LocalShellState extends State<LocalShell> {
     } catch (e) {
       // `checkForUpdate` 本身不抛（见它的文件头），这里只是最后一道保险。
       debugPrint('[dsh-update] 自动检查异常（已忽略）: $e');
+    }
+  }
+
+  /// 启动后拉一次首页公告（`notice.json`）。
+  ///
+  /// 三条纪律与更新检查完全一致：不 await、失败静默、拉不到就不显示
+  /// （首页那条栏宁可空着，也不写假话）。
+  ///
+  /// 顺序有讲究：**先摆缓存、再拉新的** —— 用户一进首页就有东西看，
+  /// 网络慢也不会让那条栏先空一下再跳出来。
+  Future<void> _autoFetchBroadcast(String filesDir) async {
+    final s = widget.appSettings;
+    try {
+      final cached = loadCachedBroadcast(filesDir);
+      if (cached != null && !cached.isEmpty) {
+        s.setBroadcastFeed(cached);
+        debugPrint('[dsh-notice] 先摆出缓存里的 ${cached.items.length} 条公告');
+      }
+      final fresh = await fetchBroadcastFeed();
+      if (fresh == null || fresh.isEmpty) return;
+      saveCachedBroadcast(filesDir, fresh);
+      if (!mounted) return;
+      s.setBroadcastFeed(fresh);
+      debugPrint('[dsh-notice] 公告已更新：${fresh.items.length} 条');
+    } catch (e) {
+      // `fetchBroadcastFeed` 本身不抛（见它的文件头），这里只是最后一道保险。
+      debugPrint('[dsh-notice] 拉公告异常（已忽略）: $e');
     }
   }
 

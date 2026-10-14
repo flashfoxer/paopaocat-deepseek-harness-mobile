@@ -623,7 +623,7 @@ class _PickerDialogState extends State<_PickerDialog> {
         child: widget.videos.isEmpty
             ? Text(
                 context.tr('没有找到可以剪的视频。\n这里列的是「作品」里生成过的视频 + 工作区里的视频；'
-                    '两个地方都空的话，先去「工作台 → 生视频」生成一段，或把视频放进工作区。'),
+                    '两个地方都空的话，先去「创作台 → 生视频」生成一段，或把视频放进工作区。'),
                 style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
               )
             : ListView.builder(

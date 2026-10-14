@@ -647,7 +647,14 @@ class _SettingsTabState extends State<SettingsTab> {
         // 皮肤是运行时变量：这一处不能 const（const 实例换肤时会被原样复用、颜色不刷新）
         // ignore: prefer_const_constructors
         Center(child: _QrBlock()),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
+        // 把"长按能干什么"写出来 —— 手势是隐式的，不写没人知道（用户第 8 条要的
+        // 是"长按弹出扫描"，那就得先让人知道可以长按）。
+        Text(
+          context.tr('长按上面的二维码 → 直接唤起微信扫一扫'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 11),
+        ),
+        const SizedBox(height: 8),
         Center(
           child: SelectableText(
             context.tr('公众号 ID：paopaocat888'),
@@ -1455,13 +1462,60 @@ class _SpeechCheckState extends State<_SpeechCheck> {
   }
 }
 
+/// 公众号二维码（含**长按唤起微信扫一扫**，用户 2026-10-15 第 8 条）。
+///
+/// ## 长按做什么
+///
+/// 调原生 `openWechatScan()`（`weixin://dl/scan`）把**微信的扫一扫**叫起来，
+/// 用户对着屏幕上这张二维码扫即可 —— App 自己不做相机扫码（那要加相机权限 +
+/// CameraX + 识别库，而微信本来就有扫一扫）。
+///
+/// ## 三种结果都如实说
+///
+///   * 成功拉起 → 提示"已打开微信扫一扫，对它扫一下就行"；
+///   * 没装微信 → 提示"这台机器上没找到微信，可以自己打开微信扫一扫"；
+///   * 被系统拦 → 提示失败原因。
+///
+/// **绝不说"已进入公众号"** —— App 只能把微信叫起来，进不进得去由微信决定。
 class _QrBlock extends StatelessWidget {
   const _QrBlock();
 
   static const String assetPath = 'assets/images/wechat_qr.png';
 
+  Future<void> _longPress(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    // ⚠️ 三句文案**必须在 await 之前取**：await 之后再用 `context.tr` 会踩
+    // `use_build_context_synchronously`（页面可能已经不在树上）。
+    final okMsg = context.tr('已打开微信扫一扫 —— 对着上面这张二维码扫一下就行。');
+    final noWxMsg = context.tr('这台机器上没找到微信，可以自己打开微信扫一扫再扫这张图。');
+    final failTemplate = context.tr('没能唤起微信（{0}），可以自己打开微信扫一扫。');
+    String msg;
+    try {
+      final r = await DshHost.openWechatScan();
+      msg = r == 'ok'
+          ? okMsg
+          : r == 'no_wechat'
+              ? noWxMsg
+              : _fill(failTemplate, r);
+    } catch (e) {
+      msg = _fill(failTemplate, '$e');
+    }
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      // 让整块（含白底内边距）都能长按，不用精确戳到图
+      behavior: HitTestBehavior.opaque,
+      onLongPress: () => _longPress(context),
+      child: _qrCard(context),
+    );
+  }
+
+  Widget _qrCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(

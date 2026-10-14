@@ -177,7 +177,7 @@ class AiRolePage extends StatelessWidget {
               children: <Widget>[
                 for (final t in <String>[
                   context.tr('角色现在是**打字**的：本机还没有「朗读回复」'
-                      '（语音合成在「工作台 → 口播/短剧」那条线上，不在会话里）——'
+                      '（语音合成在「创作台 → 口播/短剧」那条线上，不在会话里）——'
                       '想让角色出声要另做一层，已列入后续。'),
                   context.tr('角色的**记忆只在这一局里**：开个新会话它就忘了。'
                       '想让某件事长期记住，写进设置里的「记忆」。'),

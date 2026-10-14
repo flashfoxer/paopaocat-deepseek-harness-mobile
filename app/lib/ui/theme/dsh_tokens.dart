@@ -77,6 +77,9 @@ class DshColors {
   /// 圆角缩放（像素风 = 0，见 `DshPalette.radiusScale`）。
   static double get radiusScale => _skin.radiusScale;
 
+  /// 当前皮肤是不是**像素/终端**那一套（字体、描边、投影、底纹全换，见 `DshPalette.pixelStyle`）。
+  static bool get pixelStyle => _skin.pixelStyle;
+
   /// 页面底色（比卡片更深，让卡片浮起来）
   static Color get bg => _skin.bg;
 
@@ -187,12 +190,24 @@ class DshColors {
     bool glow = true,
     List<BoxShadow>? shadow,
   }) {
+    // 像素皮肤的两条差别（用户 2026-10-15 第 6 条要"大变样子"）：
+    //   ① 底改成**不透明**的 surfaceStrong —— 玻璃半透明是另两套皮肤的质感，
+    //      像素/终端风要的是"实心板子"；
+    //   ② 描边 ×2 —— 1dp 的细边在方角上几乎看不出来，加粗才有"像素块"的味道。
+    // 阴影不在这里改：它在色板里（`DshPalette.panelShadow`），像素皮肤那份是
+    // **无模糊的硬方块位移**。
+    final pixel = DshMetrics.pixelStyle;
     return BoxDecoration(
-      color: gradient == null ? (color ?? surfaceHigh) : null,
+      color: gradient == null
+          ? (color ?? (pixel ? surfaceStrong : surfaceHigh))
+          : null,
       gradient: gradient,
       // 在这里统一缩放：调用方传的是**设计稿原值**（11 / controlRadius / panelRadius…）
       borderRadius: BorderRadius.circular(DshMetrics.radius(radius)),
-      border: Border.all(color: borderColor ?? line, width: borderWidth),
+      border: Border.all(
+        color: borderColor ?? line,
+        width: borderWidth * (pixel ? 2 : 1),
+      ),
       boxShadow: glow ? (shadow ?? panelShadow) : null,
     );
   }
@@ -256,6 +271,29 @@ class DshMetrics {
 
   /// 小控件圆角（网站 `--radius-sm: 10px`）：chip、输入框、小按钮。
   static const double controlRadius = 10;
+
+  /// 当前皮肤是不是**像素/终端**那一套（见 [DshPalette.pixelStyle]）。
+  ///
+  /// 用户 2026-10-15 第 6 条：「像素主题变化不大或者说根本没有变化，我要的是
+  /// 大变样子，界面字体风格和其他两个完全不一样的」。所以像素皮肤不再是"换色 +
+  /// 直角"，而是**换一整套视觉**：等宽字体、2dp 硬描边、无模糊的方块投影、
+  /// 扫描线底纹。这个开关就是那套视觉的总闸 —— 所有"要不一样"的地方都读它，
+  /// **不要**在别处再判断皮肤 id（`skin.id == 'pixel'` 那样会在加皮肤时漏掉）。
+  static bool get pixelStyle => DshColors.pixelStyle;
+
+  /// 描边宽度：普通皮肤 1dp（细致），像素皮肤 2dp（看得见像素点）。
+  static double get borderWidth => pixelStyle ? 2.0 : 1.0;
+
+  /// 文字用的字体族：像素皮肤走**设备自带的等宽字体**。
+  ///
+  /// 为什么不随包带一款像素字体：① 中文像素字体动辄 5–10 MB —— 我们刚做完
+  /// 包瘦身（106 → 76 MiB），不能为了一个皮肤把它加回去；② 现成的像素字体
+  /// 多数只覆盖拉丁字母，中文会掉回系统字体、变成"中英两套风格"。等宽字体
+  /// 是设备自带、覆盖中文、且和"终端/像素"同一气质的最小代价方案。
+  static String? get fontFamily => pixelStyle ? 'monospace' : null;
+
+  /// 像素皮肤下字距略放开（等宽字体本来就宽，再紧就糊成一团）。
+  static double get letterSpacing => pixelStyle ? 0.4 : 0.0;
 
   /// 把设计稿上的圆角**按当前皮肤的缩放**换算成实际值。
   ///
@@ -360,11 +398,25 @@ ThemeData buildDshTheme() {
   final base = ThemeData(
     brightness: skin.brightness,
     useMaterial3: true,
+    // 像素皮肤换成等宽字体（其余皮肤用系统默认）—— 这是"大变样子"里最明显的一条，
+    // 比换色显眼得多。为什么用系统等宽而不是随包像素字体：见 DshMetrics.fontFamily。
+    fontFamily: DshMetrics.fontFamily,
+    // 像素皮肤去掉水波纹（方块 UI 上那种圆形扩散很出戏）
+    splashFactory: DshMetrics.pixelStyle ? NoSplash.splashFactory : null,
     // 背景交给最底层的「底色 + 网格」画（见 ui/theme/dsh_grid.dart）：
     // 页面与 AppBar 都透明，网格才能从底层透上来。
     scaffoldBackgroundColor: Colors.transparent,
     colorScheme: scheme,
   );
+
+  // 像素皮肤：把我们**自己声明过的**那些文字样式也补上等宽字体。
+  //
+  // ⚠️ 为什么需要这一步：`ThemeData(fontFamily:)` 只影响"由主题推导出来的"
+  // 那些样式；下面 `copyWith(textTheme: …)` / `appBarTheme.titleTextStyle` 是我们
+  // 自己写的，不带 fontFamily 就会**盖掉**全局字体族 —— 像素皮肤于是只变颜色、
+  // 字体没变（这正是用户说的"变化不大"的成因之一，自测当场抓到）。
+  TextStyle skinFont(TextStyle s) =>
+      DshMetrics.fontFamily == null ? s : s.copyWith(fontFamily: DshMetrics.fontFamily);
 
   return base.copyWith(
     dividerColor: skin.line,
@@ -373,11 +425,11 @@ ThemeData buildDshTheme() {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       centerTitle: true,
-      titleTextStyle: TextStyle(
+      titleTextStyle: skinFont(TextStyle(
         color: skin.text,
         fontSize: 16,
         fontWeight: FontWeight.w600,
-      ),
+      )),
       iconTheme: IconThemeData(color: skin.text),
     ),
     cardTheme: CardThemeData(
@@ -388,18 +440,30 @@ ThemeData buildDshTheme() {
       // 网站的卡片是「1px 细边 + 柔和光晕」，不是 Material 的投影
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.cardRadius)),
-        side: BorderSide(color: skin.line, width: 1),
+        side: BorderSide(color: skin.line, width: DshMetrics.borderWidth),
       ),
     ),
     textTheme: TextTheme(
-      bodyMedium: TextStyle(color: skin.text, fontSize: 14, height: 1.5),
-      bodySmall: TextStyle(color: skin.textDim, fontSize: 12, height: 1.45),
-      titleMedium: TextStyle(
+      bodyMedium: skinFont(TextStyle(
+          color: skin.text,
+          fontSize: 14,
+          height: 1.5,
+          letterSpacing: DshMetrics.letterSpacing)),
+      bodySmall: skinFont(TextStyle(
+          color: skin.textDim,
+          fontSize: 12,
+          height: 1.45,
+          letterSpacing: DshMetrics.letterSpacing)),
+      titleMedium: skinFont(TextStyle(
         color: skin.text,
         fontSize: 15,
         fontWeight: FontWeight.w600,
-      ),
-      labelSmall: TextStyle(color: skin.textFaint, fontSize: 11),
+        letterSpacing: DshMetrics.letterSpacing,
+      )),
+      labelSmall: skinFont(TextStyle(
+          color: skin.textFaint,
+          fontSize: 11,
+          letterSpacing: DshMetrics.letterSpacing)),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
@@ -408,15 +472,15 @@ ThemeData buildDshTheme() {
       hintStyle: TextStyle(color: skin.textFaint, fontSize: 13.5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.fieldRadius)),
-        borderSide: BorderSide(color: skin.line, width: 1),
+        borderSide: BorderSide(color: skin.line, width: DshMetrics.borderWidth),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.fieldRadius)),
-        borderSide: BorderSide(color: skin.line, width: 1),
+        borderSide: BorderSide(color: skin.line, width: DshMetrics.borderWidth),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.fieldRadius)),
-        borderSide: BorderSide(color: skin.accent, width: 1),
+        borderSide: BorderSide(color: skin.accent, width: DshMetrics.borderWidth),
       ),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -428,7 +492,8 @@ ThemeData buildDshTheme() {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.controlRadius)),
         ),
-        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+        textStyle: skinFont(
+            const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
@@ -449,7 +514,7 @@ ThemeData buildDshTheme() {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.controlRadius)),
-        side: BorderSide(color: skin.line, width: 1),
+        side: BorderSide(color: skin.line, width: DshMetrics.borderWidth),
       ),
     ),
     dialogTheme: DialogThemeData(
@@ -457,7 +522,7 @@ ThemeData buildDshTheme() {
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.panelRadius)),
-        side: BorderSide(color: skin.line, width: 1),
+        side: BorderSide(color: skin.line, width: DshMetrics.borderWidth),
       ),
       titleTextStyle: TextStyle(
         color: skin.text,

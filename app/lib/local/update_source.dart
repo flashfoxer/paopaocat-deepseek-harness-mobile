@@ -76,3 +76,16 @@ bool looksLikeUpdateSource(String raw) {
   // 至少要有个主机名，否则是 `https://` 这种半截地址。
   return s.length > 'https://'.length + 1;
 }
+
+/// 「群发消息 / 首页公告」的清单名。同样放**仓库根目录**（与 `update.json` 并排），
+/// 改一个字就推给所有装了 App 的人 —— 见 `broadcast_feed.dart`。
+const String kBroadcastManifestName = 'notice.json';
+
+/// 公告清单的候选源。顺序与更新源同源同理：
+///   * raw 主源 —— 快、新鲜（实测 0.47 s，缓存只有几分钟）；
+///   * jsDelivr 兜底 —— 国内直连 raw 被污染/超时时走它（代价是最多 12 小时延迟，
+///     公告这种"不急但要能看到"的东西可以接受）。
+List<String> defaultBroadcastSources() => <String>[
+      'https://raw.githubusercontent.com/$kUpdateRepo/main/$kBroadcastManifestName',
+      'https://cdn.jsdelivr.net/gh/$kUpdateRepo@main/$kBroadcastManifestName',
+    ];

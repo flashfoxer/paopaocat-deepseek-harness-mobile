@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../i18n/dsh_i18n.dart';
 import 'atomic_file.dart';
+import 'display_format.dart';
 import 'relative_time.dart';
 
 /// 一个工作区 == DSH 运行时的一次 cwd（**真实的目录**）。
@@ -73,6 +74,7 @@ class DshSession {
     this.live = false,
     this.createdAt,
     this.emptyShell = false,
+    this.totalTokens,
   });
 
   /// 真实的 ACP sessionId（`session/resume` 就吃这个）
@@ -102,6 +104,16 @@ class DshSession {
   /// 为什么必须标出来：设备实测 48 条会话里 17 条是空壳（最老的 4 条转录只有
   /// 175 B，连一条消息都没有），它们把真会话淹了，用户以为"对话被删了"。
   bool emptyShell;
+
+  /// 这条会话**一共用掉多少 token**（来自 DSH 的投影缓存 `tokenUsage.val.totals`）。
+  ///
+  /// 用户 2026-10-15 的要求：「会话都是可以显示时间和用了多少 tok」。
+  /// 取不到就是 null —— 界面**不显示**，绝不编一个 `0 tok`（那会被当成"这条没用过"）。
+  int? totalTokens;
+
+  /// token 用量的显示串；取不到返回空串（调用方据此不画那一段）。
+  String get tokensLabel =>
+      (totalTokens == null || totalTokens! <= 0) ? '' : '${formatTokens(totalTokens!)} tok';
 
   bool get hasTitle => title != null && title!.trim().isNotEmpty;
 
@@ -231,6 +243,7 @@ class WorkspaceStore extends ChangeNotifier {
       live: s.live,
       createdAt: s.createdAt,
       emptyShell: s.emptyShell,
+      totalTokens: s.totalTokens,
     );
   }
 
@@ -426,7 +439,18 @@ class WorkspaceStore extends ChangeNotifier {
         return;
       }
     }
-    _live.insert(0, DshSession(id: id, cwd: cwd, title: effective, live: true));
+    // `createdAt` 记成"第一句话发出"的时刻（意见 2 要显示时间）：
+    // 这条 live 会话的时间就是现在，取不到别的更准的来源（ACP 的 createdAt 要
+    // 先建会话、再查 session/list，那条链只在磁盘索引里走）。
+    _live.insert(
+        0,
+        DshSession(
+          id: id,
+          cwd: cwd,
+          title: effective,
+          live: true,
+          createdAt: DateTime.now(),
+        ));
     debugPrint(
         '[dsh-ws] 登记会话 ${id.substring(0, 8)}（${cwd.split('/').last}）共 ${_live.length} 条');
     notifyListeners();

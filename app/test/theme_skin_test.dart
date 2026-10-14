@@ -115,6 +115,38 @@ void main() {
       DshColors.applySkin(DshPalettes.dark);
     });
 
+    test('像素风是"换一整套视觉"，不是只换色（用户 2026-10-15 第 6 条）', () {
+      // 总闸：只有像素皮肤打开它 —— 所有"要不一样"的地方都读这一个开关
+      expect(DshPalettes.pixel.pixelStyle, isTrue);
+      expect(DshPalettes.light.pixelStyle, isFalse);
+      expect(DshPalettes.dark.pixelStyle, isFalse);
+
+      DshColors.applySkin(DshPalettes.dark);
+      expect(DshMetrics.pixelStyle, isFalse);
+      expect(DshMetrics.fontFamily, isNull, reason: '普通皮肤用系统默认字体');
+      expect(DshMetrics.borderWidth, 1);
+      expect(DshMetrics.letterSpacing, 0);
+
+      DshColors.applySkin(DshPalettes.pixel);
+      expect(DshMetrics.pixelStyle, isTrue);
+      expect(DshMetrics.fontFamily, 'monospace',
+          reason: '字体是"大变样子"里最显眼的一条（界面字体风格要完全不同）');
+      expect(DshMetrics.borderWidth, 2, reason: '1dp 细边在方角上几乎看不出来');
+      expect(DshMetrics.letterSpacing, greaterThan(0));
+
+      // 投影：像素皮肤是**无模糊的硬方块**，普通皮肤是柔和光晕
+      for (final sh in DshPalettes.pixel.panelShadow) {
+        expect(sh.blurRadius, 0, reason: '像素风不许有模糊光晕');
+      }
+      expect(DshPalettes.dark.panelShadow.first.blurRadius, greaterThan(0));
+
+      // 主题里的字体族也要跟着走（不然只有"读 DshMetrics 的地方"变了）
+      expect(buildDshTheme().textTheme.bodyMedium?.fontFamily, 'monospace');
+
+      DshColors.applySkin(DshPalettes.dark);
+      expect(buildDshTheme().textTheme.bodyMedium?.fontFamily, isNot('monospace'));
+    });
+
     test('像素风也过无障碍对比度（contrast_test 会遍历所有皮肤）', () {
       final p = DshPalettes.pixel;
       expect(p.brightness, Brightness.dark);

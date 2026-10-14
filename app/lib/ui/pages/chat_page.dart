@@ -19,6 +19,7 @@ import '../../state/session_registry.dart';
 import '../../state/model_store.dart';
 import '../../state/usage_store.dart';
 import '../../state/provider_keys.dart';
+import '../../state/spawn_signature.dart';
 import '../theme/dsh_tokens.dart';
 import 'model_sheet.dart';
 import '../widgets/bottom_nav.dart';
@@ -211,6 +212,14 @@ class _ChatPageState extends State<ChatPage> {
   /// 所以这里记下启动时的指纹，变了就重建会话，不再假装"切一下就行"。
   String? _spawnedConfigKey;
 
+  /// 起这个进程时，**当前选中那条路由的管路**（provider 定义 + 它的 Key 值 +
+  /// 它的模型条目 + 轮换组成员）—— 见 `state/spawn_signature.dart`。
+  ///
+  /// 与 [_spawnedConfigKey]（整份配置）的区别：这份只关心"这条路由自己的东西
+  /// 变没变"。切模型时用它判要不要重建 —— 用户改别的厂家不该重启正在聊的会话
+  /// （用户 2026-10-15 第 1 条）。
+  String? _spawnedRoutePlumbing;
+
   /// 产物（设计稿 page-04 的产物列表就来自这里）。
   ///
   /// **只装核实过的真文件**：文件真的在工作区里、且是这次会话写出来的
@@ -382,6 +391,25 @@ class _ChatPageState extends State<ChatPage> {
   /// 指纹里**必须含 Key 的值**：同一厂家只改了 Key（provider id 没变）时，
   /// overlay 文本一模一样，只有环境变量变了 —— 不含 Key 就检测不到，
   /// 于是"切一下"看起来成功、请求却带旧 Key。
+  /// 当前选中路由的"管路指纹"（见 state/spawn_signature.dart 的文件头）。
+  ///
+  /// **必须在 spawn 之前取**：它要和这一次进程真正吃进去的东西对上。
+  Future<String> _routePlumbing(String route) async {
+    if (route.isEmpty) return '';
+    final cfg = widget.models.config;
+    final keys = await ProviderKeys.envFor(cfg);
+    String legacy = '';
+    try {
+      legacy = (await _legacySecure.read(key: 'dsh_model_api_key')) ?? '';
+    } catch (_) {}
+    return selectedRoutePlumbing(
+      cfg: cfg,
+      keys: keys,
+      route: route,
+      legacyKey: legacy,
+    );
+  }
+
   Future<({String sig, Map<String, String> keys})> _spawnState() async {
     final cfg = widget.models.config;
     final keys = await ProviderKeys.envFor(cfg);
@@ -449,9 +477,27 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> _applyModelChangeOnce() async {
     final st = await _spawnState();
-    final configChanged =
-        _spawnedConfigKey != null && st.sig != _spawnedConfigKey;
     final want = widget.models.selectedRoute ?? '';
+
+    // 用户 2026-10-15 第 1 条：「切换模型不要重建会话，看看有没有这个问题发生」。
+    //
+    // 老口径是"整份配置指纹变了就重建会话"（`st.sig != _spawnedConfigKey`）——
+    // 太粗：用户改的是**别的厂家**、或者只是勾了一个新模型，跟当前这条路由
+    // 毫无关系，却会把正在聊的会话重启一遍。真机日志里那种"提示说没重建、
+    // 实际换了会话"就是这么来的。
+    //
+    // 现在的判据是**这条路由自己的管路**（provider 定义 + 它的 Key 值 + 它的模型
+    // 条目 + 轮换组成员）：没变 → 运行时的注册表和配置仍然对得上 → 直接会话内
+    // 切模型，一个进程都不重启。只有**这条路由自己的**东西变了才重建
+    // （Key 变了必须重建，否则进程还揣着旧 Key）。
+    final plumbingNow = await _routePlumbing(want);
+    final routeChanged =
+        _spawnedRoutePlumbing != null && plumbingNow != _spawnedRoutePlumbing;
+    // 兼容性：整份配置变了但仍与这条路由无关时，不再逼着重建；但**没记过**
+    // 管路（老代码升上来的第一次）仍按老口径保守处理一次。
+    final configChanged = _spawnedRoutePlumbing == null
+        ? (_spawnedConfigKey != null && st.sig != _spawnedConfigKey)
+        : routeChanged;
 
     // 运行时已经在这个模型上、配置也没变 → 什么都不用做（这就是"再点一次同一个"）。
     // 判据是 [_liveRoute]（运行时报的），不是界面上的选中名。
@@ -465,7 +511,8 @@ class _ChatPageState extends State<ChatPage> {
         ..showSnackBar(
           SnackBar(
             content: Text(
-                context.tr('已切换到 {0}（会话保留）', [widget.models.selectedName])),
+                context.tr('已切换到 {0}（会话没重建，上下文还在）',
+                    [widget.models.selectedName])),
             duration: const Duration(milliseconds: 1600),
           ),
         );
@@ -612,6 +659,9 @@ class _ChatPageState extends State<ChatPage> {
       // 这一步同时拿到"每厂家环境变量"和"配置指纹"。**必须在 spawn 之前取**：
       // overlay 与凭据都是进程启动时读一次，指纹必须等于这一次真正吃进去的东西。
       final st = await _spawnState();
+      // 这次 spawn 时"这条路由的管路"（spawn 之前取，才算得上"进程吃进去的那份"）。
+      final plumbingAtSpawn = await _routePlumbing(
+          widget.models.selectedRoute ?? '');
       final acp = await AcpClient.start(
         // ⚠️ 整份 runtime 交进去（不再自己拼一份精简 env）。会话进程必须和别人
         // 一样带上 DSH_ANDROID_* 四件套、执行环境 shim、工具箱、AGNES_* ——
@@ -684,6 +734,7 @@ class _ChatPageState extends State<ChatPage> {
         )
           ..sessionId = sessionId
           ..spawnConfigKey = st.sig
+          ..spawnRoutePlumbing = plumbingAtSpawn
           ..liveRoute = acp.liveModelRoute;
         // 本页此前先写进自己那份的消息/产物，搬进句柄 —— 从此刻起两者共享同一份。
         if (_ownMessages.isNotEmpty) {
@@ -714,6 +765,8 @@ class _ChatPageState extends State<ChatPage> {
         // 指纹只在**真的起好了**之后才记：起失败时保持旧值，
         // 下一次变更仍会被判成"配置变了"从而重试重建。
         _spawnedConfigKey = st.sig;
+        // 这条路由自己的管路也一起记（切模型时的判据，见 state/spawn_signature.dart）。
+        _spawnedRoutePlumbing = plumbingAtSpawn;
         // 这个新会话**运行时实际在用**的模型（session/new / session/resume 的返回里
         // 带的 configOptions 报出来的）—— 不是界面上那个选中项。
         _liveRoute = acp.liveModelRoute;
@@ -787,6 +840,7 @@ class _ChatPageState extends State<ChatPage> {
     // 切页回来时接着显示"已等了多久"，而不是归零（审计 P1-1）。
     _turnStartedAt = live.turnStartedAt;
     _spawnedConfigKey = live.spawnConfigKey;
+    _spawnedRoutePlumbing = live.spawnRoutePlumbing;
     _liveRoute = live.liveRoute;
     // 历史消息仍从会话文件读（协议不回放历史）；离屏期间的新消息靠 attach 回放。
     if (live.sessionId != null) {

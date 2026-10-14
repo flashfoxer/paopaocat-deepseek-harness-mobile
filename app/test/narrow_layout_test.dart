@@ -59,7 +59,7 @@ void main() {
       await tester.pump();
       expect(tester.takeException(), isNull, reason: '${w.toInt()}dp 下导航溢出了');
       // 5 项都在，且都在屏内（等分单元格，位置断言防的是"最后一项被挤出去"）
-      for (final label in <String>['首页', '工作台', '资料库', '定时任务', '设置']) {
+      for (final label in <String>['首页', '创作台', '资料库', '定时任务', '设置']) {
         expect(find.text(label), findsOneWidget, reason: '缺了「$label」');
         final r = tester.getRect(find.text(label));
         expect(r.left >= -0.5 && r.right <= w + 0.5, isTrue,
@@ -90,7 +90,7 @@ void main() {
       // 只 `find.text` 是不够的 —— 横向滚动的 chip 行里，屏幕外的 chip 照样"存在"
       // （只是看不见）。用户报的就是"看不见"，所以这里断言**矩形**：
       // 每一项的 left/right 都必须在视口内。
-      // 「作品」2026-10-12 起**不在工作台**（挪到「资料库」右上角），所以只剩 5 个。
+      // 「作品」2026-10-12 起**不在创作台**（挪到「资料库」右上角），所以只剩 5 个。
       for (final m in <String>['生图', '生视频', '修图', '口播', '短剧']) {
         expect(find.text(m), findsOneWidget, reason: '${w.toInt()}dp 下没有模式「$m」');
         final r = tester.getRect(find.text(m));
@@ -98,7 +98,7 @@ void main() {
             reason: '「$m」跑到屏幕外了：$r（视口宽 $w）');
       }
       expect(find.text('作品'), findsNothing,
-          reason: '「作品」已挪到资料库，不该再出现在工作台入口屏');
+          reason: '「作品」已挪到资料库，不该再出现在创作台入口屏');
     });
   }
 }

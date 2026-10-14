@@ -31,8 +31,8 @@ class DshBottomNav extends StatelessWidget {
           activeIcon: Icons.chat_bubble,
           label: tr('首页')
         ),
-        // 当前五项：0 首页 / 1 工作台 / 2 资料库 / 3 定时任务 / 4 设置。
-        // ⚠️ 任何写死下标的地方都要跟着改。2026-10-11 插「影视」（后改名「工作台」）时
+        // 当前五项：0 首页 / 1 创作台 / 2 资料库 / 3 定时任务 / 4 设置。
+        // ⚠️ 任何写死下标的地方都要跟着改。2026-10-11 插「影视」（后改名「创作台」）时
         //    踩过一次：`app_shell` 里写死的「下标 4 = 设置」和 `chat_page`
         //    附件菜单里的 `{'tab': 3}`（定时任务）都一起改了，漏一个就是"点进去跑错页"。
         // ⚠️ 历史：下标 1 曾经是「本地大模型」（2026-10-09 加，2026-10-12 **撤下** ——
@@ -41,12 +41,12 @@ class DshBottomNav extends StatelessWidget {
         //    `ondevice_models_page` / `local_chat_page` / `kb_page` 都还在原位，
         //    但现在**没有任何入口**能到达它们（设置页里也没有）。想恢复就把这一项加回来，
         //    并把其余下标一起后移。
-        // 「工作台」＝ 泡泡猫影视工具的手机版（2026-10-11 要求加，2026-10-12 改名并
+        // 「创作台」＝ 泡泡猫影视工具的手机版（2026-10-11 要求加，2026-10-12 改名并
         //    拆成"入口页 + 详情页"）。入口在设置里也有一份，但这里是主入口。
         (
           icon: Icons.movie_outlined,
           activeIcon: Icons.movie,
-          label: tr('工作台')
+          label: tr('创作台')
         ),
         (
           icon: Icons.folder_outlined,

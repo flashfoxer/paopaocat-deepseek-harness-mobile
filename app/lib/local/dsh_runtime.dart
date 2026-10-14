@@ -321,6 +321,25 @@ class DshHost {
   ///   * `'no_app'` —— 设备上没有能打开网页的应用（环境事实，要如实告诉用户）。
   ///
   /// 只允许 http/https（原生侧也会再拦一次）；空串/非法 scheme 抛 [PlatformException]。
+  /// 唤起**微信扫一扫**（用户 2026-10-15 第 8 条：「关于」里的公众号二维码长按
+  /// 要能弹出扫描、进公众号）。
+  ///
+  /// 返回（机器可读，界面翻成人话）：
+  ///   * `ok`        —— 已经拉起微信扫一扫（用户对着屏幕扫那张二维码即可）；
+  ///   * `no_wechat` —— 这台机器上没有微信（或没有应用处理 `weixin://`）；
+  ///   * `failed:…`  —— 其它异常（部分 ROM 会拦截非 http 的跳转）。
+  ///
+  /// 为什么不是"App 自己扫码"：那要加相机权限 + CameraX + 识别库，
+  /// 而微信本来就有扫一扫 —— App 的职责只是**把它叫起来**。
+  static Future<String> openWechatScan() async {
+    try {
+      final r = await channel.invokeMethod<String>('openWechatScan');
+      return r ?? 'failed:empty';
+    } catch (e) {
+      return 'failed:$e';
+    }
+  }
+
   static Future<String> openUrl(String url) async {
     final r = await channel.invokeMethod<String>(
       'openUrl',

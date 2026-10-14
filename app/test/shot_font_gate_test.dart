@@ -207,7 +207,7 @@ ThemeData _shotTheme(ThemeData base, String family) {
   );
 }
 
-/// 工作台那一页（`seg` 为空 = 入口屏；0–4 = 生图/生视频/修图/口播/短剧；5 = 作品库）。
+/// 创作台那一页（`seg` 为空 = 入口屏；0–4 = 生图/生视频/修图/口播/短剧；5 = 作品库）。
 MediaPage workbench({int? seg}) => MediaPage(
       runtime: _fakeRuntime(),
       settings: AppSettings(),
@@ -268,7 +268,7 @@ void main() {
         reason: '这些文字在截图里会渲染成方块（缺字体族）：\n  ${missing.join('\n  ')}');
   });
 
-  testWidgets('夹具自检：工作台入口页与资料库页也一样（没有方块）', (tester) async {
+  testWidgets('夹具自检：创作台入口页与资料库页也一样（没有方块）', (tester) async {
     tester.view.physicalSize = _logical * _pixelRatio;
     tester.view.devicePixelRatio = _pixelRatio;
     addTearDown(tester.view.reset);

@@ -67,7 +67,46 @@ Map<String, int> scanTranscriptSizes(String dshHome) {
   return out;
 }
 
-/// 判断 [sessionId] 这条会话在磁盘上有没有真实内容。
+/// 一条会话在磁盘上的两件事：**是不是空壳** + **用了多少 token**（意见 2 要显示用量）。
+///
+/// 两者同源（都在那份投影缓存里），所以一次读出来，不要为同一份文件读两遍。
+({SessionContentState state, int? totalTokens}) readSessionFacts({
+  required String dshHome,
+  required String sessionId,
+  Map<String, int>? transcriptBytes,
+}) {
+  if (dshHome.isEmpty || sessionId.isEmpty) {
+    return (state: SessionContentState.unknown, totalTokens: null);
+  }
+  final rows = _readProjcacheRows(dshHome, sessionId);
+  final bytes = transcriptBytes?[sessionId];
+
+  final tokens = rows == null ? null : _totalsIn(_valOf(rows['tokenUsage']));
+
+  SessionContentState state;
+  if (rows == null) {
+    state = SessionContentState.unknown;
+  } else {
+    final title = _countIn(rows['titleInput']);
+    final turn = _countIn(rows['turnBoundary']);
+    if (title == 0 && turn == 0) {
+      if (bytes == null) {
+        state = SessionContentState.unknown;
+      } else {
+        state = bytes < kShellTranscriptMaxBytes
+            ? SessionContentState.empty
+            : SessionContentState.hasMessages;
+      }
+    } else if (title != null || turn != null) {
+      state = SessionContentState.hasMessages;
+    } else {
+      state = SessionContentState.unknown;
+    }
+  }
+  return (state: state, totalTokens: tokens);
+}
+
+/// 判断 [sessionId] 这条会话在磁盘上有没有真实内容（[readSessionFacts] 的薄封装）。
 ///
 /// 两个数据源，缺一不可地**互相佐证**：
 ///
@@ -85,38 +124,21 @@ SessionContentState sessionContentState({
   required String dshHome,
   required String sessionId,
   Map<String, int>? transcriptBytes,
-}) {
-  if (dshHome.isEmpty || sessionId.isEmpty) return SessionContentState.unknown;
+}) =>
+    readSessionFacts(
+      dshHome: dshHome,
+      sessionId: sessionId,
+      transcriptBytes: transcriptBytes,
+    ).state;
 
-  final bytes = transcriptBytes?[sessionId];
-
-  final cached = _readProjcacheEmpty(dshHome, sessionId);
-  if (cached == true) {
-    if (bytes == null) return SessionContentState.unknown;
-    return bytes < kShellTranscriptMaxBytes
-        ? SessionContentState.empty
-        : SessionContentState.hasMessages;
-  }
-  // 缓存说"有内容"，但转录文件小得像空壳 —— 以文件为准，仍判有内容（不隐藏）。
-  if (cached == false) return SessionContentState.hasMessages;
-  return SessionContentState.unknown;
-}
-
-/// 读投影缓存：`true` = 确定 0 消息，`false` = 确定有内容，`null` = 读不出来。
-bool? _readProjcacheEmpty(String dshHome, String sessionId) {
+/// 读投影缓存的 `rows` 那一层；文件缺失 / 坏 JSON / 没有 rows 都返回 null。
+Map? _readProjcacheRows(String dshHome, String sessionId) {
   final f = File('$dshHome/storages/session_projcache/sessions/$sessionId.json');
   try {
     if (!f.existsSync()) return null;
     final raw = jsonDecode(f.readAsStringSync());
     if (raw is! Map) return null;
-    final rows = _rowsOf(raw);
-    if (rows == null) return null;
-    final title = _countIn(rows['titleInput']);
-    final turn = _countIn(rows['turnBoundary']);
-    // 两个都读到、且都是 0 → 才敢说"这句会话从没聊过"。
-    if (title == 0 && turn == 0) return true;
-    if (title != null || turn != null) return false;
-    return null;
+    return _rowsOf(raw);
   } catch (e) {
     debugPrint('[dsh-session-content] 读投影缓存失败 $sessionId：$e');
     return null;
@@ -129,6 +151,9 @@ Map? _rowsOf(Map raw) {
   final rows = record['rows'] ?? record;
   return rows is Map ? rows : null;
 }
+
+/// 取某一行里的 `val` 那一层（`{val: X}` → X，没有 val 就返回整行）。
+Object? _valOf(Object? row) => row is Map ? (row['val'] ?? row) : row;
 
 /// 从 `{val: {count: 0}}` / `{val: 0}` 这类形状里取一个整数。
 int? _countIn(Object? row) {
@@ -145,4 +170,27 @@ int? _firstInt(Object? v) {
     }
   }
   return null;
+}
+
+/// 从 `tokenUsage.val.totals` 里取总用量。
+///
+/// 形状按**宽容**处理（不同 DSH 版本不一样，猜窄了就等于永远读不到）：
+/// `totals` 是数字就用它；是对象就优先认 `total` / `totalTokens`，认不到就把里面
+/// 所有数字**加起来**（input+output+…）。都没有 → null（界面**不显示**，不编 0）。
+int? _totalsIn(Object? totals) {
+  if (totals is num) return totals.toInt();
+  if (totals is! Map) return null;
+  for (final k in const ['total', 'totalTokens', 'overall', 'sum']) {
+    final v = totals[k];
+    if (v is num) return v.toInt();
+  }
+  var sum = 0;
+  var saw = false;
+  for (final v in totals.values) {
+    if (v is num) {
+      sum += v.toInt();
+      saw = true;
+    }
+  }
+  return saw ? sum : null;
 }

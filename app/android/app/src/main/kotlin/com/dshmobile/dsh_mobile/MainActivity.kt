@@ -57,8 +57,20 @@ class MainActivity : FlutterActivity() {
         /** LiteRT-LM（Gemma 4 那批 `.litertlm` 模型）：进程内 API + 本机 HTTP 包装。 */
         private val liteRtLm = LiteRtLmBridge()
 
-        /** 改动此值会让已安装的 App 重新解压一次运行时。 */
-        private const val RUNTIME_VERSION = "1"
+        /**
+         * 运行时的**内容版本**：改动此值会让已安装的 App 重新解压一次运行时。
+         *
+         * ⚠️ **运行环境内容一变就必须 +1**（不只是"改了才顺手加"）：
+         * `isRuntimeReady()` 看的是 `.dsh-runtime-<版本>` 这个标记文件，
+         * 不加就永远是"已就绪"，覆盖安装也拿不到新那份。
+         *
+         * 2026-10-15：1 → 2。运行环境里**多了 AnySearch 的搜索后端插件**
+         * （`@deepseek-ai/dsh-web-search-anysearch`，见 `runtime-plugins/`），
+         * 也就是"会话里的联网搜索免 Key 可用"这条能力要靠它才生效。
+         * 升级后的行为：完整包直接从安装包里取出（**不联网**，见
+         * `copyRuntimeAssetTo`），精简包用本地那份（`runtime.json` 一致时同样不下载）。
+         */
+        private const val RUNTIME_VERSION = "2"
 
         // **完整包**里带着运行环境（`build.gradle.kts` 的 `DSH_ANDROID_INCLUDE_RUNTIME=1`
         // 时把 `app-assets` 加进 assets），**精简包**里没有 —— 所以下面每一处都要

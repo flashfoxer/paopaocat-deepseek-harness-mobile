@@ -182,6 +182,50 @@ void main() {
       expect(File('${dir.path}/runtime.zip').readAsBytesSync(), zip);
     });
 
+    // ── 2026-10-15 真机反馈：完整包（随包自带运行环境）首次安装时**仍然**被要求
+    //    下载 32 MB，而且更新源一超时就卡在「准备运行环境」那一页。下面两条把它钉住：
+    //    ① 自带 → 先取出、**不联网**也照样就绪；② 不带 → 行为不变（走下载）。
+    test('安装包自带运行环境 → 取出来就用，**清单都连不上也照样就绪**', () async {
+      final zip = _fakeZip(4096);
+      var copied = false;
+
+      final r = await ensureRuntimeZip(
+        filesDir: dir.path,
+        // 127.0.0.1:1 连不上（模拟用户那次 TimeoutException）
+        customManifestSource: 'http://127.0.0.1:1/runtime.json',
+        timeout: const Duration(seconds: 2),
+        hasAssetOverride: () async => true,
+        copyAssetOverride: () async {
+          copied = true;
+          File('${dir.path}/runtime.zip').writeAsBytesSync(zip, flush: true);
+          return zip.length;
+        },
+      );
+
+      expect(copied, isTrue, reason: '自带的运行环境必须被取出来');
+      expect(r.ok, isTrue, reason: '随包自带时**不需要联网**，连不上更新源也要能就绪');
+      expect(r.fromAsset, isTrue);
+      expect(r.downloaded, isFalse, reason: '这是"取出"，不是"下载"');
+      expect(File('${dir.path}/runtime.zip').lengthSync(), zip.length);
+    });
+
+    test('安装包不带运行环境（精简包）→ 行为不变：走清单/下载那条路', () async {
+      var copyTried = false;
+      final r = await ensureRuntimeZip(
+        filesDir: dir.path,
+        customManifestSource: 'http://127.0.0.1:1/runtime.json',
+        timeout: const Duration(seconds: 2),
+        hasAssetOverride: () async => false,
+        copyAssetOverride: () async {
+          copyTried = true;
+          return 0;
+        },
+      );
+      expect(copyTried, isFalse, reason: '没有 asset 就不该去取');
+      expect(r.ok, isFalse, reason: '没自带、又连不上源 → 如实失败（原来那套行为）');
+      expect(r.fromAsset, isFalse);
+    });
+
     test('清单拉不到、本地也空 → 失败，但**给出可操作的出路**', () async {
       final r = await ensureRuntimeZip(
         filesDir: dir.path,

@@ -110,6 +110,16 @@ class DshHost {
   static Future<bool> unpackRuntime() async =>
       await channel.invokeMethod<bool>('unpackRuntime') ?? false;
 
+  /// **完整包**里有没有随包的运行环境（精简包返回 false —— 这不是错误）。
+  static Future<bool> hasRuntimeAsset() async =>
+      await channel.invokeMethod<bool>('hasRuntimeAsset') ?? false;
+
+  /// 把随包的运行环境取出来落到 `files/runtime.zip`，返回字节数（没有 asset 时 0）。
+  ///
+  /// 走原生是为了**流式拷贝**：33 MB 的 asset 用 `rootBundle.load()` 会整个进内存。
+  static Future<int> copyRuntimeAsset() async =>
+      await channel.invokeMethod<int>('copyRuntimeAsset') ?? 0;
+
   // ------------------------------------------------------- 定时任务保活（前台服务）
 
   /// 启动/更新保活前台服务（常驻通知，见 `DshSchedulerService.kt`）。

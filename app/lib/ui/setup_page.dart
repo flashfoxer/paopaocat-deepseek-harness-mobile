@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../local/apk_downloader.dart' show ApkDownloadProgress, ApkDownloadCancelToken;
@@ -40,9 +41,20 @@ class _SetupPageState extends State<SetupPage> {
   String _current = '';
   String? _error;
 
+  /// 安装包里**自带**运行环境吗（完整包有、精简包没有）。
+  ///
+  /// 带就**不用联网**：`ensureRuntimeZip()` 会先把它取出来（2026-10-15 用户真机反馈：
+  /// 完整包也被要求下 32 MB，而且更新源一超时就卡在这一页）。
+  bool _bundled = false;
+
   @override
   void initState() {
     super.initState();
+    // 先问一句"安装包里自带运行环境吗"：自带就把文案与进度都说成"取出"而不是"下载"。
+    unawaited(DshHost.hasRuntimeAsset().then((v) {
+      if (!mounted) return;
+      setState(() => _bundled = v);
+    }).catchError((Object _) => debugPrint('[dsh-setup] 查随包运行环境失败（按没有处理）')));
     // 解压进度由原生回调（下载进度则是下面 ensureRuntimeZip 的 onProgress）。
     DshHost.bindProgress((done, current) {
       if (!mounted) return;
@@ -137,9 +149,12 @@ class _SetupPageState extends State<SetupPage> {
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           Text(
-            context.tr('运行环境（约 32 MB）不再放进安装包里 —— 那样每次更新都要重下它。'
-                '改成**第一次打开时下这一次**，支持断点续传；下完在本机解开（约 26000 个文件）。'
-                '这一步只做一次，以后更新不用再下。'),
+            _bundled
+                ? context.tr('运行环境**随这个安装包自带**（约 32 MB）—— **不需要联网**，'
+                    '直接在本机解开（约 26000 个文件）。这一步只做一次，以后更新不用再下。')
+                : context.tr('运行环境（约 32 MB）不在这个安装包里 —— 那样每次更新都要重下它。'
+                    '改成**第一次打开时下这一次**，支持断点续传；下完在本机解开（约 26000 个文件）。'
+                    '这一步只做一次，以后更新不用再下。'),
             style: TextStyle(color: scheme.outline, height: 1.6, fontSize: 13),
           ),
           const SizedBox(height: 10),
@@ -157,7 +172,9 @@ class _SetupPageState extends State<SetupPage> {
             const SizedBox(height: 10),
             Text(
               dl == null
-                  ? context.tr('正在连接…')
+                  ? (_bundled
+                      ? context.tr('正在从安装包里取出运行环境…')
+                      : context.tr('正在连接…'))
                   : (frac == null
                       ? context.tr('已下载 {0}', [formatBytes(dl.received)])
                       : context.tr('{0} / {1} · {2}/秒', [

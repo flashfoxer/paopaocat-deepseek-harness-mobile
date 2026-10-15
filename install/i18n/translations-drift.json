@@ -3343,5 +3343,20 @@
     "en": "Follow the current session (recommended)",
     "ja": "現在のセッションに追従（推奨）",
     "ko": "현재 세션 따르기(권장)"
+  },
+  "正在从安装包里取出运行环境…": {
+    "en": "Extracting the runtime from the installer…",
+    "ja": "インストーラから実行環境を取り出しています…",
+    "ko": "설치 패키지에서 실행 환경을 꺼내는 중…"
+  },
+  "运行环境**随这个安装包自带**（约 32 MB）—— **不需要联网**，直接在本机解开（约 26000 个文件）。这一步只做一次，以后更新不用再下。": {
+    "en": "The runtime is **bundled in this installer** (~32 MB) — **no network needed**; it is unpacked on the device (~26,000 files). This happens once; later updates do not repeat it.",
+    "ja": "実行環境は**このインストーラに同梱**されています（約 32 MB）—— **ネット不要**で、端末内で展開します（約 26,000 ファイル）。これ一回だけで、以後の更新では不要です。",
+    "ko": "실행 환경이 **이 설치 패키지에 포함**되어 있습니다(약 32MB) — **네트워크가 필요 없으며** 기기에서 풀립니다(약 26,000개 파일). 한 번만 하면 이후 업데이트에서는 반복하지 않습니다."
+  },
+  "运行环境（约 32 MB）不在这个安装包里 —— 那样每次更新都要重下它。改成**第一次打开时下这一次**，支持断点续传；下完在本机解开（约 26000 个文件）。这一步只做一次，以后更新不用再下。": {
+    "en": "The runtime (~32 MB) is not inside this installer — that keeps every update from re-downloading it. Instead it is downloaded **once, on first open** (resumable), then unpacked on the device (~26,000 files). This happens once; later updates do not repeat it.",
+    "ja": "実行環境（約 32 MB）はこのインストーラには入っていません —— そうしないと更新のたびに再ダウンロードになるためです。代わりに**初回起動時に一度だけ**ダウンロードし（レジューム対応）、端末内で展開します（約 26,000 ファイル）。これ一回だけで、以後の更新では不要です。",
+    "ko": "실행 환경(약 32MB)은 이 설치 패키지에 들어 있지 않습니다 — 그래야 업데이트할 때마다 다시 받지 않습니다. 대신 **처음 열 때 한 번** 내려받고(이어받기 지원) 기기에서 풉니다(약 26,000개 파일). 한 번만 하면 이후 업데이트에서는 반복하지 않습니다."
   }
 }

@@ -60,12 +60,15 @@ class MainActivity : FlutterActivity() {
         /** 改动此值会让已安装的 App 重新解压一次运行时。 */
         private const val RUNTIME_VERSION = "1"
 
-        // 这里以前有个 `ZIP_ASSET = "dsh-runtime.zip"`（从 asset 里捞随包的运行时）。
-        // 0.75 起那个 zip **不再随包**（APK 小 30 MB），改由 App 首次启动时下载到
-        // `files/runtime.zip`（见 `lib/local/runtime_bootstrap.dart`），
-        // 所以 `assets.open(...)` 那条路连同常量一起删掉了。
-        // 要恢复"随包"：把 `build.gradle.kts` 的 assets.srcDirs 加回 `$dshNodeRoot/app-assets`，
-        // 再把 `unpack()` 里的抛错换回 `assets.open(...)` 拷贝即可。
+        // **完整包**里带着运行环境（`build.gradle.kts` 的 `DSH_ANDROID_INCLUDE_RUNTIME=1`
+        // 时把 `app-assets` 加进 assets），**精简包**里没有 —— 所以下面每一处都要
+        // "有就用、没有就走下载"，两种包都能用。
+        //
+        // ⚠️ 2026-10-15 用户真机实测报告：完整包装完后仍然被要求下 32 MB 运行环境
+        //    —— 因为 0.75 瘦包时把 `assets.open(...)` 那条路整个删了，只留注释。
+        //    现在恢复成"随包优先"：`unpack()` 缺 zip 时先试 asset，Dart 侧也会先问
+        //    `hasRuntimeAsset`（见 `lib/local/runtime_bootstrap.dart`）。
+        private const val RUNTIME_ASSET = "dsh-runtime.zip"
 
         /** 附件/语音用的 requestCode（三者互不相同即可）。 */
         private const val REQ_PICK = 4711
@@ -282,6 +285,17 @@ class MainActivity : FlutterActivity() {
                     "getPaths" -> result.success(runtimePaths())
                     "isRuntimeReady" -> result.success(isRuntimeReady())
                     "unpackRuntime" -> unpackRuntimeAsync(result)
+                    // 随包运行环境（完整包）：Dart 侧先问有没有、再决定要不要联网下。
+                    "hasRuntimeAsset" -> result.success(hasRuntimeAsset())
+                    "copyRuntimeAsset" -> {
+                        try {
+                            val dest = File(filesDir, "runtime.zip")
+                            val n = if (hasRuntimeAsset()) copyRuntimeAssetTo(dest) else 0L
+                            result.success(n)
+                        } catch (e: Throwable) {
+                            result.error("ASSET_COPY_FAILED", e.message ?: e.toString(), null)
+                        }
+                    }
                     // 定时任务保活：常驻通知的前台服务（见 DshSchedulerService）。
                     "startSchedulerService" -> {
                         val count = call.argument<Int>("count") ?: 0
@@ -1910,6 +1924,31 @@ class MainActivity : FlutterActivity() {
     private fun isRuntimeReady(): Boolean =
         marker().exists() && File(dshDir(), "lib/bin.js").exists()
 
+    // ------------------------------------------------- 随包运行环境（完整包才有）
+
+    /// 安装包里有没有随包的运行环境（精简包没有 —— 这不是错误）。
+    private fun hasRuntimeAsset(): Boolean = try {
+        assets.open(RUNTIME_ASSET).use { true }
+    } catch (e: Throwable) {
+        false
+    }
+
+    /// 把随包的运行环境落到 [dest]（先写临时文件再改名，避免半个文件被当成好的）。
+    ///
+    /// 返回值 = 落盘的字节数；没有 asset 时返回 0（**不抛**，由调用方决定怎么提示）。
+    private fun copyRuntimeAssetTo(dest: File): Long {
+        val tmp = File(dest.parentFile, "${dest.name}.part")
+        if (tmp.exists()) tmp.delete()
+        val n = assets.open(RUNTIME_ASSET).use { input ->
+            tmp.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+        }
+        if (!tmp.renameTo(dest)) {
+            tmp.copyTo(dest, overwrite = true)
+            tmp.delete()
+        }
+        return n
+    }
+
     // ---------------------------------------------------------------- unpack
 
     private fun unpackRuntimeAsync(result: MethodChannel.Result) {
@@ -1952,13 +1991,23 @@ class MainActivity : FlutterActivity() {
         // ZipFile 读 central directory，不受流式读取错位影响。
         val tmpZip = File(filesDir, "runtime.zip")
         if (!tmpZip.exists() || tmpZip.length() == 0L) {
-            // ⚠️ 0.75 起这个 zip **不再随包**（APK 因此小 30 MB）——改由 Dart 侧
-            // （`local/runtime_bootstrap.dart`）先下载并校验，落到**这个路径**再调
-            // `unpackRuntime`。所以这里没有 asset 兜底了，也就必须给一句能读懂的话；
-            // 否则用户看到的是 `FileNotFoundException: dsh-runtime.zip`（等于没说）。
-            throw IllegalStateException(
-                "运行时包不在 ${tmpZip.absolutePath} —— 请先在应用内完成「下载运行环境」这一步，再开始解压。"
-            )
+            // ① 完整包：直接从安装包里把随包的运行环境取出来（**不需要网络**）。
+            val fromAsset = try {
+                copyRuntimeAssetTo(tmpZip)
+            } catch (e: Throwable) {
+                Log.w(TAG, "随包运行环境不可用（精简包属正常）：${e.message}")
+                0L
+            }
+            if (fromAsset > 0L) {
+                Log.i(TAG, "运行环境随包自带，已取出 $fromAsset 字节")
+            } else {
+                // ② 精简包：这一步由 Dart 侧先下载并校验（`local/runtime_bootstrap.dart`），
+                //    落到**这个路径**再调 `unpackRuntime`。这里仍要给一句能读懂的话，
+                //    否则用户看到的是 `FileNotFoundException: dsh-runtime.zip`（等于没说）。
+                throw IllegalStateException(
+                    "运行时包不在 ${tmpZip.absolutePath} —— 请先在应用内完成「下载运行环境」这一步，再开始解压。"
+                )
+            }
         }
         Log.i(TAG, "zip size = ${tmpZip.length()} bytes")
 

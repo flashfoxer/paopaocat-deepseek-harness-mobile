@@ -27,6 +27,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../i18n/dsh_i18n.dart';
 import 'apk_downloader.dart';
+import 'dsh_runtime.dart' show DshHost;
 import 'model_downloader.dart' show ModelDownloader;
 import 'update_checker.dart'
     show UpdateManifestError, fetchJsonManifest, formatBytes;
@@ -113,6 +114,7 @@ class RuntimeBootstrapResult {
     this.downloaded = false,
     this.verified = false,
     this.bytes,
+    this.fromAsset = false,
   });
 
   final bool ok;
@@ -128,6 +130,10 @@ class RuntimeBootstrapResult {
 
   /// 本地 zip 的字节数。
   final int? bytes;
+
+  /// 这一次是从**安装包里随包自带的**运行环境取出来的（完整包、首次安装）；
+  /// 为 true 时说明**没有联网下载**，界面可以据此说一句"随包自带，已就绪"。
+  final bool fromAsset;
 }
 
 /// 运行时包的本地文件名与路径。
@@ -159,9 +165,56 @@ Future<RuntimeBootstrapResult> ensureRuntimeZip({
   void Function(ApkDownloadProgress)? onProgress,
   ApkDownloadCancelToken? cancel,
   Duration timeout = const Duration(seconds: 20),
+  /// **只给测试用**：假装安装包里有没有随包运行环境、以及取出来多少字节。
+  /// 生产走原生 channel（见 `DshRuntime.hasRuntimeAsset` / `copyRuntimeAsset`）。
+  Future<bool> Function()? hasAssetOverride,
+  Future<int> Function()? copyAssetOverride,
 }) async {
   final path = runtimeZipPath(filesDir);
   final local = File(path);
+
+  // ⓪ **随包自带优先**（完整包、首次安装）：本地还没有 zip 时，先从安装包里取出来。
+  //
+  //    为什么放在最前面：完整包的卖点就是"装完即用，没网也能打开" —— 而 0.75 瘦包
+  //    时把这条 asset 通路整个删了，结果是**完整包也要联网下 32 MB**
+  //    （2026-10-15 用户真机实测反馈）。这里恢复成"先问 asset、有就取出来"，
+  //    后面照旧：清单拿得到就按 sha256 校验/必要时重下；拿不到就用本地这份。
+  var fromAsset = false;
+  if (!local.existsSync() || local.lengthSync() == 0) {
+    try {
+      final has = await (hasAssetOverride ?? DshHost.hasRuntimeAsset)();
+      if (has) {
+        final dir = Directory(filesDir);
+        if (!dir.existsSync()) dir.createSync(recursive: true);
+        final n = await (copyAssetOverride ?? DshHost.copyRuntimeAsset)();
+        if (n > 0) {
+          fromAsset = true;
+          debugPrint('[dsh-runtime-boot] 运行环境随包自带 → 已取出 ${formatBytes(n)}');
+        } else {
+          debugPrint('[dsh-runtime-boot] 报告有随包运行环境，但取出 0 字节（按没有处理）');
+        }
+      }
+    } catch (e) {
+      debugPrint('[dsh-runtime-boot] 取随包运行环境失败（改走下载）：$e');
+    }
+  }
+
+  // ⓪' **刚才是从安装包里取出来的 → 直接算就绪，不再等清单。**
+  //
+  //    两个理由：① 完整包的卖点就是"装完即用、没网也能打开"，为了校验去联网 20 秒
+  //    （源连不上就是两次 20 秒）正好把卖点抵消掉；② 随包那份就是**这个版本随包发的**
+  //    那一份，不存在"用户拿到的是别版本"的问题。
+  //    运行时要真在后续版本更新了，走的是 native `RUNTIME_VERSION` 那条重解压通路。
+  if (fromAsset) {
+    debugPrint('[dsh-runtime-boot] 随包运行环境已就绪（跳过清单，避免联网等待）');
+    return RuntimeBootstrapResult(
+      ok: true,
+      downloaded: false,
+      verified: false,
+      bytes: local.lengthSync(),
+      fromAsset: true,
+    );
+  }
 
   // ① 先拉清单。**注意顺序**：即使本地已有 zip，也要拉清单才知道"它是不是当前这份" ——
   //    除非调用方明确只关心"有没有"（那是 [isLocalZipUsable] 的用法）。
@@ -195,6 +248,7 @@ Future<RuntimeBootstrapResult> ensureRuntimeZip({
         downloaded: false,
         verified: false,
         bytes: local.lengthSync(),
+        fromAsset: fromAsset,
       );
     }
     return RuntimeBootstrapResult(
@@ -215,6 +269,7 @@ Future<RuntimeBootstrapResult> ensureRuntimeZip({
         downloaded: false,
         verified: false,
         bytes: local.lengthSync(),
+        fromAsset: fromAsset,
       );
     }
     final have = await ModelDownloader.sha256OfFile(path);
@@ -225,6 +280,7 @@ Future<RuntimeBootstrapResult> ensureRuntimeZip({
         downloaded: false,
         verified: true,
         bytes: local.lengthSync(),
+        fromAsset: fromAsset,
       );
     }
     debugPrint('[dsh-runtime-boot] 本地 zip 与清单不符（$have ≠ $want）→ 重下');

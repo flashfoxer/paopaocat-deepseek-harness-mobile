@@ -323,9 +323,19 @@ class AcpClient {
   }
 
   /// 新建会话，返回 sessionId。
-  Future<String> newSession(String cwd) async {
-    final res =
-        await request('session/new', {'cwd': cwd, 'mcpServers': <dynamic>[]});
+  /// [mcpServers] 是给这次会话挂的 MCP 服务器（见 `data/anysearch.dart`）。
+  ///
+  /// ACP 约束（`dsh-acp` 会逐条校验，写错整个请求被拒）：http 那种要
+  /// `{name, type:'http', url, headers:[{name,value}]}`；stdio 那种要求
+  /// `command` 是**绝对路径**。手机上一律走 http（不用起子进程）。
+  Future<String> newSession(
+    String cwd, {
+    List<Map<String, dynamic>> mcpServers = const <Map<String, dynamic>>[],
+  }) async {
+    final res = await request('session/new', {
+      'cwd': cwd,
+      'mcpServers': mcpServers,
+    });
     final error = res['error'];
     if (error != null) {
       throw StateError('session/new 失败：${(error as Map)['message']}');
@@ -421,11 +431,15 @@ class AcpClient {
   ///   2. 恢复**不回放历史消息**（协议原文：its log is restored without
   ///      replaying old updates）—— 所以恢复后界面是空的，但模型的上下文还在
   ///      （实测：恢复后问它之前说过的口令，答对了）。
-  Future<void> resumeSession(String sessionId, String cwd) async {
+  Future<void> resumeSession(
+    String sessionId,
+    String cwd, {
+    List<Map<String, dynamic>> mcpServers = const <Map<String, dynamic>>[],
+  }) async {
     final res = await request('session/resume', {
       'sessionId': sessionId,
       'cwd': cwd,
-      'mcpServers': <dynamic>[],
+      'mcpServers': mcpServers,
     });
     final error = res['error'];
     if (error != null) {

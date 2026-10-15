@@ -1115,9 +1115,9 @@
     "ko": "휴대폰에서는 **웹 게임**(HTML/JS)만 만들 수 있습니다 — 이 앱의 자료실에서 바로 열어 즐길 수 있습니다. Unity / Godot 같은 빌드는 불가능하며, 그 점은 솔직히 말합니다."
   },
   "打开后，App 会在本机起一个小小的**转发代理**，把请求按**官方 CLI 的样子**发到 OpenCode 的匿名免费额度，并把拿到的免费模型直接加进你的模型列表 —— **不用配置任何 Key**。": {
-    "en": "When enabled, the app runs a tiny **local forwarding proxy** that sends requests to OpenCode's anonymous free quota **shaped like its official CLI**, and adds the free models it finds straight into your model list — **no API Key needed**.",
-    "ja": "オンにすると、アプリは小さな**ローカル転送プロキシ**を起動し、**公式 CLI と同じ形**で OpenCode の匿名無料枠へリクエストを送り、取得した無料モデルをそのままモデル一覧に追加します —— **API Key は不要**です。",
-    "ko": "켜면 앱이 작은 **로컬 전달 프록시**를 실행해 **공식 CLI와 같은 형태**로 OpenCode의 익명 무료 할당량에 요청을 보내고, 받은 무료 모델을 모델 목록에 바로 추가합니다 — **API Key가 필요 없습니다**."
+    "en": "When on, **the AI inside your sessions looks things up on its own** (plan B, chosen 2026-10-15): the app mounts an `AnySearch` MCP server to the runtime when a session is created, so the model can search the web and cite source links in its answer.\n\n**No Key is required to search** — the anonymous tier works out of the box (just a lower rate limit). For a steadier quota you can get a free Key with your email at [anysearch.com](https://anysearch.com) (optional, paste it below).",
+    "ja": "オンにすると、**セッション内の AI が自分で調べます**（2026-10-15 に選んだ方案 B）：App はセッション作成時に `AnySearch` の MCP サーバーをランタイムへ装着し、モデルはウェブを検索して回答に参照リンクを書けます。\n\n**検索に Key は不要**です —— 匿名レイヤーがそのまま使えます（レート制限は低め）。より安定した枠が必要なら [anysearch.com](https://anysearch.com) でメール登録して無料 Key を取得してください（任意・下に貼り付け）。",
+    "ko": "켜면 **세션 안의 AI가 스스로 자료를 찾습니다**(2026-10-15 선택한 방안 B): 앱이 세션 생성 시 런타임에 `AnySearch` MCP 서버를 붙여, 모델이 웹을 검색하고 답변에 출처 링크를 씁니다.\n\n**검색에 Key는 필요 없습니다** — 익명 레이어가 바로 동작합니다(속도 제한은 낮음). 더 안정적인 할당량이 필요하면 [anysearch.com](https://anysearch.com)에서 이메일로 무료 Key를 받으세요(선택 사항, 아래에 붙여 넣기)."
   },
   "打开没成功：{0}": {
     "en": "Couldn't open: {0}",
@@ -3198,5 +3198,110 @@
     "en": "Fetch models again",
     "ja": "モデルを再取得",
     "ko": "모델 다시 가져오기"
+  },
+  "AnySearch Key（可选）": {
+    "en": "AnySearch Key (optional)",
+    "ja": "AnySearch Key（任意）",
+    "ko": "AnySearch Key(선택)"
+  },
+  "Key 从哪来：用邮箱在 anysearch.com 注册就能拿一把（免费）。Key 只存在系统安全区，不进配置文件、不进日志。": {
+    "en": "Where to get a Key: register with your email at anysearch.com and you get one free. The Key lives only in the system keychain — never in config files, never in logs.",
+    "ja": "Key の入手先：anysearch.com でメール登録すると無料で 1 本もらえます。Key は OS の安全領域にのみ保存され、設定ファイルにもログにも残りません。",
+    "ko": "Key를 받는 곳: anysearch.com에서 이메일로 가입하면 무료로 한 개 받습니다. Key는 시스템 보안 영역에만 저장되고 설정 파일과 로그에는 남지 않습니다."
+  },
+  "as_sk_…（留空 = 按匿名用）": {
+    "en": "as_sk_… (leave empty to stay anonymous)",
+    "ja": "as_sk_…（空欄なら匿名のまま）",
+    "ko": "as_sk_…(비워 두면 익명 사용)"
+  },
+  "⚠️ 三点如实说明：\n· 搜索请求会发到 **api.anysearch.com**（这是联网功能，不是本机算的）。\n· 它**在建会话那一刻**挂上去 —— 改完之后要**开一个新会话**才生效，老会话不变。\n· 匿名层限流较低：搜得太频繁会被限，等一会儿或填一把 Key。": {
+    "en": "⚠️ Three honest notes:\n· Search requests go to **api.anysearch.com** (this is an online feature, not something computed on your phone).\n· It is attached **when a session is created** — changes apply to a **new session**; existing sessions keep what they had.\n· The anonymous tier is rate-limited: search too often and you get throttled — wait a bit, or paste a Key.",
+    "ja": "⚠️ 正直に三点：\n· 検索リクエストは **api.anysearch.com** に送られます（端末内で計算する機能ではありません）。\n· 装着されるのは**セッション生成時**です —— 変更は**新しいセッション**から有効で、既存セッションは変わりません。\n· 匿名レイヤーはレート制限が低めです。頻繁に検索すると制限されるので、少し待つか Key を入れてください。",
+    "ko": "⚠️ 솔직하게 세 가지:\n· 검색 요청은 **api.anysearch.com**으로 전송됩니다(기기에서 계산하는 기능이 아닙니다).\n· **세션을 만들 때** 붙습니다 — 변경은 **새 세션**부터 적용되고 기존 세션은 그대로입니다.\n· 익명 레이어는 속도 제한이 낮습니다. 너무 자주 검색하면 제한되니 잠시 기다리거나 Key를 넣으세요."
+  },
+  "会话联网搜索": {
+    "en": "Web search in sessions",
+    "ja": "セッション内のウェブ検索",
+    "ko": "세션 내 웹 검색"
+  },
+  "保存 Key": {
+    "en": "Save Key",
+    "ja": "Key を保存",
+    "ko": "Key 저장"
+  },
+  "先粘贴 Key 再保存（留空不会改动已存的 Key）。": {
+    "en": "Paste a Key before saving (an empty field leaves the stored one untouched).",
+    "ja": "保存する前に Key を貼り付けてください（空欄なら保存済みの Key は変更されません）。",
+    "ko": "저장하기 전에 Key를 붙여 넣으세요(비워 두면 저장된 Key는 그대로입니다)."
+  },
+  "匿名": {
+    "en": "anonymous",
+    "ja": "匿名",
+    "ko": "익명"
+  },
+  "已保存。**开一个新会话**它就会带上（老的会话不变）。": {
+    "en": "Saved. It will be attached **the next time you start a session** (existing sessions are unchanged).",
+    "ja": "保存しました。**新しいセッションを開いたとき**から反映されます（既存セッションは変わりません）。",
+    "ko": "저장했습니다. **새 세션을 열 때**부터 적용됩니다(기존 세션은 그대로입니다)."
+  },
+  "已关闭 —— 新会话不再带搜索工具（老会话不变）。": {
+    "en": "Off — new sessions will no longer carry the search tool (existing sessions are unchanged).",
+    "ja": "オフにしました —— 新しいセッションには検索ツールが付かなくなります（既存セッションは変わりません）。",
+    "ko": "꺼짐 — 새 세션에는 검색 도구가 더 이상 붙지 않습니다(기존 세션은 그대로입니다)."
+  },
+  "已开启 —— 开一个新会话就会带上搜索工具。": {
+    "en": "On — start a new session and it will carry the search tool.",
+    "ja": "オンにしました —— 新しいセッションを開くと検索ツールが付きます。",
+    "ko": "켜짐 — 새 세션을 열면 검색 도구가 붙습니다."
+  },
+  "已开启（新会话里会出现联网搜索工具）": {
+    "en": "On (new sessions get the web search tool)",
+    "ja": "オン（新しいセッションにウェブ検索ツールが入ります）",
+    "ko": "켜짐(새 세션에 웹 검색 도구가 나타납니다)"
+  },
+  "已清除 Key —— 之后按**匿名**用（还能搜，只是限流低）。": {
+    "en": "anonymous",
+    "ja": "匿名",
+    "ko": "익명"
+  },
+  "带 Key": {
+    "en": "with Key",
+    "ja": "Key 使用",
+    "ko": "Key 사용"
+  },
+  "打开后，**会话里的 AI 会自己去查资料**（用户 2026-10-15 选定的方案 B）：App 在建会话时给运行时挂一个 `AnySearch` 的 MCP 服务器，模型于是能搜网页、并把来源链接写进回答。\n\n**不用填 Key 也能搜** —— 匿名层就能用（只是限流低）；想要更稳的额度，可以用邮箱在 [anysearch.com](https://anysearch.com) 换一把免费 Key（可选，填在下面）。": {
+    "en": "When on, **the AI inside your sessions looks things up on its own** (plan B, chosen 2026-10-15): the app mounts an `AnySearch` MCP server to the runtime when a session is created, so the model can search the web and cite source links in its answer.\n\n**No Key is required to search** — the anonymous tier works out of the box (just a lower rate limit). For a steadier quota you can get a free Key with your email at [anysearch.com](https://anysearch.com) (optional, paste it below).",
+    "ja": "オンにすると、**セッション内の AI が自分で調べます**（2026-10-15 に選んだ方案 B）：App はセッション作成時に `AnySearch` の MCP サーバーをランタイムへ装着し、モデルはウェブを検索して回答に参照リンクを書けます。\n\n**検索に Key は不要**です —— 匿名レイヤーがそのまま使えます（レート制限は低め）。より安定した枠が必要なら [anysearch.com](https://anysearch.com) でメール登録して無料 Key を取得してください（任意・下に貼り付け）。",
+    "ko": "켜면 **세션 안의 AI가 스스로 자료를 찾습니다**(2026-10-15 선택한 방안 B): 앱이 세션 생성 시 런타임에 `AnySearch` MCP 서버를 붙여, 모델이 웹을 검색하고 답변에 출처 링크를 씁니다.\n\n**검색에 Key는 필요 없습니다** — 익명 레이어가 바로 동작합니다(속도 제한은 낮음). 더 안정적인 할당량이 필요하면 [anysearch.com](https://anysearch.com)에서 이메일로 무료 Key를 받으세요(선택 사항, 아래에 붙여 넣기)."
+  },
+  "没通：{0}": {
+    "en": "Not working: {0}",
+    "ja": "不通：{0}",
+    "ko": "연결 안 됨: {0}"
+  },
+  "测一下": {
+    "en": "Test it",
+    "ja": "テスト",
+    "ko": "테스트"
+  },
+  "清除": {
+    "en": "Clear",
+    "ja": "削除",
+    "ko": "삭제"
+  },
+  "清除失败：{0}": {
+    "en": "Could not clear: {0}",
+    "ja": "削除に失敗：{0}",
+    "ko": "삭제 실패: {0}"
+  },
+  "让会话能联网搜索": {
+    "en": "Let sessions search the web",
+    "ja": "セッションでウェブ検索を有効にする",
+    "ko": "세션에서 웹 검색 사용"
+  },
+  "通了：搜到 {0} 条结果（{1}）。": {
+    "en": "It works: {0} results ({1}).",
+    "ja": "通りました：{0} 件の結果（{1}）。",
+    "ko": "정상: 결과 {0}건({1})."
   }
 }

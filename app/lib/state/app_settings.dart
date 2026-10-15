@@ -80,6 +80,12 @@ class AppSettings extends ChangeNotifier {
   /// Zen 那条（灰色、且 2026-10-13/14 起基本已死）仍然默认关着。
   static const String _kPolliEnabled = 'dsh_polli_free_channel';
 
+  /// 「会话里能联网搜索」（AnySearch，2026-10-15 用户选定 B 方案）。
+  ///
+  /// 默认**开**：匿名层可用（用户什么都不用填），这和"不用填 Key 就能用"是同一条口径。
+  /// 关掉就是"会话不带联网搜索工具"。
+  static const String _kAnysearchEnabled = 'dsh_anysearch_enabled';
+
   /// 「正在取图」的时间戳（epoch ms，空 = 没有）。
   ///
   /// 为什么需要它：取图会离开 App（相机/相册是系统页面），回来的路上 App 可能被
@@ -144,6 +150,9 @@ class AppSettings extends ChangeNotifier {
 
   /// 「免费模型（无需 Key）」是否开启（见 [_kPolliEnabled]）。**默认开**。
   bool _polliEnabled = true;
+
+  /// 「会话里能联网搜索」是否开启（见 [_kAnysearchEnabled]）。**默认开**。
+  bool _anysearchEnabled = true;
   String _skinId = kDefaultSkin;
   AppLanguage _language = AppLanguage.fallback;
 
@@ -255,6 +264,9 @@ class AppSettings extends ChangeNotifier {
 
   /// 「免费模型（无需 Key）」（Pollinations）是否开启 —— **默认 true**，见 [_kPolliEnabled]。
   bool get polliEnabled => _polliEnabled;
+
+  /// 「会话里能联网搜索」（AnySearch）是否开启 —— **默认 true**，见 [_kAnysearchEnabled]。
+  bool get anysearchEnabled => _anysearchEnabled;
 
   bool get loaded => _loaded;
 
@@ -402,6 +414,8 @@ class AppSettings extends ChangeNotifier {
       // 默认 **true**：装完就能聊（"不用填 Key"这句承诺的实现）。
       // 用户主动关掉过就尊重他存下来的值。
       _polliEnabled = prefs.getBool(_kPolliEnabled) ?? true;
+      // 同上：默认开（匿名可用，不用填任何东西）。
+      _anysearchEnabled = prefs.getBool(_kAnysearchEnabled) ?? true;
       // 本地模型那两项：只认白名单里的值，磁盘上有脏值就退回默认
       // （绝不把后端留在一个"不认识"的状态上）。
       final lb = prefs.getString(_kLocalBackend);
@@ -491,6 +505,23 @@ class AppSettings extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kSkin, id);
       debugPrint('[dsh-app-settings] 主题 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 开/关「会话里能联网搜索」（AnySearch）。
+  ///
+  /// ⚠️ 真正的生效点是**下一个会话进程**（`session/new` 时才把 mcpServers 发过去），
+  /// 与模型/皮肤那类"立刻生效"的设置不同 —— 界面上的说明要如实写。
+  Future<void> setAnysearchEnabled(bool v) async {
+    if (v == _anysearchEnabled) return;
+    _anysearchEnabled = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kAnysearchEnabled, v);
+      debugPrint('[dsh-app-settings] 会话联网搜索 = $v');
     } catch (e) {
       debugPrint('[dsh-app-settings] persist failed: $e');
     }

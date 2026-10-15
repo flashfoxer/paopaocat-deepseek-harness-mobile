@@ -10,6 +10,7 @@ import '../../i18n/app_language.dart';
 import '../../data/media_models.dart';
 import '../../state/provider_keys.dart';
 import '../../data/configured_models.dart';
+import '../../data/anysearch.dart';
 import '../../data/polli_channel.dart';
 import '../../data/zen_channel.dart';
 import '../../local/dsh_runtime.dart';
@@ -200,6 +201,19 @@ class _SettingsTabState extends State<SettingsTab> {
                     runtime: runtime,
                     settings: widget.appSettings,
                     onModelChanged: onModelChanged,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // 「会话联网搜索」= AnySearch（2026-10-15 用户选定 B 方案）。
+              //
+              // 为什么单开一节、而且放在免费模型旁边：它们同属"**不用填 Key 也能用**"
+              // 那条口径 —— 免费模型解决"能聊"，这一个解决"能查资料"。
+              DshCollapsibleSection(
+                title: context.tr('会话联网搜索'),
+                child: _card(
+                  child: _AnysearchBlock(
+                    settings: widget.appSettings,
                   ),
                 ),
               ),
@@ -1584,6 +1598,236 @@ String _fill(String template, String v) => template.replaceAll('{0}', v);
 ///      （2026-10-11 用户纠正："这个项目的特点就是不用写key"）；
 ///   3. **显示真实状态**（代理在不在跑、拿到几个模型、上次什么错），
 ///      而不是一个"已开启"的空壳。
+/// 「会话联网搜索」= **AnySearch**（2026-10-15，用户选定 B 方案）。
+///
+/// 它给会话里的 agent 挂一个 **Streamable HTTP 的 MCP 服务器**
+/// （`https://api.anysearch.com/mcp`），模型于是有了联网搜索工具。为什么这么接
+/// 见 `data/anysearch.dart` 的类注释（一句话：ACP 本来就有 `mcpServers` 字段，
+/// 不用起子进程，也就没有 Android 那套"不能执行文件"的麻烦）。
+///
+/// 界面上必须如实讲清三件事：
+///   ① **不填 Key 也能搜**（匿名层，限流低）；填了邮箱注册来的 Key 配额更高；
+///   ② 搜索是发到 **api.anysearch.com** 的（不是在本机算出来的）；
+///   ③ 它**在建会话那一刻**才挂上去 —— 改了要**开新会话**才生效。
+class _AnysearchBlock extends StatefulWidget {
+  const _AnysearchBlock({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  State<_AnysearchBlock> createState() => _AnysearchBlockState();
+}
+
+class _AnysearchBlockState extends State<_AnysearchBlock> {
+  final TextEditingController _key = TextEditingController();
+  bool _hasKey = false;
+  bool _busy = false;
+  bool _obscure = true;
+  String? _notice;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadKey());
+  }
+
+  @override
+  void dispose() {
+    _key.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadKey() async {
+    String? k;
+    try {
+      k = await ProviderKeys.read(AnySearch.keyStorageId);
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _hasKey = (k ?? '').trim().isNotEmpty;
+      // 不把已存的 Key 回填到输入框（安全区里的值没必要再显示一次）——
+      // 留空 = "不改动它"，这是模型页那边一直用的口径。
+      _key.clear();
+    });
+  }
+
+  Future<void> _saveKey() async {
+    final v = _key.text.trim();
+    if (v.isEmpty) {
+      setState(() => _notice = context.tr('先粘贴 Key 再保存（留空不会改动已存的 Key）。'));
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await ProviderKeys.write(AnySearch.keyStorageId, v);
+      if (!mounted) return;
+      setState(() {
+        _hasKey = true;
+        _key.clear();
+        _notice = context.tr('已保存。**开一个新会话**它就会带上（老的会话不变）。');
+      });
+    } catch (e) {
+      if (mounted) setState(() => _notice = context.tr('保存失败：{0}', <Object?>['$e']));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (mounted && _notice != null) await _toast(_notice!);
+  }
+
+  Future<void> _clearKey() async {
+    setState(() => _busy = true);
+    try {
+      await ProviderKeys.delete(AnySearch.keyStorageId);
+      if (!mounted) return;
+      setState(() {
+        _hasKey = false;
+        _key.clear();
+        _notice = context.tr('已清除 Key —— 之后按**匿名**用（还能搜，只是限流低）。');
+      });
+    } catch (e) {
+      if (mounted) setState(() => _notice = context.tr('清除失败：{0}', <Object?>['$e']));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+    if (mounted && _notice != null) await _toast(_notice!);
+  }
+
+  Future<void> _test() async {
+    setState(() => _busy = true);
+    String? k;
+    try {
+      k = await ProviderKeys.read(AnySearch.keyStorageId);
+    } catch (_) {}
+    final r = await AnySearch.testConnection(apiKey: k);
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _notice = r.ok
+          ? context.tr('通了：搜到 {0} 条结果（{1}）。', <Object?>[
+              r.results,
+              (k ?? '').trim().isEmpty ? context.tr('匿名') : context.tr('带 Key'),
+            ])
+          : context.tr('没通：{0}', <Object?>[r.error ?? '']);
+    });
+    if (_notice != null) await _toast(_notice!);
+  }
+
+  Future<void> _toast(String msg) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.settings.anysearchEnabled;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        DshRichText(
+          context.tr('打开后，**会话里的 AI 会自己去查资料**（用户 2026-10-15 选定的方案 B）：'
+              'App 在建会话时给运行时挂一个 `AnySearch` 的 MCP 服务器，'
+              '模型于是能搜网页、并把来源链接写进回答。\n\n'
+              '**不用填 Key 也能搜** —— 匿名层就能用（只是限流低）；'
+              '想要更稳的额度，可以用邮箱在 [anysearch.com](https://anysearch.com) '
+              '换一把免费 Key（可选，填在下面）。'),
+          style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.tr('⚠️ 三点如实说明：\n'
+              '· 搜索请求会发到 **api.anysearch.com**（这是联网功能，不是本机算的）。\n'
+              '· 它**在建会话那一刻**挂上去 —— 改完之后要**开一个新会话**才生效，老会话不变。\n'
+              '· 匿名层限流较低：搜得太频繁会被限，等一会儿或填一把 Key。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.5),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(context.tr('让会话能联网搜索'),
+                  style: const TextStyle(fontSize: 13)),
+            ),
+            Switch(
+              value: enabled,
+              onChanged: _busy
+                  ? null
+                  : (v) async {
+                      // ⚠️ 先把文案算出来再 await：跨 await 用 context 会被 lint 挡
+                      //    （项目里一直按这个口径写）。
+                      final msg = v
+                          ? context.tr('已开启 —— 开一个新会话就会带上搜索工具。')
+                          : context.tr('已关闭 —— 新会话不再带搜索工具（老会话不变）。');
+                      await widget.settings.setAnysearchEnabled(v);
+                      if (!mounted) return;
+                      await _toast(msg);
+                    },
+            ),
+          ],
+        ),
+        Text(
+          enabled
+              ? context.tr('已开启（新会话里会出现联网搜索工具）')
+              : context.tr('已关闭'),
+          style: TextStyle(
+              color: enabled ? DshColors.textFaint : DshColors.textFaint,
+              fontSize: 11),
+        ),
+        const SizedBox(height: 8),
+        Text(context.tr('AnySearch Key（可选）'),
+            style: const TextStyle(fontSize: 12)),
+        Text(
+          context.tr(_hasKey ? '已存了一把（留空不改动它）' : '还没填 —— 现在按**匿名**用，也能搜。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.4),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: _key,
+          obscureText: _obscure,
+          enabled: !_busy,
+          style: const TextStyle(fontSize: 12),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: context.tr('as_sk_…（留空 = 按匿名用）'),
+            hintStyle: TextStyle(color: DshColors.textFaint, fontSize: 11),
+            suffixIcon: IconButton(
+              icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility,
+                  size: 16, color: DshColors.textFaint),
+              onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: <Widget>[
+            TextButton(
+              onPressed: _busy ? null : _saveKey,
+              child: Text(context.tr('保存 Key')),
+            ),
+            if (_hasKey)
+              TextButton(
+                onPressed: _busy ? null : _clearKey,
+                child: Text(context.tr('清除')),
+              ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _busy ? null : _test,
+              icon: const Icon(Icons.wifi_tethering, size: 15),
+              label: Text(context.tr('测一下')),
+            ),
+          ],
+        ),
+        Text(
+          context.tr('Key 从哪来：用邮箱在 anysearch.com 注册就能拿一把（免费）。'
+              'Key 只存在系统安全区，不进配置文件、不进日志。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 10.5, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
 /// 「免费模型（无需 Key）」= **Pollinations** 那条（2026-10-15 新增）。
 ///
 /// 用户原话：「主要就是以前承诺过不需要填写 key」—— 所以这一块的每一个字都围着

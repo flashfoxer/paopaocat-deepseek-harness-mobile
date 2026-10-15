@@ -466,6 +466,8 @@ class _AppShellState extends State<AppShell> {
           workspacePath: ws,
           workspaceLabel: _workspaceLabelFor(ws),
           resumeSessionId: resumeSessionId,
+          // 会话里要不要挂联网搜索（AnySearch）。默认开 —— 匿名可用、不用填 Key。
+          anysearchEnabled: widget.appSettings.anysearchEnabled,
           // 思考块怎么显示（设置 → 外观）。壳层本来就因为皮肤/字号在监听设置，
           // 所以设置一改这里就跟着重建，不需要再造一个全局镜像。
           thinkingMode: widget.appSettings.thinkingModeId,

@@ -10,6 +10,7 @@ import '../../local/local_model_server.dart';
 import '../../local/rotate_log.dart';
 import '../../local/session_failure_store.dart';
 import '../../local/session_transcript.dart';
+import '../../data/anysearch.dart';
 import '../../data/api_error_text.dart';
 import '../../data/configured_models.dart';
 import '../../data/artifact_store.dart';
@@ -57,6 +58,7 @@ class ChatPage extends StatefulWidget {
     this.workspaceLabel,
     this.sessions,
     this.thinkingMode = 'collapsed',
+    this.anysearchEnabled = true,
   });
 
   final DshRuntime runtime;
@@ -69,6 +71,12 @@ class ChatPage extends StatefulWidget {
   /// 正在生成的回答能继续跑完。为 null 时退化成旧行为（页面自己收尸），
   /// 便于单测与渐进迁移。
   final SessionRegistry? sessions;
+
+  /// 会话里要不要挂联网搜索（AnySearch，见 `data/anysearch.dart`）。
+  ///
+  /// 默认 true（匿名可用、不用填 Key）。⚠️ 它只在**建会话那一刻**生效
+  /// （`session/new` 里把 `mcpServers` 发过去），所以改了要**开新会话**才看得出来。
+  final bool anysearchEnabled;
 
   /// 从首页点提示词进来时预填的内容
   final String? initialText;
@@ -410,6 +418,24 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  /// 这次会话要挂哪些 MCP 服务器（现在是联网搜索那一个）。
+  ///
+  /// 读 Key 的路径与端侧对话的 🔍 同一个命名空间（`search-anysearch`）——
+  /// 将来两边共用一把 Key，不会互相"看不见"。
+  Future<List<Map<String, dynamic>>> _mcpServers() async {
+    if (!widget.anysearchEnabled) return const <Map<String, dynamic>>[];
+    String? key;
+    try {
+      key = await ProviderKeys.read(AnySearch.keyStorageId);
+    } catch (e) {
+      debugPrint('[chat] 读联网搜索的 Key 失败（按匿名用）：$e');
+    }
+    final servers = AnySearch.mcpServers(apiKey: key);
+    debugPrint('[chat] 会话挂上联网搜索 ${AnySearch.serverName}'
+        '（${(key ?? '').trim().isEmpty ? "匿名" : "带 Key"}）');
+    return servers;
+  }
+
   Future<({String sig, Map<String, String> keys})> _spawnState() async {
     final cfg = widget.models.config;
     final keys = await ProviderKeys.envFor(cfg);
@@ -685,7 +711,8 @@ class _ChatPageState extends State<ChatPage> {
       String? sessionId;
       if (wantResume != null && wantResume.isNotEmpty) {
         try {
-          await acp.resumeSession(wantResume, ws);
+          await acp.resumeSession(wantResume, ws,
+              mcpServers: await _mcpServers());
           sessionId = wantResume;
           _resumed = true;
           _resumeError = null;
@@ -811,7 +838,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<String> _createSession() async {
     final acp = _acp;
     if (acp == null) throw StateError('会话进程还没起来');
-    final id = await acp.newSession(_cwd);
+    final id = await acp.newSession(_cwd, mcpServers: await _mcpServers());
     // 期间页面重建过（进程换了）→ 这个 id 不能算数，让调用方如实报错重来，
     // 否则会把消息发到一个已经没有页面在用的会话上。
     if (_acp != acp) throw StateError('会话进程刚被重建，请再发一次');

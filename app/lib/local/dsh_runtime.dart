@@ -335,9 +335,18 @@ class DshHost {
   /// 唤起**微信扫一扫**（用户 2026-10-15 第 8 条：「关于」里的公众号二维码长按
   /// 要能弹出扫描、进公众号）。
   ///
+  /// ⚠️ **`ok` 只表示"把微信拉起来了"，不表示扫一扫真的开了。**
+  ///
+  /// `weixin://dl/scan` 是微信的**内部** scheme，微信现在**拒绝外部调用**：
+  /// 本机实测长按后弹出来的是微信自己的错误页「对不起，当前页面无法访问」
+  /// （社区实证一致："以前可以，现在不行了"）。所以界面**不许**再承诺
+  /// "已打开微信扫一扫" —— 只能说"已经把微信叫起来了"。
+  ///
   /// 返回（机器可读，界面翻成人话）：
-  ///   * `ok`        —— 已经拉起微信扫一扫（用户对着屏幕扫那张二维码即可）；
-  ///   * `no_wechat` —— 这台机器上没有微信（或没有应用处理 `weixin://`）；
+  ///   * `ok`        —— 微信**接住了**这个 Intent（原生侧先 resolveActivity 确认
+  ///     接住的是 `com.tencent.mm` 本尊，不是浏览器之类抢注的应用）。它之后画
+  ///     扫一扫还是画错误页，由微信决定；
+  ///   * `no_wechat` —— 没装微信，或 `weixin://` 被别的应用接住，或解析不到；
   ///   * `failed:…`  —— 其它异常（部分 ROM 会拦截非 http 的跳转）。
   ///
   /// 为什么不是"App 自己扫码"：那要加相机权限 + CameraX + 识别库，
@@ -406,6 +415,37 @@ class DshHost {
       },
     );
     return r ?? 'ok';
+  }
+
+  /// 把一张**本地图片文件**存进**系统相册**（微信「扫一扫 → 相册」要用）。
+  ///
+  /// ## 为什么需要它
+  ///
+  /// 微信已经把 `weixin://dl/scan` 这条外部唤起路堵了（见 [openWechatScan]），
+  /// 所以「关于」页那张公众号二维码得给一条**用户自己走得通**的路：
+  /// **微信 → 扫一扫 → 右上角相册 → 选这张图**。二维码打包在 assets 里，
+  /// 用户截屏也可以，但直接帮他存进相册更省事。
+  ///
+  /// ## 返回（机器可读，界面翻成人话）
+  ///
+  ///   * `'ok'`        —— 已经存进相册；
+  ///   * `'bad_path'`  —— 源文件不存在 / 不是文件（环境事实，不是崩溃）；
+  ///   * `'failed:…'`  —— 写入失败，或系统版本低于 Android 10
+  ///     （那条路要存储权限，**原生侧刻意不申请**，返回一句中文说明）；
+  ///     空路径也一样走这里（原生抛的 `BAD_ARGS` 被下面兜成 `failed:…`）。
+  ///
+  /// ⚠️ 调用方**必须**按这三个返回码如实提示：存没存进去是用户看得见的事实，
+  /// 不许统一说"好了"。
+  static Future<String> saveImageToGallery(String path) async {
+    try {
+      final r = await channel.invokeMethod<String>(
+        'saveImageToGallery',
+        <String, dynamic>{'path': path.trim()},
+      );
+      return r ?? 'failed:empty';
+    } catch (e) {
+      return 'failed:$e';
+    }
   }
 
   /// 设备与安装信息（运行日志的头部要用，界面不展示）。
@@ -486,17 +526,27 @@ class DshHost {
 /// 一次 node 执行的结果。
 class DshRunResult {
   const DshRunResult(
-      {required this.exitCode, required this.stdout, required this.stderr});
+      {required this.exitCode,
+      required this.stdout,
+      required this.stderr,
+      this.cancelled = false});
 
   final int exitCode;
   final String stdout;
   final String stderr;
 
+  /// 这次运行是不是**被调用方主动取消**的（见 [DshRuntime.runOnce] 的 `cancel`）。
+  ///
+  /// 单列一个字段而不是让调用方去猜 `exitCode == -9`：被 kill 的信号号在不同
+  /// 平台上不一样，"取消"和"崩了"对用户是两句完全不同的话。
+  final bool cancelled;
+
   bool get ok => exitCode == 0;
 
   @override
   String toString() =>
-      'exit=$exitCode\n--- stdout ---\n$stdout\n--- stderr ---\n$stderr';
+      'exit=$exitCode${cancelled ? '（已取消）' : ''}\n'
+      '--- stdout ---\n$stdout\n--- stderr ---\n$stderr';
 }
 
 /// DSH 的本地运行时封装。
@@ -1225,10 +1275,18 @@ class DshRuntime {
   /// 数据事件先到，于是 cancel 把还没读到的输出**丢掉**，表现为
   /// `exit=0 stdout="" stderr=""`（真机上实测：App 里跑 `node --version` 读回空，
   /// 而从 shell 跑同一个命令有输出）。这里用 `asFuture()` 等两个流自然结束。
+  ///
+  /// [cancel]（可选）：那个 future 一旦完成，**立刻 kill 掉这次进程**，
+  /// 返回的结果里 [DshRunResult.cancelled] 为 true。
+  /// 谁需要它：模型提炼这类"用户会想中途放弃"的一次性任务（见
+  /// `data/memory_extract.dart`）。**只 kill 自己这个进程** —— 不去碰会话
+  /// （ACP）进程，那一条长连接是用户正在用的东西。
+  /// 传 null 时这条路径**与以前一模一样**（没有任何额外分支）。
   Future<DshRunResult> runOnce(
     List<String> args, {
     Duration timeout = const Duration(minutes: 10),
     Map<String, String>? extraEnv,
+    Future<void>? cancel,
   }) async {
     final process = await spawn(args, extraEnv: extraEnv);
     final stdout = StringBuffer();
@@ -1259,6 +1317,23 @@ class DshRuntime {
       errTee.feed(chunk);
     }).asFuture<void>();
 
+    // 取消：**不跟 exitCode 抢**（抢了就要自己处理两条流），只负责"到点就杀" ——
+    // 杀完 exitCode 这个 future 自然完成，下面的等待逻辑一行都不用改。
+    var cancelled = false;
+    if (cancel != null) {
+      unawaited(cancel.then((_) {
+        cancelled = true;
+        try {
+          process.kill(ProcessSignal.sigkill);
+        } catch (e) {
+          // 进程已经自己退出了 —— 这就是"取消晚了一步"，不算错误。
+          debugPrint('[dsh-runtime] 取消时进程已结束：$e');
+        }
+        stderr.write('\n[已取消，进程已终止]');
+        DiagnosticsLog.add('dsh-proc', '已取消，进程已终止（kill -9）');
+      }));
+    }
+
     int code;
     try {
       code = await process.exitCode.timeout(timeout);
@@ -1286,6 +1361,7 @@ class DshRuntime {
       exitCode: code,
       stdout: stdout.toString(),
       stderr: stderr.toString(),
+      cancelled: cancelled,
     );
   }
 
@@ -1302,14 +1378,23 @@ class DshRuntime {
       runOnce([dshBin, '--profile', profile, '--dump-default-config']);
 
   /// 跑一个 headless 任务（会真实调用模型，需要 [hasModelConfig] 与有效凭据）。
-  Future<DshRunResult> headless(String task, {Map<String, String>? extraEnv}) =>
+  ///
+  /// [timeout] / [cancel] 直接透传给 [runOnce]（"从会话里提炼记忆"要用它们：
+  /// 一次提炼等 150 秒就该停，用户点取消也该真的把进程杀掉）。
+  /// 两个参数都可选，老的调用点（定时任务）行为**一字不变**。
+  Future<DshRunResult> headless(
+    String task, {
+    Map<String, String>? extraEnv,
+    Duration timeout = const Duration(minutes: 10),
+    Future<void>? cancel,
+  }) =>
       runOnce([
         dshBin,
         '--profile',
         'headless',
         if (hasModelConfig) ...['--patch', overlayPath],
         task,
-      ], extraEnv: extraEnv);
+      ], extraEnv: extraEnv, timeout: timeout, cancel: cancel);
 }
 
 /// 把 YAML 标量安全地写出来（名字里可能有中文、冒号、井号……）。

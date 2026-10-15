@@ -29,6 +29,7 @@ class DshPalette {
     required this.surface,
     required this.surfaceHigh,
     required this.surfaceStrong,
+    required this.fieldFill,
     required this.navBg,
     // ── 描边
     required this.line,
@@ -101,6 +102,26 @@ class DshPalette {
 
   /// 最实的面板（不透明，用于需要绝对清晰的地方）
   final Color surfaceStrong;
+
+  /// **输入框的填充色 —— 必须是不透明的**（用户 2026-10-15 反馈：
+  /// 「面板透明度太高……比如会话的面板，目前现状是输入文字的时候和底版
+  /// 混在一起看不清」）。
+  ///
+  /// ## 为什么单列一个令牌，而不是继续用 [surface]
+  ///
+  /// 深色皮肤下 `surface` 只有 **7% 白**（`0x12FFFFFF`）—— 那是"玻璃卡片"
+  /// 的设计语言，卡片里透出一点页面渐变是**刻意的**。但输入框不是卡片：
+  /// 它上面要**压一段用户正在键入的文字**，而 7% 白几乎等于没有底，
+  /// 于是字形和页面渐变/消息流混在一起，读起来就是"看不清"。
+  ///
+  /// 也不能直接把 `surface` 改实：`theme_skin_test` 钉住"深色 surface 的
+  /// alpha < 0.2"（面板该半透），而且全 App 的卡片都吃它 —— 改一处会把所有
+  /// 玻璃卡变成实心板。
+  ///
+  /// 所以这里给输入框单独一个**不透明**的填充：它只用于
+  /// `inputDecorationTheme` 与输入组件（见 `ui/widgets/input_bar.dart`），
+  /// 不影响任何卡片的通透感。
+  final Color fieldFill;
 
   /// 顶栏 / 底部导航
   final Color navBg;
@@ -214,6 +235,8 @@ class DshPalettes {
         surface: const Color(0xB8FFFFFF),
         surfaceHigh: const Color(0xF0FFFFFF),
         surfaceStrong: const Color(0xFFFFFFFF),
+        // 输入框填充：**不透明**（浅色=纯白）。见 [DshPalette.fieldFill] 的说明。
+        fieldFill: const Color(0xFFFFFFFF),
         navBg: const Color(0xF2FFFFFF),
         line: const Color(0x26204A96),
         line2: const Color(0x522060BE),
@@ -290,6 +313,15 @@ class DshPalettes {
         surface: const Color(0x12FFFFFF),
         surfaceHigh: const Color(0x1FFFFFFF),
         surfaceStrong: const Color(0xFF262E33),
+        // 输入框填充：**不透明**。深色下 `surface` 只有 7% 白，键入的字会和
+        // 页面渐变糊在一起（用户 2026-10-15 实测反馈）。
+        //
+        // ⚠️ 值不是随手挑的：`contrast_test` 要求 **textFaint（占位提示字）
+        // 在 fieldFill 上也过 AA 4.5**。fieldFill 只要比 bg(#171C20) 明显亮，
+        // textFaint 的对比度就掉到 4.44（实测）—— 所以取「比 bg 略亮一点点」
+        // 的 #1B2126：正文 #E8EEFC 约 13:1，textFaint 约 4.71，两边都过。
+        // 框的位置靠描边（`line`）交代，不靠"把底调亮"。
+        fieldFill: const Color(0xFF1B2126),
         navBg: const Color(0x1AFFFFFF),
         line: const Color(0x3D8CAFFF),
         line2: const Color(0x5C8CAFFF),
@@ -351,6 +383,8 @@ class DshPalettes {
         surface: const Color(0x14FFFFFF),
         surfaceHigh: const Color(0x22FFFFFF),
         surfaceStrong: const Color(0xFF232741),
+        // 输入框填充：**不透明**（像素风的实心板子），见 [DshPalette.fieldFill]。
+        fieldFill: const Color(0xFF1C2032),
         navBg: const Color(0x1AFFFFFF),
         line: const Color(0x4D8FA8FF),
         line2: const Color(0x6E8FA8FF),

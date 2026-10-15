@@ -115,6 +115,22 @@ class AppSettings extends ChangeNotifier {
   ///
   /// 为什么要能自填：国内直连 GitHub 时好时坏，用户手上有能通的镜像时，
   /// 让他自己填一个比我们猜哪个站可用靠谱得多。见 `local/update_source.dart`。
+  /// 「外观 → 壁纸」：本机图片的**绝对路径**（空 = 不用壁纸）。
+  ///
+  /// 用户 2026-10-15 第 5 条：「外观那里建议加上一个壁纸，用户可以上传壁纸。」
+  ///
+  /// ⚠️ 存的是**拷进 App 私有目录之后**的路径，不是用户相册里那张的原始 URI：
+  /// 相册里的图随时可能被用户删掉/移动，那时背景会突然变空。见设置页的
+  /// `_pickWallpaper`（选完立刻复制一份到 `<filesDir>/wallpaper/`）。
+  static const String _kWallpaperPath = 'dsh_wallpaper_path';
+
+  /// 壁纸压暗强度（0~0.95）。**默认 0.55** —— 见 `DshGridBackground.wallpaperDim`：
+  /// 正文对比度必须由我们兜住，不能由用户那张图决定。
+  static const String _kWallpaperDim = 'dsh_wallpaper_dim';
+
+  /// 壁纸模糊半径（dp，0 = 不模糊）。默认 6：让图"退到后面去"。
+  static const String _kWallpaperBlur = 'dsh_wallpaper_blur';
+
   static const String _kUpdateSource = 'dsh_update_source';
 
   /// 启动后要不要**自动查一次**更新（默认开、失败静默）。
@@ -169,6 +185,11 @@ class AppSettings extends ChangeNotifier {
   /// 子会话用的模型路由（`provider/model`）；null/空 = 跟随父会话。
   String? _subagentRoute;
   String _skinId = kDefaultSkin;
+
+  /// 「外观 → 壁纸」当前状态（见 [_kWallpaperPath] 那一组常量）。
+  String _wallpaperPath = '';
+  double _wallpaperDim = 0.55;
+  double _wallpaperBlur = 6;
   AppLanguage _language = AppLanguage.fallback;
 
   /// 本地推理后端 id（`cpu` / `vulkan`）。默认 CPU —— 理由见模型页里那段注释
@@ -409,6 +430,19 @@ class AppSettings extends ChangeNotifier {
     return _pickInFlightFrom;
   }
 
+  /// 壁纸图片的绝对路径（空 = 没用壁纸）。**能不能用**由背景层再判一次
+  /// （文件可能被清理工具删了），这里不做 IO。
+  String get wallpaperPath => _wallpaperPath;
+
+  /// 有没有设置壁纸（只看是否设过路径，不看文件在不在）。
+  bool get hasWallpaper => _wallpaperPath.trim().isNotEmpty;
+
+  /// 壁纸压暗强度 0~0.95（默认 0.55）。
+  double get wallpaperDim => _wallpaperDim;
+
+  /// 壁纸模糊半径 dp（默认 6，0 = 不模糊）。
+  double get wallpaperBlur => _wallpaperBlur;
+
   /// 给 `MaterialApp.themeMode` 用的等价表达（现在只喂一份 theme，留着更直观）。
   ThemeMode get themeMode => skin.isLight ? ThemeMode.light : ThemeMode.dark;
 
@@ -462,6 +496,11 @@ class AppSettings extends ChangeNotifier {
           ? DateTime.fromMillisecondsSinceEpoch(pickAt)
           : null;
       _pickInFlightFrom = prefs.getString(_kPickInFlightFrom) ?? '';
+      // 壁纸：路径直接读（图在不在由背景层自己判断 —— 文件被清了就退回无壁纸，
+      // 不要把设置清空，用户重新放一张同名图还能用）。两个数值夹在合法区间。
+      _wallpaperPath = (prefs.getString(_kWallpaperPath) ?? '').trim();
+      _wallpaperDim = (prefs.getDouble(_kWallpaperDim) ?? 0.55).clamp(0.0, 0.95);
+      _wallpaperBlur = (prefs.getDouble(_kWallpaperBlur) ?? 6).clamp(0.0, 30.0);
       // 配音三项：来源只认白名单（磁盘上有脏值就退回系统配音）；
       // 音色表只认"字典里的字符串键值"，坏 JSON 就当没存过 —— 绝不把界面
       // 停在一个"不认识"的音色上。
@@ -508,6 +547,50 @@ class AppSettings extends ChangeNotifier {
     }
     _loaded = true;
     notifyListeners();
+  }
+
+  /// 「外观 → 壁纸」：设成某张本机图片（**已经在 App 私有目录里的**绝对路径），
+  /// 传空串 = 不要壁纸。
+  Future<void> setWallpaper(String path) async {
+    final p = path.trim();
+    if (p == _wallpaperPath) return;
+    _wallpaperPath = p;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_kWallpaperPath, p);
+      debugPrint('[dsh-app-settings] 壁纸 = ${p.isEmpty ? "（无）" : p}');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 壁纸压暗强度（0~0.95）。这一项直接决定"图上的字看不看得清"，所以夹死区间。
+  Future<void> setWallpaperDim(double v) async {
+    final next = v.clamp(0.0, 0.95).toDouble();
+    if (next == _wallpaperDim) return;
+    _wallpaperDim = next;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_kWallpaperDim, next);
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 壁纸模糊半径（dp，0~30）。
+  Future<void> setWallpaperBlur(double v) async {
+    final next = v.clamp(0.0, 30.0).toDouble();
+    if (next == _wallpaperBlur) return;
+    _wallpaperBlur = next;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_kWallpaperBlur, next);
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
   }
 
   /// 切换界面语言。落盘；落盘失败只影响"下次启动记不记得"，本次切换照常生效

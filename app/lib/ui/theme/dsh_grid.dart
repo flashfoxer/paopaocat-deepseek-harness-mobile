@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import 'dsh_tokens.dart';
@@ -94,6 +97,9 @@ class DshGridBackground extends StatelessWidget {
     required this.glowColor,
     this.scanlines = false,
     this.scanlineColor,
+    this.wallpaperPath,
+    this.wallpaperDim = 0.55,
+    this.wallpaperBlur = 0,
   });
 
   /// 当前皮肤的底色。
@@ -108,24 +114,91 @@ class DshGridBackground extends StatelessWidget {
   /// 扫描线颜色（与 [bgColor] 同理，**必须在 build 时传入**）。
   final Color? scanlineColor;
 
+  /// 用户自选的壁纸（本机图片的**绝对路径**）。空/null = 不用壁纸。
+  ///
+  /// 用户 2026-10-15 第 5 条：「外观那里建议加上一个壁纸，用户可以上传壁纸。」
+  final String? wallpaperPath;
+
+  /// 壁纸上压多厚的一层 [bgColor]（0~0.95）。
+  ///
+  /// **这不是可选项、没有"0"以外的默认**：用户上传什么图都能接受（白底、
+  /// 花底、照片），而界面上的文字颜色是跟皮肤定的 —— 只有压一层，正文的
+  /// 对比度才由我们说了算，而不是由用户那张图说了算。
+  final double wallpaperDim;
+
+  /// 壁纸的模糊半径（dp，0 = 不模糊）。让图"退到后面去"，正文更清楚。
+  final double wallpaperBlur;
+
   @override
   Widget build(BuildContext context) {
     // ⚠️ 颜色**必须由调用方在 build 时传入**，不要在 paint 里现读 `DshColors`：
     // 否则新旧 painter 读到的永远是新值，`shouldRepaint` 比较恒等、换肤后
     // 背景层不会重绘（历史上踩过同类坑）。
+    final base = CustomPaint(
+      painter: _BgPainter(
+        bgColor: bgColor,
+        glowColor: glowColor,
+        scanlines: scanlines,
+        scanlineColor: scanlineColor,
+      ),
+      isComplex: false,
+    );
+
+    final path = (wallpaperPath ?? '').trim();
+    final hasWallpaper = path.isNotEmpty && File(path).existsSync();
+
     return Positioned.fill(
       child: IgnorePointer(
-        child: CustomPaint(
-          painter: _BgPainter(
-            bgColor: bgColor,
-            glowColor: glowColor,
-            scanlines: scanlines,
-            scanlineColor: scanlineColor,
-          ),
-          isComplex: false,
-        ),
+        child: !hasWallpaper
+            ? base
+            : Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  // 1) 壁纸本身（铺满、裁切，不拉伸变形）
+                  _Wallpaper(path: path, blur: wallpaperBlur),
+                  // 2) 压暗层：正文对比度由这一层决定，不由用户那张图决定
+                  ColoredBox(
+                    color: bgColor.withValues(
+                        alpha: wallpaperDim.clamp(0.0, 0.95).toDouble()),
+                  ),
+                  // 3) 底色兜底：压暗层之上再铺一层**几乎没有**的底色，
+                  //    让"图很亮但压得不够"的极端情况也不会把卡片衬花。
+                  //
+                  //    ⚠️ 有壁纸时**不画柔光**：那层径向柔光是给"近黑底"做纵深的，
+                  //    压在照片上会变成一层雾，把用户自己选的图糊掉。
+                  ColoredBox(color: bgColor.withValues(alpha: 0.18)),
+                ],
+              ),
       ),
     );
+  }
+}
+
+/// 壁纸图片本身：铺满 + 裁切（不变形），可选模糊。
+class _Wallpaper extends StatelessWidget {
+  const _Wallpaper({required this.path, required this.blur});
+
+  final String path;
+  final double blur;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget img = Image.file(
+      File(path),
+      fit: BoxFit.cover,
+      // 解码按屏幕像素走，别把 4000px 的原图整张塞进显存
+      cacheWidth: (MediaQuery.sizeOf(context).width *
+              MediaQuery.devicePixelRatioOf(context))
+          .round(),
+      errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+    );
+    if (blur > 0.01) {
+      img = ImageFiltered(
+        imageFilter: ui.ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: img,
+      );
+    }
+    return img;
   }
 }
 

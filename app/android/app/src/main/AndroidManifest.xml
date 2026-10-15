@@ -217,6 +217,11 @@
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH"/>
         </intent>
+        <!-- 微信的包名要**显式**声明可见：Android 11+ 默认看不见别的应用，
+             不声明的话 `resolveActivity(weixin://dl/scan)` 可能拿不到微信、
+             被误判成"没装微信"。而"关于"页那个二维码正是靠这一步判断
+             **微信到底接不接得住 `weixin://`**（见 MainActivity.openWechatScan）。 -->
+        <package android:name="com.tencent.mm"/>
         <!-- 「打开本机应用」已于 2026-10-10 取消（用户要求），随之删掉了
              可见 launcher 应用的 <intent> 声明 —— 少一条可见面。 -->
     </queries>

@@ -368,10 +368,17 @@ class MainActivity : FlutterActivity() {
                     //
                     // 为什么不是"App 自己识别二维码"：App 里根本没有相机扫码这一层
                     // （要加 CameraX + 权限 + 识别库，几 MB 加一整套权限），而微信
-                    // 自己就有扫一扫。`weixin://dl/scan` 是微信公开支持的唤起入口，
-                    // 拉起后用户在微信里对着屏幕上的二维码扫即可。
+                    // 自己就有扫一扫。
                     //
-                    // 返回 "ok" / "no_wechat"（没装微信）/ "failed:<msg>"，交给 Dart 说人话。
+                    // ⚠️ 2026-10-15 修正（用户实测 + 社区实证）：`weixin://dl/scan` 是
+                    // 微信的**内部** scheme，微信现在已经**拒绝外部调用** —— 本机上
+                    // 长按弹出的就是微信自己的错误页「对不起，当前页面无法访问」。
+                    // 所以这里**必须先 resolveActivity 看清是不是微信接住**，不能
+                    // "Intent 被谁接住都算成功"（那就是"说谎的成功"：页面是微信画的
+                    // 错误页，App 却在说"已打开微信扫一扫"）。
+                    //
+                    // 返回 "ok" / "no_wechat"（没装微信，或接住的不是微信）/
+                    // "failed:<msg>"，交给 Dart 说人话。`ok` 只表示"把微信拉起来了"。
                     "openWechatScan" -> openWechatScan(result)
                     // 用**系统自带的 TTS**把文本合成成 WAV 文件（口播/短剧的配音）。
                     //
@@ -392,6 +399,17 @@ class MainActivity : FlutterActivity() {
                     "shareFile" -> shareFileByPath(
                         call.argument<String>("path"),
                         call.argument<String>("subject"),
+                        result
+                    )
+                    // 把一个**本地图片文件**存进系统相册。
+                    // 只给「关于」页那张公众号二维码用：微信已经把 `weixin://dl/scan`
+                    // 这条唤起路堵了，用户改用「微信 → 扫一扫 → 右上角相册」选这张图，
+                    // 前提是图得先在系统相册里。
+                    //
+                    // 返回（机器可读，Dart 侧翻成人话）：
+                    //   ok / bad_path / failed:<msg>
+                    "saveImageToGallery" -> saveImageToGallery(
+                        call.argument<String>("path"),
                         result
                     )
                     // 运行日志（用户要求：导出/分享给开发者分析）：
@@ -836,17 +854,46 @@ class MainActivity : FlutterActivity() {
      */
     /// 唤起**微信扫一扫**（`weixin://dl/scan`）。
     ///
-    /// 两条边界必须说清（都是"如实"，不是失败）：
-    ///   * **没装微信** → 返回 `no_wechat`，Dart 侧提示"可以自己打开微信扫一扫"，
-    ///     绝不能假装跳过去了；
-    ///   * **装了但厂商拦截了协议**（部分 ROM 会拦非 http(s) 的 implicit intent）→
+    /// ## ⚠️ 2026-10-15 修正：这条指令微信**已经不再响应**
+    ///
+    /// `weixin://dl/scan` 是微信的**内部** scheme，微信现在拒绝外部调用
+    /// （社区实证：`weixin://dl/...` 这一族现在"打开都显示 对不起，当前页面无法访问"，
+    /// "以前可以，现在不行了"）。所以**接住了也可能只是让微信画一张错误页**。
+    ///
+    /// 因此 `"ok"` 的语义被收紧成：**只表示"把微信拉起来了"**，
+    /// **不表示扫一扫真的开了**。界面文案不许再承诺"已打开微信扫一扫"。
+    ///
+    /// ## 为什么先 `resolveActivity`
+    ///
+    /// 以前是 `Intent(ACTION_VIEW) + startActivity`，**只要 Intent 被任何应用接住就返回 ok**
+    /// —— 但 `weixin://` 可能被浏览器之类的应用抢占，那时"成功"就更假了。
+    /// 现在必须先解析，**只有接住的是微信本尊（`com.tencent.mm`）才算"微信能接"**；
+    /// 解析到的实际包名会打进日志，便于以后排查是谁抢的。
+    ///
+    /// 三条边界（都是"如实"，不是失败）：
+    ///   * **没装微信 / 接住的不是微信 / 解析不到** → 返回 `no_wechat`，Dart 侧引导
+    ///     用户改用"复制公众号 ID"或"存相册再扫"，绝不能假装跳过去了；
+    ///   * **拉起来但微信自己画错误页** → 仍然是 `ok`，但界面必须如实说明
+    ///     "如果显示'页面无法访问'，说明微信不响应这条指令"；
+    ///   * **厂商拦截协议**（部分 ROM 会拦非 http(s) 的 implicit intent）→
     ///     返回 `failed:<msg>`，同样如实走提示那条路。
     private fun openWechatScan(result: MethodChannel.Result) {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("weixin://dl/scan"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // MATCH_DEFAULT_ONLY：只看"默认打开"级别的候选，跟 startActivity 实际会
+            // 选中的那一批一致（不然可能解析到一个只声明了 CATEGORY_BROWSABLE 的接管者）。
+            val resolved = packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            val target = resolved?.activityInfo?.packageName
+            if (target != "com.tencent.mm") {
+                // 这里的"不是微信"包括三种情况：没装微信 / 被别的应用抢占 / 解析不到。
+                // 都会把实际包名打出来 —— 以后有人反馈"还是打不开"，先看这行日志。
+                Log.w(TAG, "openWechatScan: weixin:// 没有被微信接住（实际解析到：${target ?: "null"}）")
+                result.success("no_wechat")
+                return
+            }
             startActivity(intent)
-            Log.i(TAG, "openWechatScan -> weixin://dl/scan")
+            Log.i(TAG, "openWechatScan -> weixin://dl/scan（微信接住了；它是否真的进扫一扫由微信决定）")
             result.success("ok")
         } catch (e: android.content.ActivityNotFoundException) {
             Log.w(TAG, "openWechatScan: 没装微信或没有应用接收 weixin://")
@@ -1691,6 +1738,82 @@ class MainActivity : FlutterActivity() {
         } catch (e: Throwable) {
             Log.w(TAG, "shareFile failed: ${e.message}")
             result.error("SHARE_FAILED", "分享失败：${e.message}", null)
+        }
+    }
+
+    /**
+     * 把一个**本地图片文件**存进**系统相册**（MediaStore）。
+     *
+     * ## 为什么需要它
+     *
+     * 只给「关于」页那张公众号二维码用：微信已经把 `weixin://dl/scan` 这条外部唤起路
+     * 堵了（打开就是它自己的错误页「对不起，当前页面无法访问」），所以给用户的正路是
+     * **「微信 → 扫一扫 → 右上角相册 → 选这张图」**。而相册里得先有这张图 ——
+     * 二维码本身是打包在 assets 里的，用户截屏也行，但直接帮他存进去更省事。
+     *
+     * ## 为什么"不需要权限"（Android 10+ 的分区存储）
+     *
+     * `SDK_INT >= 29` 时用 MediaStore 的 `insert` + `openOutputStream` 写自己的图，
+     * **一个权限都不用申请**（分区存储就是为这个场景设计的）；写完把 `IS_PENDING`
+     * 从 1 改回 0，相册才会看见它。
+     *
+     * `SDK_INT < 29` 就**故意不做了**：那条路要 `WRITE_EXTERNAL_STORAGE`，而这个 App
+     * 一直以"能不申请权限就不申请"为准（多一个权限就是多一条被用户和商店质疑的理由）。
+     * 为了存一张二维码去要存储权限不划算 —— 直接返回 `failed:<中文说明>`，
+     * 让 Dart 侧如实告诉用户"这台 Android 版本需要存储权限，已跳过"。
+     *
+     * ## 返回约定（机器可读，Dart 侧翻成人话）
+     *
+     *   * `"ok"`               —— 已经存进相册；
+     *   * `"bad_path"`         —— 源文件不存在 / 不是文件（**环境事实，不是崩溃**）；
+     *   * `"failed:<msg>"`     —— 写入失败或系统版本太低（含上面那条中文说明）。
+     * 参数缺失 → error(`BAD_ARGS`)，`message` 已是中文。
+     */
+    private fun saveImageToGallery(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) {
+            result.error("BAD_ARGS", "缺少 path 参数", null)
+            return
+        }
+        val f = File(path)
+        if (!f.exists() || !f.isFile) {
+            Log.w(TAG, "saveImageToGallery: 文件不存在 -> $path")
+            result.success("bad_path")
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // 见上面 KDoc：**刻意不申请** WRITE_EXTERNAL_STORAGE，直接如实说跳过。
+            Log.w(TAG, "saveImageToGallery: SDK ${Build.VERSION.SDK_INT} 低于 29，已跳过（不申请存储权限）")
+            result.success("failed:这台 Android 版本需要存储权限，已跳过（可用系统相册截屏代替）")
+            return
+        }
+        var uri: Uri? = null
+        try {
+            val values = android.content.ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, f.name)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/泡泡猫的DSH")
+                // IS_PENDING=1：写的过程中对相册隐藏，写完再放开 —— 不然媒体扫描器
+                // 可能扫到一张半截图。
+                put(MediaStore.Images.Media.IS_PENDING, 1)
+            }
+            uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                ?: throw java.io.IOException("系统相册没有给出可写的位置")
+            val out = contentResolver.openOutputStream(uri)
+                ?: throw java.io.IOException("系统相册没有给出可写的通道")
+            out.use { o ->
+                f.inputStream().use { input -> input.copyTo(o) }
+            }
+            // 写完了才让它对相册可见。
+            values.clear()
+            values.put(MediaStore.Images.Media.IS_PENDING, 0)
+            contentResolver.update(uri, values, null, null)
+            Log.i(TAG, "saveImageToGallery -> $uri")
+            result.success("ok")
+        } catch (e: Throwable) {
+            // 失败就把那条待定记录删掉：不然相册里会留一条永远看不到、也删不掉的空条目。
+            uri?.let { runCatching { contentResolver.delete(it, null, null) } }
+            Log.w(TAG, "saveImageToGallery failed: ${e.message}")
+            result.success("failed:${e.message}")
         }
     }
 

@@ -94,8 +94,12 @@ class _DshCollapsibleSectionState extends State<DshCollapsibleSection> {
               padding: const EdgeInsets.fromLTRB(2, 10, 2, 10),
               child: Row(
                 children: <Widget>[
-                  DshSectionTitle(widget.title),
-                  const Spacer(),
+                  // ⚠️ **必须是 Expanded，不能靠 Spacer**：标题是用户可见文案
+                  //    （例如「实验通道 · OpenCode Zen（第三方通道）」），在 360dp 的窄屏上
+                  //    按自然宽度布局会把这一行直接撑爆 —— debug 画黄黑条纹、release 把字裁掉。
+                  //    Spacer 在这里反而帮凶：它只在"有剩余空间"时才起作用，撑爆时它被压成 0，
+                  //    真正需要收窄的标题一点都没收。
+                  Expanded(child: DshSectionTitle(widget.title)),
                   AnimatedRotation(
                     turns: _open ? 0.5 : 0.0,
                     duration: const Duration(milliseconds: 160),
@@ -119,8 +123,117 @@ class _DshCollapsibleSectionState extends State<DshCollapsibleSection> {
   }
 }
 
-/// 常驻展开的板块（如「关于」）。
+/// **分组**级别的可折叠块：把一组板块收成一行（用户 2026-10-15 第 3 条）。
 ///
+/// ## 为什么需要它
+///
+/// 用户原话：「设置页面项目比较多，太长了，是不是归纳一下」。
+/// 那时设置页有 **15 个平铺的可折叠板块**（检查更新 / 外观 / 云端大模型 /
+/// 图像·视频模型 / 免费模型 / 会话联网搜索 / 子智能体 / Zen / 模型轮换池 /
+/// 专家 / 记忆 / 插件 / 手机权限 / 文件地址 / 关于）—— 全部收起也still要滑两屏。
+///
+/// 现在收成 4 组 + 常驻的「关于」：默认全收起时，一屏能把 5 行看全。
+///
+/// ## 与 [DshCollapsibleSection] 的差别（只有一个：这一层的标题是"栏目"）
+///
+/// 标题字更大、带一个强调色的小方块，收起时画一条更明显的分隔线 —— 让人一眼
+/// 分清"这是一组"和"这是组里的一项"。
+class DshGroupSection extends StatefulWidget {
+  const DshGroupSection({
+    super.key,
+    required this.title,
+    required this.children,
+    this.initiallyOpen = false,
+  });
+
+  final String title;
+
+  /// 组里的那些板块（通常是一串 [DshCollapsibleSection]）。
+  final List<Widget> children;
+
+  final bool initiallyOpen;
+
+  @override
+  State<DshGroupSection> createState() => _DshGroupSectionState();
+}
+
+class _DshGroupSectionState extends State<DshGroupSection> {
+  late bool _open = widget.initiallyOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Semantics(
+          button: true,
+          label: '${widget.title}，${_open ? '已展开' : '已收起'}',
+          child: InkWell(
+            onTap: () => setState(() => _open = !_open),
+            borderRadius: BorderRadius.circular(DshMetrics.radius(10)),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(10, 12, 8, 12),
+              margin: const EdgeInsets.only(bottom: 2),
+              decoration: BoxDecoration(
+                color: DshColors.surfaceHigh,
+                borderRadius: BorderRadius.circular(DshMetrics.radius(12)),
+                border: Border.all(color: DshColors.line, width: 0.8),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Container(
+                    width: 3,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: DshColors.accent,
+                      // 圆角必须走 DshMetrics.radius()：像素风下 radiusScale=0，
+                      // 写死数字会让这个小方块在像素皮肤里还是圆角（门禁测试会拦）。
+                      borderRadius:
+                          BorderRadius.circular(DshMetrics.radius(2)),
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  // 同上：标题必须能收窄，否则长组名会把这一行撑爆。
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: TextStyle(
+                        color: DshColors.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _open ? 0.5 : 0.0,
+                    duration: const Duration(milliseconds: 160),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 22,
+                      color: DshColors.textDim,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // 展开时把组里的板块**缩进一点**：视觉上它们是"组里的内容"。
+        if (_open)
+          Padding(
+            padding: const EdgeInsets.only(left: 6, top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: widget.children,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 常驻展开的板块（如「关于」）。
 /// ⚠️ 它存在的意义就是**标题间距**：折叠板块的标题自带 `10/10` 内边距，
 /// 而常驻板块如果直接 `Text + 卡片`，标题就会**贴着**卡片 —— 显得很挤。
 /// 用这个组件，两种板块的节奏一致。

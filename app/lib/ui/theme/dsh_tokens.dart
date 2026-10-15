@@ -99,6 +99,10 @@ class DshColors {
   /// 最实的面板（不透明）
   static Color get surfaceStrong => _skin.surfaceStrong;
 
+  /// 输入框填充色（**不透明**）。见 [DshPalette.fieldFill] 的说明：
+  /// 深色下 `surface` 只有 7% 白，键入的字会和底版糊在一起。
+  static Color get fieldFill => _skin.fieldFill;
+
   /// 顶栏 / 底部导航底色
   static Color get navBg => _skin.navBg;
 
@@ -467,8 +471,15 @@ ThemeData buildDshTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      // 浅色皮肤用更实的一层白（网站 --panel-strong），深色皮肤用半透明提亮层
-      fillColor: skin.isLight ? skin.surfaceHigh : skin.surface,
+      // ⚠️ **输入框必须用不透明的 [DshPalette.fieldFill]**（用户 2026-10-15 反馈）。
+      //
+      // 原来这里是「浅色用 surfaceHigh、深色用 surface」—— 深色下 `surface`
+      // 只有 **7% 白**，等于没有底：用户一边打字一边看到字形和页面渐变/消息流
+      // 混在一起，反馈原话是「输入文字的时候和底版混在一起看不清」。
+      //
+      // 这里不动 `surface` 本身（它是玻璃卡的设计语言，测试也钉住了"深色
+      // surface 必须 < 0.2 alpha"），只把**输入框**这一类换成实色。
+      fillColor: skin.fieldFill,
       hintStyle: TextStyle(color: skin.textFaint, fontSize: 13.5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(DshMetrics.radius(DshMetrics.fieldRadius)),

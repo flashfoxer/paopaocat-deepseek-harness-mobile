@@ -385,7 +385,15 @@ void main() {
   });
   testWidgets('块-记忆页', (tester) async {
     final tmp = Directory.systemTemp.createTempSync('shot-mem-');
-    await shotOf(tester, 'block-18-memory.png', MemoryPage(dshHome: tmp.path));
+    await shotOf(
+      tester,
+      'block-18-memory.png',
+      MemoryPage(
+        dshHome: tmp.path,
+        workspacePath: '${tmp.path}/workspace',
+        runtime: _fakeRuntime(),
+      ),
+    );
   });
   testWidgets('块-更新说明', (tester) async {
     await shotOf(tester, 'block-19-release-notes.png', const ReleaseNotesPage());

@@ -130,10 +130,13 @@ class InputBar extends StatelessWidget {
     final field = Container(
       height: fieldHeight,
       alignment: Alignment.centerLeft,
+      // 输入框的底必须**不透明**：原来用 `DshColors.surface`（深色下 7% 白），
+      // 键入的正文会和页面渐变糊在一起 —— 用户 2026-10-15 的原话是
+      // 「输入文字的时候和底版混在一起看不清」。见 [DshPalette.fieldFill]。
       decoration: BoxDecoration(
-        color: DshColors.surface,
+        color: DshColors.fieldFill,
         borderRadius: BorderRadius.circular(DshMetrics.inputRadius),
-        border: Border.all(color: DshColors.divider, width: 0.8),
+        border: Border.all(color: DshColors.line, width: 0.8),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Text(
@@ -173,17 +176,18 @@ class InputBar extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hintText,
             filled: true,
-            fillColor: DshColors.surface,
+            // 同上：实色底，保证"正在键入的字"始终压在实底上。
+            fillColor: DshColors.fieldFill,
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DshMetrics.inputRadius),
-              borderSide: BorderSide(color: DshColors.divider, width: 0.8),
+              borderSide: BorderSide(color: DshColors.line, width: 0.8),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DshMetrics.inputRadius),
-              borderSide: BorderSide(color: DshColors.divider, width: 0.8),
+              borderSide: BorderSide(color: DshColors.line, width: 0.8),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DshMetrics.inputRadius),
@@ -214,9 +218,10 @@ class _ModelChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           decoration: BoxDecoration(
-            color: DshColors.surface,
+            // 与输入框同一层实底：它俩是同一排控件，一个透一个不透会看着像两个 App。
+            color: DshColors.fieldFill,
             borderRadius: BorderRadius.circular(DshMetrics.radius(14)),
-            border: Border.all(color: DshColors.divider, width: 0.8),
+            border: Border.all(color: DshColors.line, width: 0.8),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

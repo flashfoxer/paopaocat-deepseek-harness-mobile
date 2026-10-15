@@ -135,6 +135,34 @@ class _ChatPageState extends State<ChatPage> {
   /// 这样切页回来消息不丢，且人在别的页面时收到的更新也进得来。
   List<ChatMsg> get _messages => _live?.messages ?? _ownMessages;
 
+  /// 从磁盘恢复回来的历史（[loadSessionTranscript] 的结果折成 [ChatMsg]）。
+  ///
+  /// 它与 [_messages] 一起经 [_mergedMessages] 渲染 —— 历史**不是**另一个只读框，
+  /// 而是这条对话的前半段（用户 2026-10-15 第 1 条）。
+  final List<ChatMsg> _resumedHistory = <ChatMsg>[];
+
+  /// 消息流真正渲染的东西 = **磁盘历史 + 本次运行的消息**，按「角色 + 正文」去重。
+  ///
+  /// ## 为什么必须去重（不是可有可无的细节）
+  ///
+  /// 磁盘上的 transcript 是**全量**的：本次进入之后聊的每一句，DSH 也会写进同一个
+  /// 会话文件。所以"历史"与"活着的消息"天然重叠，直接拼接会把同一句话显示两遍。
+  ///
+  /// 去重键用「角色 + 正文」：极端情况下同一句一模一样的回复出现两次会少显示一条，
+  /// 那远比"整段对话被复制一遍"更像 bug。
+  List<ChatMsg> get _mergedMessages {
+    final live = _messages;
+    if (_resumedHistory.isEmpty) return live;
+    final seen = <String>{for (final m in live) _msgKey(m)};
+    return <ChatMsg>[
+      for (final m in _resumedHistory)
+        if (seen.add(_msgKey(m))) m,
+      ...live,
+    ];
+  }
+
+  static String _msgKey(ChatMsg m) => '${m.role.name}\u0000${m.text}';
+
   /// 只用来读**老键** `dsh_model_api_key`（见 [_spawnState]），与 ProviderKeys
   /// 用的是同一个安全区命名空间，互不干扰。
   static const _legacySecure = FlutterSecureStorage();
@@ -300,7 +328,7 @@ class _ChatPageState extends State<ChatPage> {
   SessionTranscript? _transcript;
   bool _transcriptLoading = false;
   String? _transcriptError;
-  bool _historyOpen = false;
+
 
   /// 输入框里有没有内容（决定右下角是麦克风还是发送）
   bool _hasInput = false;
@@ -1114,7 +1142,7 @@ class _ChatPageState extends State<ChatPage> {
   /// 这与 `dsh-smart-compact` 的省钱思路一致（判断留给新窗口里的模型自己做）。
   Future<void> _openContextHelper() async {
     final msgs = <BudgetMessage>[
-      for (final m in _messages)
+      for (final m in _mergedMessages)
         if (m.text.trim().isNotEmpty)
           BudgetMessage(role: m.role.name, text: m.text),
     ];
@@ -2162,10 +2190,10 @@ class _ChatPageState extends State<ChatPage> {
         // 以前这里只有一句"历史消息不在界面上回放"的说明 —— 因为 ACP 的
         // `session/resume` 只返回 configOptions、不带任何历史消息（实测 DSH 源码
         // dsh-acp/lib/index.js:1208-1251）。现在改成自己读会话记录文件来还原。
-        if (_resumed) _historyBlock(),
+        if (_resumed) _historyBanner(),
         Expanded(
           child: MessageStream(
-            messages: _messages,
+            messages: _mergedMessages,
             artifacts: _artifacts,
             running: _running,
             turnStartedAt: _turnStartedAt,
@@ -2252,8 +2280,11 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _transcriptLoading = false;
       _transcript = t;
-      // 读回来了就默认展开：用户点「恢复」本来就想看看里面有什么。
-      _historyOpen = t != null && t.messages.isNotEmpty;
+      // 历史**并进消息流**（不是另开一个只读框）：用户 2026-10-15 第 1 条 ——
+      // 「换厂家之后感觉保留的是摘要 / 多次进出感觉还是丢失了」。
+      _resumedHistory
+        ..clear()
+        ..addAll(_toChatMsgs(t));
       _transcriptError = t == null
           ? context.tr('没能读到这条会话的历史记录（会话文件可能已被清理，或解码失败）。模型的上下文仍然在，直接接着问就行。')
           : null;
@@ -2265,183 +2296,88 @@ class _ChatPageState extends State<ChatPage> {
 
   /// 恢复会话时顶部的历史回放块：只读、可展开/收起、**限高**
   /// （限高是必须的：消息可能几十条，不限高会把下面的消息区挤没）。
-  Widget _historyBlock() {
+  /// 恢复会话时顶上那条**状态说明条**（用户 2026-10-15 第 1 条）。
+  ///
+  /// ## 为什么不在这里画消息了（这是那次反馈的根因）
+  ///
+  /// 原来这里是一个**可展开的"历史记录 · 只读回放"框**，历史消息只活在这个框里、
+  /// **不进消息流**。于是用户看到的就是：「换厂家 / 退出重进之后，会话只剩一段摘要」
+  /// —— 而模型的上下文其实一直都在（DSH 的 `session/resume` 会把会话的**全部**
+  /// 事件读回来重建，见 `dsh-agent-loop` 的 `resumeWith()`：`persistence.open()` →
+  /// `handle.read(0, undefined)` 整段当 seed）。**丢的是界面上的可见性，不是记忆。**
+  ///
+  /// 所以现在历史被**并进消息流**（见 [_mergedMessages]），这里只留一条说明：
+  /// 从哪个文件读的、共几条、有多少条更早的没显示、读失败时到底是什么原因。
+  Widget _historyBanner() {
     final t = _transcript;
     final title = t?.title;
-    final subtitle = _transcriptLoading
-        ? context.tr('正在读取历史记录…')
-        : _transcriptError != null
-            ? _transcriptError!
-            : t == null
-                ? context.tr('正在读取历史记录…')
-                : t.messages.isEmpty
-                    ? context.tr('这条会话在磁盘上没有可回放的消息。')
-                    : context.tr('{0} · {1} 条', [
-                        title == null || title.trim().isEmpty
-                            ? '会话 ${_shortId(_sessionId)}'
-                            : title.trim(),
-                        t.total
-                      ]);
+    final text = _transcriptError != null
+        ? _transcriptError!
+        : _transcriptLoading || t == null
+            ? context.tr('正在读取历史记录…')
+            : t.messages.isEmpty
+                ? context.tr('这条会话在磁盘上没有可回放的消息。')
+                : context.tr('已恢复历史 · {0} · {1} 条{2} —— 直接接着问就行', [
+                    title == null || title.trim().isEmpty
+                        ? '会话 ${_shortId(_sessionId)}'
+                        : title.trim(),
+                    t.total,
+                    t.capped > 0 ? '（另有 ${t.capped} 条更早的未显示）' : '',
+                  ]);
 
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(
           DshMetrics.pagePad, 6, DshMetrics.pagePad, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
         color: DshColors.surface,
         borderRadius: BorderRadius.circular(DshMetrics.radius(10)),
         border: Border.all(color: DshColors.divider, width: 0.8),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Semantics(
-            button: true,
-            label: context.tr('历史记录'),
-            child: InkWell(
-              onTap: (t == null || t.messages.isEmpty)
-                  ? null
-                  : () => setState(() => _historyOpen = !_historyOpen),
-              borderRadius: BorderRadius.circular(DshMetrics.radius(10)),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-                child: Row(
-                  children: [
-                    Icon(
-                      _transcriptError != null
-                          ? Icons.error_outline
-                          : Icons.history,
-                      size: 14,
-                      color: _transcriptError != null
-                          ? DshColors.err
-                          : DshColors.accent,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _transcriptError != null
-                              ? DshColors.err
-                              : DshColors.textDim,
-                          fontSize: 11,
-                          height: 1.45,
-                        ),
-                      ),
-                    ),
-                    if (t != null && t.messages.isNotEmpty)
-                      Icon(
-                        _historyOpen ? Icons.expand_less : Icons.expand_more,
-                        size: 16,
-                        color: DshColors.textDim,
-                      ),
-                  ],
-                ),
+          Icon(
+            _transcriptError != null ? Icons.error_outline : Icons.history,
+            size: 14,
+            color: _transcriptError != null ? DshColors.err : DshColors.accent,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color:
+                    _transcriptError != null ? DshColors.err : DshColors.textDim,
+                fontSize: 11,
+                height: 1.45,
               ),
             ),
           ),
-          if (_historyOpen && t != null && t.messages.isNotEmpty)
-            Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.45,
-              ),
-              decoration: BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: DshColors.divider, width: 0.5)),
-              ),
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(11, 6, 11, 10),
-                shrinkWrap: true,
-                itemCount: t.messages.length + 1,
-                itemBuilder: (context, i) {
-                  if (i == t.messages.length) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        context.tr('以上是磁盘上的历史记录（只读回放）。{0}模型的上下文已经恢复，直接接着问就行。',
-                            [t.capped > 0 ? '另有 ${t.capped} 条更早的未显示。' : '']),
-                        style: TextStyle(
-                          color: DshColors.textFaint,
-                          fontSize: 10,
-                          height: 1.5,
-                        ),
-                      ),
-                    );
-                  }
-                  final m = t.messages[i];
-                  // `notice` 是 App 侧补的"这次没回上来 + 原因"（缺陷 C），
-                  // 画成失败提示 —— **不能**画成助手回答，那会变成"模型说了这句"的假象。
-                  final label = m.isNotice
-                      ? context.tr('没有回答')
-                      : m.isUser
-                          ? context.tr('你')
-                          : context.tr('助手');
-                  final labelColor = m.isNotice
-                      ? DshColors.err
-                      : m.isUser
-                          ? DshColors.accent
-                          : DshColors.textDim;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            if (m.isNotice) ...[
-                              Icon(Icons.error_outline,
-                                  size: 11, color: DshColors.err),
-                              const SizedBox(width: 4),
-                            ],
-                            Text(
-                              label,
-                              style: TextStyle(
-                                color: labelColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          m.text,
-                          maxLines: 10,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: m.isNotice ? DshColors.err : DshColors.text,
-                            fontSize: 11.5,
-                            height: 1.5,
-                          ),
-                        ),
-                        // 技术细节（原始报错）：小字、暗色，默认就显示 ——
-                        // 这条本来就是给"想弄清楚为什么"的人看的。
-                        if (m.detail != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              m.detail!,
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: DshColors.textFaint,
-                                fontSize: 10,
-                                height: 1.4,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
         ],
       ),
     );
+  }
+
+  /// 把磁盘 transcript 折成消息流的形状（[ChatMessage] → [ChatMsg]）。
+  ///
+  /// `notice` 是 App 侧补的"这一轮没回上来 + 原因"（见 `session_failure_store.dart`）——
+  /// 画成**失败的助手气泡**（`failed: true`），与实时失败同一种样式。
+  /// 绝不许画成"模型说了这句话"的正常回答。
+  static List<ChatMsg> _toChatMsgs(SessionTranscript? t) {
+    if (t == null) return const <ChatMsg>[];
+    return <ChatMsg>[
+      for (final m in t.messages)
+        ChatMsg(
+          text: m.text,
+          // `notice` 走 assistant（再带 failed）—— 与实时失败同一种气泡样式：
+          // 它是"这一轮没有回答 + 原因"，不是用户说的话。
+          role: m.isUser && !m.isNotice ? ChatRole.user : ChatRole.assistant,
+          failed: m.isNotice,
+          detail: m.detail,
+        ),
+    ];
   }
 
   /// 底部输入区。

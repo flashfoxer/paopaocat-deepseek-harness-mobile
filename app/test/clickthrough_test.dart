@@ -206,7 +206,11 @@ void main() {
   });
 
   testWidgets('记忆页：能渲染、能写一条、能点增删改', (tester) async {
-    final page = MemoryPage(dshHome: paths['nodeHome'] as String);
+    final page = MemoryPage(
+      dshHome: paths['nodeHome'] as String,
+      workspacePath: '${tmp.path}/workspace',
+      runtime: DshRuntime(paths),
+    );
     await sweep(tester, '记忆页', page);
     // 这一页的核心动作是"真的写进 AGENTS.md"，所以额外验一次落盘，
     // 而不只是"点得动"（点得动但没写进去正是最糟的静默失败）。

@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 
 import '../widgets/dsh_panel.dart';
+import '../widgets/wechat_qr_block.dart';
 
 
 import '../../app_version.dart';
 import '../../i18n/app_language.dart';
+import '../../data/easter_egg.dart';
 import '../../data/media_models.dart';
 import '../../state/provider_keys.dart';
 import '../../data/configured_models.dart';
@@ -101,6 +104,9 @@ class _SettingsTabState extends State<SettingsTab> {
   /// 「模型轮换池」板块会一直显示旧清单 —— 那就成了"两个真相"。
   final ValueNotifier<int> _modelTick = ValueNotifier<int>(0);
 
+  /// 正在选/复制壁纸（选图是系统页面，回来还要复制文件，期间按钮要禁用）。
+  bool _pickingWallpaper = false;
+
   @override
   void dispose() {
     _modelTick.dispose();
@@ -135,223 +141,250 @@ class _SettingsTabState extends State<SettingsTab> {
               28,
             ),
             children: [
-              // ── 六个分区**统一收成「下拉」**（用户要求：外观、插件也做成下拉）。
-              //    设置页原本一长条，收起后一屏能看全；点标题才展开。
+              // ── 设置页**归纳成四组**（用户 2026-10-15 第 3 条原话：
+              //    「设置页面项目比较多，太长了，是不是归纳一下」）。
               //
-              // 「检查更新」**放第一位、默认展开**（2026-10-13 加）：
-              //   它是这一页里唯一跟"这台手机上的 App 本身"有关的板块，而且
-              //   "有新版本"这件事必须一眼看得见 —— 收进下拉等于没做
-              //   （用户 2026-10-13 的口径是"设置页顶部一张卡片"）。
-              DshCollapsibleSection(
-                title: context.tr('检查更新'),
-                initiallyOpen: true,
-                child: _card(
-                    child: _UpdateSection(settings: settings, runtime: runtime)),
-              ),
-              const SizedBox(height: 10),
-              DshCollapsibleSection(
-                title: context.tr('外观'),
-                child: _card(child: _appearanceSection(context, settings)),
-              ),
-              const SizedBox(height: 10),
-              DshCollapsibleSection(
-                // 用户要求：原来的「模型」改名为「云端大模型」——
-                // 因为现在还有"本机跑的模型"，两者是并列的两类，名字必须能区分。
-                title: context.tr('云端大模型'),
-                child: _card(
-                  child: ModelSettingsPanel(
-                    filesDir: runtime.filesDir,
-                    onModelChanged: onModelChanged,
-                    refreshTick: refreshTick,
-                    // 轮换池单独成了一个板块（见下方「模型轮换池」），这里不画它。
-                    showPool: false,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 「本地大模型（测试）」这一整段**早已挪走**（用户 2026-10-09），
-              // 而它挪去的那一页（底部导航第 2 项「本地大模型」）**又于 0.70 撤下**
-              // （用户 2026-10-12：「本地大模型这一块不是太成熟，把这个功能删掉先」
-              //  +「知识库也一并清理掉」；做法是**撤入口、留代码**，可逆）。
-              // ⚠️ 所以现在的情况是：`local_model_home_page` / `ondevice_models_page`
-              //    / `local_chat_page` / `kb_page` 这四页**都没有入口可达**了 ——
-              //    （唯一还推得动它们的是一条"取图被中断后把本地对话推回来"的恢复路径，
-              //     而它要求"上一次是从本地对话出发去取图"，没有入口就不可能满足）。
-              //    代码与引擎都留在原位。**不要**再在设置页里加回入口 —— 那是用户的决定；
-              //    要恢复的话是把 bottom_nav 那一项加回来（见该文件的下标说明）。
-              const SizedBox(height: 10),
-              // 「图像 / 视频模型」—— 用户 2026-10-11 的设计问题：
-              // 「模型页是否增加一个图形和视频的设置页，用户设置好后可以在影视工具里选择
-              // 图形和视频大模型」→ 加，且与会话模型**分开存**（见 data/media_models.dart）。
-              DshCollapsibleSection(
-                title: context.tr('图像 / 视频模型'),
-                child: _card(child: _MediaModelsSection(runtime: runtime)),
-              ),
-              const SizedBox(height: 10),
-              // 「免费模型（无需 Key）」= **Pollinations**（2026-10-15 新增，**默认开**）。
+              //    原来这里是 **15 个平铺的可折叠板块**（检查更新 / 外观 / 云端大模型 /
+              //    图像·视频模型 / 免费模型 / 会话联网搜索 / 子智能体 / Zen / 模型轮换池 /
+              //    专家 / 记忆 / 插件 / 手机权限 / 文件地址 / 关于）—— 全部收起也要滑两屏。
+              //    现在换成「组 → 板块」两级：4 组 + 常驻的「关于」，默认全收起时
+              //    **一屏能把 5 行看全**。
               //
-              // 为什么把它放在 Zen 前面、而且是默认开：用户对外的承诺是
-              // 「不需要填写 Key」（原话：「主要就是以前承诺过不需要填写 key」）。
-              // Zen 那条 2026-10-13/14 被上游第五次收紧之后基本已死（社区里测得最扎实的
-              // 插件都不提供它了），所以现在**这条才是那句承诺的实现**。
-              DshCollapsibleSection(
-                title: context.tr('免费模型（无需 Key）'),
-                child: _card(
-                  child: _PolliChannelBlock(
-                    runtime: runtime,
-                    settings: widget.appSettings,
-                    onModelChanged: onModelChanged,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 「会话联网搜索」= AnySearch（2026-10-15 用户选定 B 方案）。
-              //
-              // 为什么单开一节、而且放在免费模型旁边：它们同属"**不用填 Key 也能用**"
-              // 那条口径 —— 免费模型解决"能聊"，这一个解决"能查资料"。
-              DshCollapsibleSection(
-                title: context.tr('会话联网搜索'),
-                child: _card(
-                  child: _AnysearchBlock(
-                    settings: widget.appSettings,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 「子智能体」= 会话内部分工（2026-10-15 用户要的第 2 项）。
-              //
-              // 运行时里本来就带着它（`dsh-tool-subagent` 那几行挂在这个 profile 的
-              // 基础组合里），App 这边做的是"**按用户选择改钉**"：关掉、或指定子会话的模型。
-              DshCollapsibleSection(
-                title: context.tr('子智能体'),
-                child: _card(
-                  child: _SubagentBlock(
-                    runtime: widget.runtime,
-                    settings: widget.appSettings,
-                    onModelChanged: widget.onModelChanged,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // OpenCode Zen 通道：**保留成彩蛋**（默认关、界面上写明可能已失效）。
-              // 它的价值是"万一哪天上游又开了"，成本是一个开关 + 一段说明。
-              DshCollapsibleSection(
-                title: context.tr('免费模型 · OpenCode Zen（第三方通道）'),
-                child: _card(
-                  child: _ZenChannelBlock(
-                    runtime: runtime,
-                    settings: widget.appSettings,
-                    onModelChanged: onModelChanged,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 用户要求：轮换池改名为「模型轮换池」，并**单独一个板块**。
-              DshCollapsibleSection(
-                title: context.tr('模型轮换池'),
-                child: _card(
-                  child: ModelSettingsPanel(
-                    filesDir: runtime.filesDir,
-                    onModelChanged: onModelChanged,
-                    refreshTick: refreshTick,
-                    // 只画轮换池：标题与折叠交给外层 _CollapsibleSection。
-                    showModels: false,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 「专家」从底部 Tab 挪进来了（用户 2026-10-09）。
-              // 这里只放入口：真正的整页由 AppShell 推入（它才有工作区与回调）。
-              DshCollapsibleSection(
-                title: context.tr('专家'),
-                child: _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      DshRichText(
-                        context.tr('321 名专家 / 22 个分区（来自专家库）。'
-                            '开启某位专家后，他的摘要会写进 AGENTS.md，'
-                            'DSH 会在每个新会话的第一个请求前注入模型上下文 ——'
-                            '**会占上下文**，所以别一次开太多。'),
-                        style: TextStyle(
-                            color: DshColors.textFaint,
-                            fontSize: 11,
-                            height: 1.45),
+              //    ⚠️ 以后别在这一层再平铺板块：加东西请进对应的组。
+              DshGroupSection(
+                title: context.tr('模型'),
+                children: <Widget>[
+                  DshCollapsibleSection(
+                    // 用户要求：原来的「模型」改名为「云端大模型」——
+                    // 因为现在还有"本机跑的模型"，两者是并列的两类，名字必须能区分。
+                    title: context.tr('云端大模型'),
+                    child: _card(
+                      child: ModelSettingsPanel(
+                        filesDir: runtime.filesDir,
+                        onModelChanged: onModelChanged,
+                        refreshTick: refreshTick,
+                        // 轮换池单独成了一个板块（见下方「模型轮换池」），这里不画它。
+                        showPool: false,
                       ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onOpenExperts == null
-                              ? null
-                              : () => widget.onOpenExperts!(),
-                          icon: const Icon(Icons.auto_awesome, size: 16),
-                          label: Text(context.tr('打开专家中心')),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // 「记忆」：用户自己写的话，与专家开关共用 AGENTS.md 这条注入通道。
-              // 单独一个板块（不塞进「专家」里）—— 两者是不同来源的内容：
-              // 专家是"选一个现成角色"，记忆是"我自己写的偏好"。
-              DshCollapsibleSection(
-                title: context.tr('记忆'),
-                child: _card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      DshRichText(
-                        context.tr('在这里写下你希望模型**长期记住**的事（例如"回答用中文、'
-                            '先给结论"）。它会写进 AGENTS.md，DSH 在**每个新会话的第一个请求前**'
-                            '注入模型上下文；**对已经打开的会话不生效**，要新建会话。'),
-                        style: TextStyle(
-                            color: DshColors.textFaint, fontSize: 11, height: 1.45),
-                      ),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onOpenMemory == null
-                              ? null
-                              : () => widget.onOpenMemory!(),
-                          icon: const Icon(Icons.psychology_outlined, size: 16),
-                          label: Text(context.tr('打开记忆')),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 10),
+                  // 「图像 / 视频模型」—— 用户 2026-10-11 的设计问题：
+                  // 「模型页是否增加一个图形和视频的设置页，用户设置好后可以在影视工具里选择
+                  // 图形和视频大模型」→ 加，且与会话模型**分开存**（见 data/media_models.dart）。
+                  DshCollapsibleSection(
+                    title: context.tr('图像 / 视频模型'),
+                    child: _card(child: _MediaModelsSection(runtime: runtime)),
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  // 用户要求：轮换池改名为「模型轮换池」，并**单独一个板块**。
+                  DshCollapsibleSection(
+                    title: context.tr('模型轮换池'),
+                    child: _card(
+                      child: ModelSettingsPanel(
+                        filesDir: runtime.filesDir,
+                        onModelChanged: onModelChanged,
+                        refreshTick: refreshTick,
+                        // 只画轮换池：标题与折叠交给外层 _CollapsibleSection。
+                        showModels: false,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // 「免费模型（无需 Key）」= **Pollinations**（2026-10-15 新增，**默认开**）。
+                  //
+                  // 为什么它排在最显眼的位置、而且是默认开：用户对外的承诺是
+                  // 「不需要填写 Key」（原话：「主要就是以前承诺过不需要填写 key」）。
+                  // Zen 那条 2026-10-13/14 被上游第五次收紧之后基本已死（社区里测得最扎实的
+                  // 插件都不提供它了），所以现在**这条才是那句承诺的实现**。
+                  DshCollapsibleSection(
+                    title: context.tr('免费模型（无需 Key）'),
+                    child: _card(
+                      child: _PolliChannelBlock(
+                        runtime: runtime,
+                        settings: widget.appSettings,
+                        onModelChanged: onModelChanged,
+                      ),
+                    ),
+                  ),
+                  // ⚠️ **彩蛋**：OpenCode Zen 那条通道从列表里撤掉，改成
+                  //    **连点首页那只猫 6 下**才解锁（用户 2026-10-15 指定：
+                  //    「zen 这个设置还是你说的，作为一个彩蛋吧」+「菜单是连点 6 下
+                  //    猫咪就会出现」）。
+                  //
+                  //    为什么收起来：这条通道 4 天内被上游改了 4 次、现在基本不可用
+                  //    （社区里最扎实的那个插件都放弃它了）。它留在明面上只会让人
+                  //    "配了却用不了"。留成彩蛋 = 成本一个开关，万一哪天上游又开了还能用。
+                  ListenableBuilder(
+                    listenable: EasterEggStore.instance,
+                    builder: (context, _) {
+                      if (!EasterEggStore.instance.zenUnlocked) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                          const SizedBox(height: 10),
+                          DshCollapsibleSection(
+                            title: context.tr('实验通道 · OpenCode Zen（第三方通道）'),
+                            child: _card(
+                              child: _ZenChannelBlock(
+                                runtime: runtime,
+                                settings: widget.appSettings,
+                                onModelChanged: onModelChanged,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              DshCollapsibleSection(
-                title: context.tr('插件'),
-                child: _card(child: _pluginsSection()),
+              DshGroupSection(
+                title: context.tr('AI 能力'),
+                children: <Widget>[
+                  // 「会话联网搜索」= AnySearch（2026-10-15 用户选定 B 方案）。
+                  //
+                  // 为什么和「免费模型」分开成两组：它们同属"**不用填 Key 也能用**"
+                  // 那条口径 —— 免费模型解决"能聊"，这一个解决"能查资料"。
+                  DshCollapsibleSection(
+                    title: context.tr('会话联网搜索'),
+                    child: _card(child: _AnysearchBlock(settings: widget.appSettings)),
+                  ),
+                  const SizedBox(height: 10),
+                  // 「子智能体」= 会话内部分工（2026-10-15 用户要的第 2 项）。
+                  //
+                  // 运行时里本来就带着它（`dsh-tool-subagent` 那几行挂在这个 profile 的
+                  // 基础组合里），App 这边做的是"**按用户选择改钉**"：关掉、或指定子会话的模型。
+                  DshCollapsibleSection(
+                    title: context.tr('子智能体'),
+                    child: _card(
+                      child: _SubagentBlock(
+                        runtime: widget.runtime,
+                        settings: widget.appSettings,
+                        onModelChanged: widget.onModelChanged,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // 「专家」从底部 Tab 挪进来了（用户 2026-10-09）。
+                  // 这里只放入口：真正的整页由 AppShell 推入（它才有工作区与回调）。
+                  DshCollapsibleSection(
+                    title: context.tr('专家'),
+                    child: _card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          DshRichText(
+                            context.tr('321 名专家 / 22 个分区（来自专家库）。'
+                                '开启某位专家后，他的摘要会写进 AGENTS.md，'
+                                'DSH 会在每个新会话的第一个请求前注入模型上下文 ——'
+                                '**会占上下文**，所以别一次开太多。'),
+                            style: TextStyle(
+                                color: DshColors.textFaint,
+                                fontSize: 11,
+                                height: 1.45),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: widget.onOpenExperts == null
+                                  ? null
+                                  : () => widget.onOpenExperts!(),
+                              icon: const Icon(Icons.auto_awesome, size: 16),
+                              label: Text(context.tr('打开专家中心')),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // 「记忆」：用户自己写的话 + **从会话里自动提炼的候选**，与专家开关
+                  // 共用 AGENTS.md 这条注入通道。单独一个板块（不塞进「专家」里）——
+                  // 两者是不同来源的内容：专家是"选一个现成角色"，记忆是"我自己的事"。
+                  DshCollapsibleSection(
+                    title: context.tr('记忆'),
+                    child: _card(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          DshRichText(
+                            context.tr('让模型**长期记住**你的事（身份、偏好、项目事实、禁忌）：'
+                                '可以自己写，也可以从最近的会话里**自动提炼**候选、由你确认。'
+                                '它写进 AGENTS.md，DSH 在**每个新会话的第一个请求前**注入模型上下文；'
+                                '**对已经打开的会话不生效**，要新建会话。'),
+                            style: TextStyle(
+                                color: DshColors.textFaint, fontSize: 11, height: 1.45),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: widget.onOpenMemory == null
+                                  ? null
+                                  : () => widget.onOpenMemory!(),
+                              icon: const Icon(Icons.psychology_outlined, size: 16),
+                              label: Text(context.tr('打开记忆')),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              DshCollapsibleSection(
-                title: context.tr('手机权限'),
-                child: _card(child: _PermissionsSection(settings: widget.appSettings)),
+              DshGroupSection(
+                title: context.tr('外观与语言'),
+                children: <Widget>[
+                  DshCollapsibleSection(
+                    title: context.tr('外观'),
+                    child: _card(child: _appearanceSection(context, settings)),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
-              // 用户要求：原来的「关于」改名「文件地址」（它本来列的就是各种路径），
-              // 「关于」另起一块，放求关注文案 + 公众号二维码 + 公众号 ID。
-              DshCollapsibleSection(
-                title: context.tr('文件地址'),
-                child: _card(child: _locationsSection()),
+              DshGroupSection(
+                title: context.tr('应用'),
+                children: <Widget>[
+                  DshCollapsibleSection(
+                    title: context.tr('插件'),
+                    child: _card(child: _pluginsSection()),
+                  ),
+                  const SizedBox(height: 10),
+                  DshCollapsibleSection(
+                    title: context.tr('手机权限'),
+                    child: _card(
+                        child: _PermissionsSection(settings: widget.appSettings)),
+                  ),
+                  const SizedBox(height: 10),
+                  // 用户要求：原来的「关于」改名「文件地址」（它本来列的就是各种路径），
+                  // 「关于」另起一块，放求关注文案 + 公众号二维码 + 公众号 ID。
+                  DshCollapsibleSection(
+                    title: context.tr('文件地址'),
+                    child: _card(child: _locationsSection()),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               // 「关于」**常驻展开、不做下拉**（用户要求：关于不能收缩）。
               // 它放的是公众号二维码、联系方式这类"想让人一眼看到"的东西，
               // 收进下拉反而要多点一次。标题样式与可折叠的那些保持一致
               // （同样加粗加大），所以视觉上仍是一组。
-              // 用户反馈：标题与这张卡贴得太紧。改用 DshStaticSection ——
-              // 它与可折叠板块共用同一套标题内边距（10/10），节奏才对得上。
+              //
+              // ⚠️ 0.75：「检查更新」**并入这里**（用户 2026-10-15：
+              //    「把检查更新并到关于里，放到更新说明的上边」）——
+              //    它本来就是"这台手机上的 App 自己"的事，和「更新说明」是同一件事的
+              //    两半（一个查新、一个看历史），放一起才合逻辑。
               DshStaticSection(
                 title: context.tr('关于'),
-                child: DshGlassCard(child: _aboutSection(context)),
+                child: DshGlassCard(
+                  child: _aboutSection(context, settings, runtime),
+                ),
               ),
             ],
           ),
@@ -366,6 +399,123 @@ class _SettingsTabState extends State<SettingsTab> {
   /// （更亮的半透明层）是同一套写法，只有令牌不同。
   /// 玻璃卡：统一走共享组件 `DshGlassCard`（与「本地大模型」页同一份实现）。
   Widget _card({required Widget child}) => DshGlassCard(child: child);
+
+  /// 选一张壁纸：系统相册 → **复制进 App 私有目录** → 落盘路径。
+  ///
+  /// ⚠️ 为什么必须复制一份（不是直接存相册那个 URI）：
+  ///   * 相册里的图用户随时会删/移动，那时背景会毫无征兆地变空；
+  ///   * `Image.file` 要的是**真实文件路径**，而系统选择器给回来的 URI
+  ///     在 App 重启后可能就无效了（没有持久化 URI 授权）。
+  /// 复制进 `<filesDir>/wallpaper/` 之后，这张图就归 App 管了。
+  Future<void> _pickWallpaper(AppSettings settings) async {
+    if (_pickingWallpaper) return;
+    setState(() => _pickingWallpaper = true);
+    try {
+      final picked = await DshHost.pickAttachment('media');
+      // 用户取消：什么都不做（不弹"失败"，取消不是失败）。
+      if (picked == null || picked.trim().isEmpty) return;
+      final src = File(picked);
+      if (!src.existsSync()) {
+        if (mounted) {
+          _toast(context.tr('这张图读不到了（可能刚被删除或移动），换一张试试。'));
+        }
+        return;
+      }
+      final ext = _imageExt(picked);
+      final dir = Directory('${widget.runtime.filesDir}/wallpaper');
+      if (!dir.existsSync()) dir.createSync(recursive: true);
+      final dest =
+          '${dir.path}/wallpaper-${DateTime.now().millisecondsSinceEpoch}$ext';
+      await src.copy(dest);
+      final old = settings.wallpaperPath;
+      await settings.setWallpaper(dest);
+      // 换成功后把上一张删掉 —— 不然每换一次就多占几 MB 私有空间。
+      if (old.trim().isNotEmpty && old != dest) {
+        try {
+          final f = File(old);
+          if (f.existsSync()) f.deleteSync();
+        } catch (e) {
+          debugPrint('[dsh-settings] 删旧壁纸失败（不影响使用）：$e');
+        }
+      }
+      if (mounted) _toast(context.tr('壁纸已换上。'));
+    } catch (e) {
+      if (mounted) _toast(context.tr('换壁纸失败：{0}', ['$e']));
+    } finally {
+      if (mounted) setState(() => _pickingWallpaper = false);
+    }
+  }
+
+  /// 不用壁纸：清掉设置，并把这几个文件删掉（不占空间）。
+  Future<void> _clearWallpaper(AppSettings settings) async {
+    final old = settings.wallpaperPath;
+    await settings.setWallpaper('');
+    if (old.trim().isNotEmpty) {
+      try {
+        final f = File(old);
+        if (f.existsSync()) f.deleteSync();
+      } catch (e) {
+        debugPrint('[dsh-settings] 删壁纸文件失败：$e');
+      }
+    }
+    if (mounted) _toast(context.tr('已不用壁纸。'));
+  }
+
+  /// 从文件名取扩展名（只认几个图片后缀；认不出来按 .jpg）。
+  static String _imageExt(String path) {
+    final dot = path.lastIndexOf('.');
+    if (dot <= 0 || dot == path.length - 1) return '.jpg';
+    final ext = path.substring(dot).toLowerCase();
+    const ok = <String>['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp'];
+    return ok.contains(ext) ? ext : '.jpg';
+  }
+
+  /// 壁纸在界面上的短名字（只显示文件名 —— 完整绝对路径又长又没意义）。
+  static String _wallpaperShortName(String path) {
+    final i = path.lastIndexOf('/');
+    return i < 0 ? path : path.substring(i + 1);
+  }
+
+  /// 一个「标签 + 滑块 + 当前值」的行（壁纸的变暗 / 模糊用）。
+  Widget _sliderRow({
+    required String label,
+    required String note,
+    required double value,
+    required double max,
+    required ValueChanged<double> onChanged,
+  }) {
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 34,
+          child: Text(label,
+              style: TextStyle(color: DshColors.textDim, fontSize: 12)),
+        ),
+        Expanded(
+          child: Slider(
+            value: value.clamp(0.0, max),
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(
+          width: 46,
+          child: Text(
+            note,
+            textAlign: TextAlign.right,
+            style: TextStyle(color: DshColors.textFaint, fontSize: 11),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 一句提示（SnackBar）。
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
 
   // ------------------------------------------------------------------ 外观
 
@@ -430,6 +580,74 @@ class _SettingsTabState extends State<SettingsTab> {
             ],
           ),
         ),
+        const SizedBox(height: 18),
+        Divider(height: 1, thickness: 1, color: DshColors.line),
+        const SizedBox(height: 16),
+        // ── 壁纸（用户 2026-10-15 第 5 条：「外观那里建议加上一个壁纸，
+        //    用户可以上传壁纸。」）
+        //
+        //    ⚠️ 为什么必须带「变暗 / 模糊」两个滑块（不是可选装饰）：
+        //    卡片是**半透明**的，而正文颜色是跟皮肤定的 —— 用户上传什么图都可能
+        //    （白底截图、花底、夜景照片）。不压一层的话"字看不清"是必然结果，
+        //    而且会变成"用户自己的错"。这两个滑块就是把对比度交还给用户的出口，
+        //    默认值已经压到位（变暗 55% / 模糊 6dp）。
+        _rowLabel(context.tr('壁纸'),
+            context.tr('从相册选一张铺满整屏；下面两个滑块决定正文还清不清楚')),
+        const SizedBox(height: 10),
+        Row(
+          children: <Widget>[
+            FilledButton.icon(
+              onPressed: _pickingWallpaper ? null : () => _pickWallpaper(settings),
+              icon: Icon(settings.hasWallpaper
+                  ? Icons.image_outlined
+                  : Icons.add_photo_alternate_outlined,
+                  size: 16),
+              label: Text(settings.hasWallpaper
+                  ? context.tr('更换壁纸')
+                  : context.tr('选择壁纸')),
+            ),
+            const SizedBox(width: 10),
+            if (settings.hasWallpaper)
+              TextButton(
+                onPressed: () => _clearWallpaper(settings),
+                style: TextButton.styleFrom(foregroundColor: DshColors.textDim),
+                child: Text(context.tr('不用壁纸')),
+              ),
+            if (_pickingWallpaper) ...[
+              const SizedBox(width: 10),
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 1.6),
+              ),
+            ],
+          ],
+        ),
+        if (settings.hasWallpaper) ...<Widget>[
+          const SizedBox(height: 10),
+          Text(
+            // 如实说清"存在哪"：图被复制进 App 私有目录，用户删相册里那张不影响。
+            context.tr('已使用：{0}', [_wallpaperShortName(settings.wallpaperPath)]),
+            style: TextStyle(color: DshColors.textFaint, fontSize: 10.5),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          _sliderRow(
+            label: context.tr('变暗'),
+            note: context.tr('{0}%', ['${(settings.wallpaperDim * 100).round()}']),
+            value: settings.wallpaperDim,
+            max: 0.9,
+            onChanged: (v) => settings.setWallpaperDim(v),
+          ),
+          const SizedBox(height: 6),
+          _sliderRow(
+            label: context.tr('模糊'),
+            note: context.tr('{0} dp', ['${settings.wallpaperBlur.round()}']),
+            value: settings.wallpaperBlur,
+            max: 20,
+            onChanged: (v) => settings.setWallpaperBlur(v),
+          ),
+        ],
         const SizedBox(height: 18),
         Divider(height: 1, thickness: 1, color: DshColors.line),
         const SizedBox(height: 16),
@@ -683,7 +901,7 @@ class _SettingsTabState extends State<SettingsTab> {
   ///
   /// ⚠️ 下面那段话是用户**原话**，逐字照抄（含 `：）`）—— 不要改写、不要"优化"语气、
   /// 不要补标点。用户改过一次文案，以这里最新的为准。
-  Widget _aboutSection(BuildContext context) {
+  Widget _aboutSection(BuildContext context, AppSettings settings, DshRuntime runtime) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -694,14 +912,11 @@ class _SettingsTabState extends State<SettingsTab> {
         const SizedBox(height: 16),
         // 皮肤是运行时变量：这一处不能 const（const 实例换肤时会被原样复用、颜色不刷新）
         // ignore: prefer_const_constructors
-        Center(child: _QrBlock()),
-        const SizedBox(height: 6),
-        // 把"长按能干什么"写出来 —— 手势是隐式的，不写没人知道（用户第 8 条要的
-        // 是"长按弹出扫描"，那就得先让人知道可以长按）。
-        Text(
-          context.tr('长按上面的二维码 → 直接唤起微信扫一扫'),
-          style: TextStyle(color: DshColors.textFaint, fontSize: 11),
-        ),
+        // ⚠️ 0.75：长按**不再只做"唤起微信扫一扫"**（用户 2026-10-15 第 6 条：
+        //    长按后弹出来的是微信自己的「对不起，当前页面无法访问」）。
+        //    新的 `WechatQrBlock` 长按出三条动作：复制公众号 ID / 存到相册 /
+        //    仍然试一次唤起 —— 并**如实**说每条的结果。它自带下面那行提示。
+        Center(child: WechatQrBlock(filesDir: runtime.filesDir)),
         const SizedBox(height: 8),
         Center(
           child: SelectableText(
@@ -736,7 +951,23 @@ class _SettingsTabState extends State<SettingsTab> {
                 color: DshColors.textFaint, fontSize: 11, height: 1.5),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
+        Divider(height: 1, thickness: 0.5, color: DshColors.line),
+        const SizedBox(height: 12),
+        // ── 「检查更新」就在这里（用户 2026-10-15：
+        //    「把检查更新并到关于里，放到更新说明的上边」）。
+        //
+        //    为什么它和「更新说明」应该挨着：一件是**查有没有新版**（并能直接下载安装），
+        //    另一件是**看每个版本改了什么** —— 同一件事的两半。以前它是设置页第一块、
+        //    离「关于」隔着十几个板块，用户要在两处之间来回滑。
+        //
+        //    ⚠️ 它原来是 `DshCollapsibleSection`（默认展开）里的一张卡；并进「关于」后
+        //    不再单独套卡（「关于」本身就是一张卡），所以这里直接放组件。
+        //    链接 `KeepAlive` 的坑与它无关：它自己的 State 只活在本次进程内。
+        _UpdateSection(settings: settings, runtime: runtime),
+        const SizedBox(height: 14),
+        Divider(height: 1, thickness: 0.5, color: DshColors.line),
+        const SizedBox(height: 10),
         // 「更新说明」入口（用户原话：关于那一块加个更新说明的按钮，点开能看到各个版本，
         // 点版本号就看到那版改了什么）。点开是**整页**而不是弹层：版本多了弹层会被憋住。
         // 记录本身是写死的文字（`data/changelog.dart`），不联网、不暗示"检查更新"。
@@ -1506,94 +1737,6 @@ class _SpeechCheckState extends State<_SpeechCheck> {
             ),
         ],
       ],
-    );
-  }
-}
-
-/// 公众号二维码（含**长按唤起微信扫一扫**，用户 2026-10-15 第 8 条）。
-///
-/// ## 长按做什么
-///
-/// 调原生 `openWechatScan()`（`weixin://dl/scan`）把**微信的扫一扫**叫起来，
-/// 用户对着屏幕上这张二维码扫即可 —— App 自己不做相机扫码（那要加相机权限 +
-/// CameraX + 识别库，而微信本来就有扫一扫）。
-///
-/// ## 三种结果都如实说
-///
-///   * 成功拉起 → 提示"已打开微信扫一扫，对它扫一下就行"；
-///   * 没装微信 → 提示"这台机器上没找到微信，可以自己打开微信扫一扫"；
-///   * 被系统拦 → 提示失败原因。
-///
-/// **绝不说"已进入公众号"** —— App 只能把微信叫起来，进不进得去由微信决定。
-class _QrBlock extends StatelessWidget {
-  const _QrBlock();
-
-  static const String assetPath = 'assets/images/wechat_qr.png';
-
-  Future<void> _longPress(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
-    // ⚠️ 三句文案**必须在 await 之前取**：await 之后再用 `context.tr` 会踩
-    // `use_build_context_synchronously`（页面可能已经不在树上）。
-    final okMsg = context.tr('已打开微信扫一扫 —— 对着上面这张二维码扫一下就行。');
-    final noWxMsg = context.tr('这台机器上没找到微信，可以自己打开微信扫一扫再扫这张图。');
-    final failTemplate = context.tr('没能唤起微信（{0}），可以自己打开微信扫一扫。');
-    String msg;
-    try {
-      final r = await DshHost.openWechatScan();
-      msg = r == 'ok'
-          ? okMsg
-          : r == 'no_wechat'
-              ? noWxMsg
-              : _fill(failTemplate, r);
-    } catch (e) {
-      msg = _fill(failTemplate, '$e');
-    }
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      // 让整块（含白底内边距）都能长按，不用精确戳到图
-      behavior: HitTestBehavior.opaque,
-      onLongPress: () => _longPress(context),
-      child: _qrCard(context),
-    );
-  }
-
-  Widget _qrCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(DshMetrics.radius(12)),
-        border: Border.all(color: DshColors.divider, width: 0.8),
-      ),
-      child: Image.asset(
-        assetPath,
-        width: 156,
-        height: 156,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) => SizedBox(
-          width: 156,
-          height: 156,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              // 开发者会看到这个（用户正常看不到）：说明图该放哪儿。
-              child: Text(
-                context.tr('二维码待放入\nassets/images/wechat_qr.png\n放入后重新构建'),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.black38, fontSize: 11, height: 1.6),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

@@ -86,6 +86,36 @@ void main() {
     }
   });
 
+  /// 输入框的对比度门禁（用户 2026-10-15 反馈：
+  /// 「面板透明度太高……输入文字的时候和底版混在一起看不清」）。
+  ///
+  /// 这条测试钉的是**根因**，不是"看着还行"：深色皮肤的 `surface` 只有 7% 白，
+  /// 拿它当输入框底时，文字实际上是压在页面渐变上的。现在输入框统一用不透明的
+  /// `fieldFill`，所以要把"文字 vs 输入框底"这一对单独算出来。
+  group('输入框填充（fieldFill）必须是不透明的实底', () {
+    for (final p in DshPalettes.all) {
+      test('${p.id}：fieldFill 不透明', () {
+        expect(p.fieldFill.a, 1.0,
+            reason: '${p.id}.fieldFill 必须完全不透明 —— 半透就是"和底版混在一起"');
+      });
+
+      test('${p.id}：正文压在 fieldFill 上过 AA', () {
+        expect(contrast(p.text, p.fieldFill), greaterThanOrEqualTo(aaNormal),
+            reason: '${p.id}：输入框里的字读不清');
+        expect(contrast(p.textFaint, p.fieldFill),
+            greaterThanOrEqualTo(aaNormal),
+            reason: '${p.id}：占位/提示文字压在输入框底上不到 4.5');
+      });
+
+      test('${p.id}：输入框描边在填充上有可见度', () {
+        // 框的"边界"由描边交代 —— 不要靠把输入框底调亮来区分（那样会把
+        // 占位文字 textFaint 的对比度压到 4.5 以下，实测 4.44）。
+        expect(contrast(p.line, p.fieldFill), greaterThan(1.15),
+            reason: '${p.id}：描边和输入框底同色，用户看不出"框在哪"');
+      });
+    }
+  });
+
   group('公式本身对不对（拿 WCAG 的已知值校准）', () {
     test('黑/白 = 21:1', () {
       expect(contrast(const Color(0xFF000000), const Color(0xFFFFFFFF)),

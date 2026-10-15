@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'data/easter_egg.dart';
 import 'data/builtin_skills.dart';
 import 'data/configured_models.dart';
 import 'data/expert_store.dart';
@@ -114,6 +115,9 @@ class _DshMobileAppState extends State<DshMobileApp> {
   void initState() {
     super.initState();
     _appSettings.load();
+    // 彩蛋状态（连点首页那只猫 6 下解锁的那条实验通道）。**必须在这里读**：
+    // 设置页是按需构建的，等它被打开再读就来不及"多出一块设置"了。
+    EasterEggStore.instance.load();
   }
 
   @override
@@ -180,6 +184,12 @@ class _DshMobileAppState extends State<DshMobileApp> {
                   DshGridBackground(
                     bgColor: DshColors.bg,
                     glowColor: DshColors.bgGlow,
+                    // 用户自选的壁纸（外观 → 壁纸）。空 = 不用。
+                    // 压暗强度与模糊也都是用户可调的（见设置页那三个控件）——
+                    // 它们不是装饰：卡片是半透明的，正文的对比度靠这层压暗兜住。
+                    wallpaperPath: _appSettings.wallpaperPath,
+                    wallpaperDim: _appSettings.wallpaperDim,
+                    wallpaperBlur: _appSettings.wallpaperBlur,
                     // 像素皮肤多一层扫描线（其余皮肤保持"干净的近黑底 + 柔光"，
                     // 用户当年明确否掉过网格线，别把它加回来）。
                     scanlines: DshMetrics.pixelStyle,

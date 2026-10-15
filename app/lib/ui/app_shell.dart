@@ -266,11 +266,19 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  /// 打开「记忆」整页（用户自己写的长期偏好，落在 AGENTS.md 里）。
+  /// 打开「记忆」整页（长期偏好 + **从会话自动提炼的候选**）。
+  ///
+  /// ⚠️ 工作区路径**当场取**：记忆条目可以限定"只在某个工作区生效"，而工作区能在
+  /// 别的页面被切走 —— 传一个缓存的路径进去，用户切完工作区再进来就会写错作用域。
   Future<void> _openMemoryPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => MemoryPage(dshHome: _runtime.nodeHome),
+        builder: (_) => MemoryPage(
+          dshHome: _runtime.nodeHome,
+          workspacePath: _ws.current.path,
+          workspaceLabel: _workspaceLabelFor(_ws.current.path),
+          runtime: _runtime,
+        ),
       ),
     );
     if (!mounted) return;
@@ -299,6 +307,25 @@ class _AppShellState extends State<AppShell> {
 
   /// 对话页的 key 序号：每开一页对话就 +1，保证不会复用上一个会话的状态。
   int _taskSeq = 0;
+
+  /// **当前压在栈上的那一个会话页**（没有就是 null）。
+  ///
+  /// ## 为什么必须记住它（用户 2026-10-15 第 2 条）
+  ///
+  /// 用户原话：「同时在几个会话里恢复切换，再点其他功能发现出来的是会话。」
+  ///
+  /// 真机日志里就是现场：`open workspace page` → `open chat page(resume=A)`
+  /// → `open workspace page` → `open chat page(resume=B)` 这样来回四轮。
+  /// 成因是「工作区页里点一条会话」的动作 = `pop()`（关掉工作区页）**紧接着
+  /// 又 push 一个会话页**，而**底下那个旧会话页从来没被关掉** —— 于是会话页
+  /// 一层层叠起来。你在最上面那层点底部导航，它 `pop(i)` 只弹掉最上面一层，
+  /// **露出来的是下面那个会话页**（不是首页），所以要点好几次才回到想去的地方
+  /// （日志 16:40:26/27/28 连着三次「返回：关掉当前页」）。
+  ///
+  /// 现在改成：`_openChat` 进来先把上一个会话页**摘掉**（[NavigatorState.removeRoute]，
+  /// 不走返回动画、也不会误伤别的页面），保证任何时刻栈上**最多一个会话页**。
+  /// 它只管页面，进程仍然归 [SessionRegistry]，摘掉页面不会打断正在跑的回答。
+  Route<Object?>? _chatRoute;
 
   /// 首页顶栏状态行显示的工作区路径（用来判断要不要重建，避免无谓 setState）
   String _wsLabel = '';
@@ -452,34 +479,47 @@ class _AppShellState extends State<AppShell> {
       'resume=${resumeSessionId ?? '-'} cwd=$ws)',
     );
     _taskSeq++;
-    final result = await Navigator.of(context).push<Object?>(
-      MaterialPageRoute<Object?>(
-        builder: (_) => ChatPage(
-          key: ValueKey('chat-$_taskSeq'),
-          runtime: _runtime,
-          models: widget.models,
-          // 会话进程归壳层所有：会话页被 pop 掉时不再杀进程，
-          // 切页不会打断正在生成的回答（用户意见①）。
-          sessions: _liveSessions,
-          onOpenSettings: widget.onOpenSettings,
-          initialText: initialText,
-          workspacePath: ws,
-          workspaceLabel: _workspaceLabelFor(ws),
-          resumeSessionId: resumeSessionId,
-          // 会话里要不要挂联网搜索（AnySearch）。默认开 —— 匿名可用、不用填 Key。
-          anysearchEnabled: widget.appSettings.anysearchEnabled,
-          // 思考块怎么显示（设置 → 外观）。壳层本来就因为皮肤/字号在监听设置，
-          // 所以设置一改这里就跟着重建，不需要再造一个全局镜像。
-          thinkingMode: widget.appSettings.thinkingModeId,
-          onModelChanged: widget.onModelChanged,
-          // 会话页顶栏右上角的「工作区」入口 = 首页右上角那一个（同一个页面）。
-          onOpenWorkspaces: _openWorkspace,
-          onSessionUsed: ({required id, required cwd, required title}) {
-            _ws.noteSession(id: id, cwd: cwd, title: title);
-          },
-        ),
+    // 栈上已经有会话页 → 先摘掉它，绝不让两层会话页叠着（见 [_chatRoute] 的注释）。
+    // 用 removeRoute 而不是 pop：pop 会播返回动画、还会把"用户按了返回"的语义
+    // 混进上一次 _openChat 的返回值里；这里只是把它挪走。
+    final stale = _chatRoute;
+    if (stale != null) {
+      _chatRoute = null;
+      debugPrint('[dsh-nav] 摘掉上一层会话页（只允许一个会话页在栈上）');
+      Navigator.of(context).removeRoute(stale);
+      if (!mounted) return;
+    }
+    final route = MaterialPageRoute<Object?>(
+      builder: (_) => ChatPage(
+        key: ValueKey('chat-$_taskSeq'),
+        runtime: _runtime,
+        models: widget.models,
+        // 会话进程归壳层所有：会话页被 pop 掉时不再杀进程，
+        // 切页不会打断正在生成的回答（用户意见①）。
+        sessions: _liveSessions,
+        onOpenSettings: widget.onOpenSettings,
+        initialText: initialText,
+        workspacePath: ws,
+        workspaceLabel: _workspaceLabelFor(ws),
+        resumeSessionId: resumeSessionId,
+        // 会话里要不要挂联网搜索（AnySearch）。默认开 —— 匿名可用、不用填 Key。
+        anysearchEnabled: widget.appSettings.anysearchEnabled,
+        // 思考块怎么显示（设置 → 外观）。壳层本来就因为皮肤/字号在监听设置，
+        // 所以设置一改这里就跟着重建，不需要再造一个全局镜像。
+        thinkingMode: widget.appSettings.thinkingModeId,
+        onModelChanged: widget.onModelChanged,
+        // 会话页顶栏右上角的「工作区」入口 = 首页右上角那一个（同一个页面）。
+        onOpenWorkspaces: _openWorkspace,
+        onSessionUsed: ({required id, required cwd, required title}) {
+          _ws.noteSession(id: id, cwd: cwd, title: title);
+        },
       ),
     );
+    _chatRoute = route;
+    final result = await Navigator.of(context).push<Object?>(route);
+    // 只有"还是我这一页"时才清空 —— 否则会把新一页的登记抹掉
+    //（旧页被移除时它的 await 也会回来一次）。
+    if (identical(_chatRoute, route)) _chatRoute = null;
     if (!mounted) return;
     // 对话页里点了别的 Tab → 它 pop 回的是目标下标；
     // 附件菜单的「使用技能」/「定时任务」会多带一个 expertTab 子页请求。

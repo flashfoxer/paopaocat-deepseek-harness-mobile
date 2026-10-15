@@ -174,10 +174,24 @@ for (const line of text.split('\n')) {
   if (t === 'user/message') {
     const content = (o.data && o.data.content) || [];
     const parts = [];
+    let onlyReminders = true;
     for (const c of content) {
-      if (c && c.type === 'text' && typeof c.text === 'string') parts.push(c.text);
-      else if (c && c.type === 'file') parts.push('[附件: ' + ((c.attachment && c.attachment.name) || '文件') + ']');
+      if (c && c.type === 'text' && typeof c.text === 'string') {
+        // ⚠️ DSH 会把 <system-reminder>（工作区说明、当前策略这类**运行时注入**的内容）
+        //    作为**一条独立的 user/message** 写进会话文件。它不是用户说的话，回放出来
+        //    会让人以为"谁替我发了这段"；而且它会让同一句用户消息在 磁盘/内存 两份里
+        //    文本对不上（chat_page 的 _mergedMessages 按「角色+正文」去重，对不上就会
+        //    把同一句话显示两遍）。所以这类内容整条丢掉。
+        if (c.text.trimStart().indexOf('<system-reminder>') === 0) continue;
+        onlyReminders = false;
+        parts.push(c.text);
+      }
+      else if (c && c.type === 'file') {
+        onlyReminders = false;
+        parts.push('[附件: ' + ((c.attachment && c.attachment.name) || '文件') + ']');
+      }
     }
+    if (onlyReminders) continue;
     const s = parts.join('\n').trim();
     if (s) messages.push({ role: 'user', text: s });
     continue;

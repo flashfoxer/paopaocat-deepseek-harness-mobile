@@ -31,7 +31,7 @@ class _ConstProbe extends StatelessWidget {
 
 void main() {
   group('三张表', () {
-    test('条目数一致，且规模对得上（1559 条界面文案）', () {
+    test('条目数一致，且规模对得上（1822 条界面文案）', () {
       // 994 这个数不是随手写的：2026-10-09 按审计 P0-11/P1-5 清过一轮漂移
       // （补 48 条漏翻 / 删 77 条陈旧 / 修 17 条换行错，三张表各自）。
       // 清理的依据是 `install/i18n/check-tables.mjs` —— 那个脚本以前**不存在**，
@@ -147,7 +147,15 @@ void main() {
       //    「这条没能发出去：会话没能建起来，可以再试一次。」（A 的兜底文案）、
       //    「没有回答」（回放里那条失败提示的标签）、
       //    「磁盘历史会话 {0} 条（其中 {1} 条是空会话，没列出来）」（A 的第二半），+4。
-      expect(kEnTable.length, 1715);
+      // ⚠️ 2026-10-15 1715 → 1822（0.75 的六项修复一起加进来的 119 条 + 删掉 12 条陈旧）：
+      //    · 设置页归纳成 4 组（模型 / AI 能力 / 外观与语言 / 应用）+ 检查更新并入「关于」
+      //    · 记忆做成完整功能（分类 / 重要度 / 作用范围 / 导入导出 / **从会话自动提炼**）
+      //    · 外观新增「壁纸」（选图 / 变暗 / 模糊）
+      //    · 二维码长按改成三条真走得通的路（复制公众号 ID / 存相册 / 仍然试一次）
+      //    · 会话历史并进消息流（不再只是只读回放框）
+      // 口径：`install/i18n/{check,rewrite}-tables.mjs` 复核 **0 漂移**，
+      //      译文写在 `install/i18n/translations-drift.json` 后由 rewrite 写盘。
+      expect(kEnTable.length, 1822);
       expect(kJaTable.length, kEnTable.length);
       expect(kKoTable.length, kEnTable.length);
     });

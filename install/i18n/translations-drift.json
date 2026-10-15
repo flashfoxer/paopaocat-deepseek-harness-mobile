@@ -3358,5 +3358,600 @@
     "en": "The runtime (~32 MB) is not inside this installer — that keeps every update from re-downloading it. Instead it is downloaded **once, on first open** (resumable), then unpacked on the device (~26,000 files). This happens once; later updates do not repeat it.",
     "ja": "実行環境（約 32 MB）はこのインストーラには入っていません —— そうしないと更新のたびに再ダウンロードになるためです。代わりに**初回起動時に一度だけ**ダウンロードし（レジューム対応）、端末内で展開します（約 26,000 ファイル）。これ一回だけで、以後の更新では不要です。",
     "ko": "실행 환경(약 32MB)은 이 설치 패키지에 들어 있지 않습니다 — 그래야 업데이트할 때마다 다시 받지 않습니다. 대신 **처음 열 때 한 번** 내려받고(이어받기 지원) 기기에서 풉니다(약 26,000개 파일). 한 번만 하면 이후 업데이트에서는 반복하지 않습니다."
+  },
+  "AI 能力": {
+    "en": "AI capabilities",
+    "ja": "AI 機能",
+    "ko": "AI 기능"
+  },
+  "一条都没加进去。": {
+    "en": "None of them were added.",
+    "ja": "1 件も追加されませんでした。",
+    "ko": "한 건도 추가되지 않았습니다."
+  },
+  "不好归类，但长期有效": {
+    "en": "Hard to categorize, but lasting",
+    "ja": "分類しにくいが長期的に有効",
+    "ko": "분류하기 어렵지만 오래 유효"
+  },
+  "不用壁纸": {
+    "en": "No wallpaper",
+    "ja": "壁紙を使わない",
+    "ko": "배경화면 사용 안 함"
+  },
+  "不要做的事": {
+    "en": "Things to avoid",
+    "ja": "やらないこと",
+    "ko": "하지 말아야 할 것"
+  },
+  "不要做的事（红线、禁忌）": {
+    "en": "Things to avoid (red lines, taboos)",
+    "ja": "やらないこと（レッドライン・禁忌）",
+    "ko": "하지 말아야 할 것(레드라인·금기)"
+  },
+  "中": {
+    "en": "Medium",
+    "ja": "中",
+    "ko": "보통"
+  },
+  "二维码已存到系统相册。下一步：微信 → 扫一扫 → 右上角相册 → 选这张图。": {
+    "en": "QR code saved to your gallery. Next: WeChat → Scan → top-right Album → pick this image.",
+    "ja": "QR コードをアルバムに保存しました。次：WeChat → スキャン → 右上のアルバム → この画像を選択。",
+    "ko": "QR 코드를 앨범에 저장했습니다. 다음: WeChat → 스캔 → 오른쪽 위 앨범 → 이 이미지 선택."
+  },
+  "仅当前工作区": {
+    "en": "This workspace only",
+    "ja": "現在のワークスペースのみ",
+    "ko": "현재 작업 공간만"
+  },
+  "仅当前工作区 · {0}": {
+    "en": "This workspace only · {0}",
+    "ja": "現在のワークスペースのみ · {0}",
+    "ko": "현재 작업 공간만 · {0}"
+  },
+  "仍然试一次唤起微信扫一扫": {
+    "en": "Still try to open WeChat's scanner",
+    "ja": "それでも WeChat のスキャンを試す",
+    "ko": "그래도 WeChat 스캔 열기 시도"
+  },
+  "从会话提炼": {
+    "en": "Extract from a session",
+    "ja": "セッションから抽出",
+    "ko": "세션에서 추출"
+  },
+  "从最近会话提炼": {
+    "en": "Extract from a recent session",
+    "ja": "最近のセッションから抽出",
+    "ko": "최근 세션에서 추출"
+  },
+  "从相册选一张铺满整屏；下面两个滑块决定正文还清不清楚": {
+    "en": "Pick one from your gallery and it fills the screen; the two sliders below decide whether text stays readable",
+    "ja": "アルバムから 1 枚選ぶと全画面に敷きます。下の 2 つのスライダーが本文の読みやすさを決めます",
+    "ko": "앨범에서 한 장을 고르면 화면을 가득 채웁니다. 아래 두 슬라이더가 본문 가독성을 결정합니다"
+  },
+  "低": {
+    "en": "Low",
+    "ja": "低",
+    "ko": "낮음"
+  },
+  "作用范围": {
+    "en": "Scope",
+    "ja": "適用範囲",
+    "ko": "적용 범위"
+  },
+  "你取消了导出 —— 文件已经生成，在 App 私有目录：{0}": {
+    "en": "You cancelled the export — the file was already created, in the app's private folder: {0}",
+    "ja": "エクスポートを中止しました —— ファイルは作成済みで、アプリ専用フォルダにあります：{0}",
+    "ko": "내보내기를 취소했습니다 — 파일은 이미 생성되어 앱 전용 폴더에 있습니다: {0}"
+  },
+  "偏好": {
+    "en": "Preferences",
+    "ja": "好み",
+    "ko": "선호"
+  },
+  "全局": {
+    "en": "Global",
+    "ja": "全体",
+    "ko": "전체"
+  },
+  "公众号 ID 已复制。去微信搜索框粘贴就能关注。": {
+    "en": "Official account ID copied. Paste it into WeChat's search box to follow.",
+    "ja": "公式アカウント ID をコピーしました。WeChat の検索欄に貼り付けてフォローできます。",
+    "ko": "공식 계정 ID를 복사했습니다. WeChat 검색창에 붙여넣으면 팔로우할 수 있습니다."
+  },
+  "关闭": {
+    "en": "Off",
+    "ja": "オフ",
+    "ko": "끄기"
+  },
+  "其它": {
+    "en": "Other",
+    "ja": "その他",
+    "ko": "기타"
+  },
+  "分类": {
+    "en": "Category",
+    "ja": "分類",
+    "ko": "분류"
+  },
+  "分类和重要度可以直接改。加入后是「全局」记忆（每个工作目录都注入）；想限定某个目录，可以在条目上再改。": {
+    "en": "You can change the category and importance right here. Added items become **global** memories (injected for every working directory); to limit one to a folder, edit it later on the entry.",
+    "ja": "分類と重要度はここで直接変えられます。追加後は**全体**の記憶になります（どの作業ディレクトリにも注入）。特定のフォルダに限りたい場合は、あとで項目側で変更してください。",
+    "ko": "분류와 중요도는 여기서 바로 바꿀 수 있습니다. 추가하면 **전체** 기억이 됩니다(모든 작업 디렉터리에 주입). 특정 폴더로 제한하려면 나중에 항목에서 수정하세요."
+  },
+  "加入记忆（{0} 条）": {
+    "en": "Add to memory ({0})",
+    "ja": "記憶に追加（{0} 件）",
+    "ko": "기억에 추가({0}건)"
+  },
+  "原始信息（排查用）": {
+    "en": "Raw details (for troubleshooting)",
+    "ja": "生の情報（調査用）",
+    "ko": "원본 정보(문제 확인용)"
+  },
+  "去微信搜索框粘贴就能关注（ID：paopaocat888）。": {
+    "en": "Paste it into WeChat's search box to follow (ID: paopaocat888).",
+    "ja": "WeChat の検索欄に貼り付けてフォローできます（ID：paopaocat888）。",
+    "ko": "WeChat 검색창에 붙여넣으면 팔로우할 수 있습니다(ID: paopaocat888)."
+  },
+  "取消提炼": {
+    "en": "Cancel extraction",
+    "ja": "抽出を中止",
+    "ko": "추출 취소"
+  },
+  "变暗": {
+    "en": "Darken",
+    "ja": "暗さ",
+    "ko": "어둡게"
+  },
+  "只列出最近的 10 条磁盘会话（没有消息的空会话不列）。": {
+    "en": "Only the 10 most recent on-disk sessions are listed (empty sessions with no messages are skipped).",
+    "ja": "ディスク上の直近 10 セッションのみ表示します（メッセージのない空のセッションは除外）。",
+    "ko": "디스크의 최근 10개 세션만 표시합니다(메시지가 없는 빈 세션은 제외)."
+  },
+  "只在这个工作目录下适用：{0}": {
+    "en": "Applies only in this working directory: {0}",
+    "ja": "この作業ディレクトリでのみ有効：{0}",
+    "ko": "이 작업 디렉터리에서만 적용: {0}"
+  },
+  "只是试一下：微信已不响应这条指令时，它会显示「页面无法访问」。": {
+    "en": "Just a try: if WeChat no longer honours this command, it will show \"Page cannot be opened\".",
+    "ja": "試すだけ：WeChat がこのコマンドに応じない場合、「ページを開けません」と表示されます。",
+    "ko": "그저 시도일 뿐입니다: WeChat이 이 명령에 응답하지 않으면 '페이지를 열 수 없음'이 표시됩니다."
+  },
+  "壁纸": {
+    "en": "Wallpaper",
+    "ja": "壁紙",
+    "ko": "배경화면"
+  },
+  "壁纸已换上。": {
+    "en": "Wallpaper applied.",
+    "ja": "壁紙を適用しました。",
+    "ko": "배경화면을 적용했습니다."
+  },
+  "复制公众号 ID": {
+    "en": "Copy official account ID",
+    "ja": "公式アカウント ID をコピー",
+    "ko": "공식 계정 ID 복사"
+  },
+  "外观与语言": {
+    "en": "Appearance & language",
+    "ja": "外観と言語",
+    "ko": "모양 및 언어"
+  },
+  "存好后在微信「扫一扫 → 右上角相册」里选这张图。": {
+    "en": "Then open \"Scan → top-right Album\" in WeChat and pick this image.",
+    "ja": "保存後、WeChat の「スキャン → 右上のアルバム」でこの画像を選んでください。",
+    "ko": "저장한 뒤 WeChat에서 '스캔 → 오른쪽 위 앨범'을 열고 이 이미지를 선택하세요."
+  },
+  "存相册没成功（{0}）。可以改用「复制公众号 ID」，或直接截屏这张二维码。": {
+    "en": "Could not save it to the gallery ({0}). You can use \"Copy official account ID\" instead, or simply screenshot this QR code.",
+    "ja": "アルバムへの保存に失敗しました（{0}）。「公式アカウント ID をコピー」を使うか、この QR コードをスクリーンショットしてください。",
+    "ko": "앨범 저장에 실패했습니다({0}). '공식 계정 ID 복사'를 쓰거나 이 QR 코드를 캡처하세요."
+  },
+  "实验通道 · OpenCode Zen（第三方通道）": {
+    "en": "Experimental lane · OpenCode Zen (third-party)",
+    "ja": "実験チャンネル · OpenCode Zen（第三者）",
+    "ko": "실험 채널 · OpenCode Zen(서드파티)"
+  },
+  "导入 / 导出": {
+    "en": "Import / export",
+    "ja": "インポート / エクスポート",
+    "ko": "가져오기 / 내보내기"
+  },
+  "导入 JSON": {
+    "en": "Import JSON",
+    "ja": "JSON をインポート",
+    "ko": "JSON 가져오기"
+  },
+  "导入失败：读不出这份文件（{0}）": {
+    "en": "Import failed: could not read this file ({0})",
+    "ja": "インポート失敗：このファイルを読めません（{0}）",
+    "ko": "가져오기 실패: 이 파일을 읽을 수 없습니다({0})"
+  },
+  "导入失败：这不是有效的 JSON（{0}）": {
+    "en": "Import failed: this is not valid JSON ({0})",
+    "ja": "インポート失敗：有効な JSON ではありません（{0}）",
+    "ko": "가져오기 실패: 올바른 JSON이 아닙니다({0})"
+  },
+  "导入失败：这份 JSON 里没有 entries 数组。": {
+    "en": "Import failed: this JSON has no entries array.",
+    "ja": "インポート失敗：この JSON に entries 配列がありません。",
+    "ko": "가져오기 실패: 이 JSON에 entries 배열이 없습니다."
+  },
+  "导入失败：顶层既不是对象也不是数组。": {
+    "en": "Import failed: the top level is neither an object nor an array.",
+    "ja": "インポート失敗：最上位がオブジェクトでも配列でもありません。",
+    "ko": "가져오기 실패: 최상위가 객체도 배열도 아닙니다."
+  },
+  "导入完成：新增 {0} 条，跳过 {1} 条重复或不合法的条目。": {
+    "en": "Import finished: {0} added, {1} skipped as duplicates or invalid.",
+    "ja": "インポート完了：{0} 件を追加、{1} 件を重複または不正としてスキップ。",
+    "ko": "가져오기 완료: {0}건 추가, {1}건은 중복 또는 잘못된 항목으로 건너뜀."
+  },
+  "导入完成：新增 {0} 条，跳过 {1} 条重复或不合法的条目；另有 {2} 条因为超出 {3} 字节预算没有导入。": {
+    "en": "Import finished: {0} added, {1} skipped as duplicates or invalid; {2} more were not imported because they exceed the {3}-byte budget.",
+    "ja": "インポート完了：{0} 件を追加、{1} 件を重複または不正としてスキップ。さらに {2} 件が {3} バイトの予算を超えるため取り込めませんでした。",
+    "ko": "가져오기 완료: {0}건 추가, {1}건은 중복 또는 잘못된 항목으로 건너뜀. 그리고 {2}건은 {3}바이트 예산을 초과해 가져오지 못했습니다."
+  },
+  "导出 JSON": {
+    "en": "Export JSON",
+    "ja": "JSON をエクスポート",
+    "ko": "JSON 내보내기"
+  },
+  "导出会把全部记忆（含分类、重要度、作用范围与总开关）存成一个 JSON 文件；导入按内容去重合并，**不会覆盖**已有条目。": {
+    "en": "Export saves all memories (including category, importance, scope and the master switch) into one JSON file; import merges by content and **never overwrites** existing entries.",
+    "ja": "エクスポートはすべての記憶（分類・重要度・適用範囲・全体スイッチを含む）を 1 つの JSON ファイルに保存します。インポートは内容で重複を除いて統合し、既存の項目を**上書きしません**。",
+    "ko": "내보내기는 모든 기억(분류·중요도·적용 범위·전체 스위치 포함)을 하나의 JSON 파일로 저장합니다. 가져오기는 내용으로 중복을 제거해 병합하며 기존 항목을 **덮어쓰지 않습니다**."
+  },
+  "导出失败：{0}": {
+    "en": "Export failed: {0}",
+    "ja": "エクスポート失敗：{0}",
+    "ko": "내보내기 실패: {0}"
+  },
+  "已不用壁纸。": {
+    "en": "Wallpaper removed.",
+    "ja": "壁紙を解除しました。",
+    "ko": "배경화면을 해제했습니다."
+  },
+  "已使用：{0}": {
+    "en": "In use: {0}",
+    "ja": "使用中：{0}",
+    "ko": "사용 중: {0}"
+  },
+  "已关闭注入。AGENTS.md 里的记忆块已移除。": {
+    "en": "Injection turned off. The memory block has been removed from AGENTS.md.",
+    "ja": "注入をオフにしました。AGENTS.md から記憶ブロックを削除しました。",
+    "ko": "주입을 껐습니다. AGENTS.md에서 기억 블록을 제거했습니다."
+  },
+  "已加入 {0} 条记忆。新建会话后生效。": {
+    "en": "Added {0} memories. They take effect in a new session.",
+    "ja": "記憶を {0} 件追加しました。新しいセッションで有効になります。",
+    "ko": "기억 {0}건을 추가했습니다. 새 세션에서 적용됩니다."
+  },
+  "已取消 —— 没有写入任何记忆。": {
+    "en": "Cancelled — nothing was written to memory.",
+    "ja": "中止しました —— 記憶には何も書き込んでいません。",
+    "ko": "취소했습니다 — 기억에 아무것도 기록하지 않았습니다."
+  },
+  "已导出：{0}": {
+    "en": "Exported: {0}",
+    "ja": "エクスポートしました：{0}",
+    "ko": "내보냈습니다: {0}"
+  },
+  "已恢复历史 · {0} · {1} 条{2} —— 直接接着问就行": {
+    "en": "History restored · {0} · {1} messages{2} — just keep asking",
+    "ja": "履歴を復元しました · {0} · {1} 件{2} —— そのまま続けて質問できます",
+    "ko": "기록을 복원했습니다 · {0} · {1}건{2} — 그대로 이어서 물어보세요"
+  },
+  "已打开注入。新建会话后生效。": {
+    "en": "Injection turned on. It takes effect in a new session.",
+    "ja": "注入をオンにしました。新しいセッションで有効になります。",
+    "ko": "주입을 켰습니다. 새 세션에서 적용됩니다."
+  },
+  "已把微信拉起来。如果它显示「页面无法访问」，说明微信不响应这条指令 —— 请改用上面两种办法（复制 ID / 存相册）。": {
+    "en": "WeChat was opened. If it shows \"Page cannot be opened\", WeChat no longer honours this command — please use the two options above (copy ID / save to gallery).",
+    "ja": "WeChat を起動しました。もし「ページを開けません」と表示されたら、WeChat はこのコマンドに応じていません —— 上の 2 つの方法（ID をコピー／アルバムに保存）をお使いください。",
+    "ko": "WeChat을 열었습니다. '페이지를 열 수 없음'이 표시되면 WeChat이 이 명령에 응답하지 않는 것입니다 — 위의 두 가지 방법(ID 복사 / 앨범에 저장)을 사용하세요."
+  },
+  "已暂停注入：AGENTS.md 里那一整块已经移除，条目还留在这里。": {
+    "en": "Injection paused: the whole block has been removed from AGENTS.md, and the entries are still here.",
+    "ja": "注入を一時停止：AGENTS.md からブロック全体を削除しました。項目はここに残っています。",
+    "ko": "주입을 일시 중지했습니다: AGENTS.md에서 블록 전체를 제거했고 항목은 그대로 남아 있습니다."
+  },
+  "已置顶。新建会话后生效。": {
+    "en": "Pinned to the top. It takes effect in a new session.",
+    "ja": "先頭に固定しました。新しいセッションで有効になります。",
+    "ko": "맨 위로 고정했습니다. 새 세션에서 적용됩니다."
+  },
+  "应用": {
+    "en": "Apps",
+    "ja": "アプリ",
+    "ko": "앱"
+  },
+  "我希望你怎么回答": {
+    "en": "How I want you to answer",
+    "ja": "どう答えてほしいか",
+    "ko": "어떻게 답해 주길 바라는지"
+  },
+  "我是谁：语言、职业、长期身份": {
+    "en": "Who I am: language, occupation, long-term identity",
+    "ja": "私は誰か：言語・職業・長期的な立場",
+    "ko": "나는 누구인지: 언어, 직업, 장기적 정체성"
+  },
+  "手动添加": {
+    "en": "Add manually",
+    "ja": "手動で追加",
+    "ko": "직접 추가"
+  },
+  "找到我了！去「设置 → 模型」看看 —— 多了一条实验通道。": {
+    "en": "Found me! Go to \"Settings → Model\" — there's an extra experimental lane.",
+    "ja": "見つけましたね！「設定 → モデル」を見てください —— 実験チャンネルが 1 つ増えています。",
+    "ko": "저를 찾았네요! '설정 → 모델'을 보세요 — 실험 채널이 하나 늘었습니다."
+  },
+  "把二维码存到相册": {
+    "en": "Save the QR code to the gallery",
+    "ja": "QR コードをアルバムに保存",
+    "ko": "QR 코드를 앨범에 저장"
+  },
+  "换壁纸失败：{0}": {
+    "en": "Could not change the wallpaper: {0}",
+    "ja": "壁紙の変更に失敗：{0}",
+    "ko": "배경화면 변경 실패: {0}"
+  },
+  "提炼出 {0} 条候选，勾选要加入的": {
+    "en": "{0} candidates extracted — tick the ones to add",
+    "ja": "{0} 件の候補を抽出しました —— 追加するものをチェックしてください",
+    "ko": "후보 {0}건을 추출했습니다 — 추가할 항목을 선택하세요"
+  },
+  "提炼失败": {
+    "en": "Extraction failed",
+    "ja": "抽出に失敗",
+    "ko": "추출 실패"
+  },
+  "提炼失败：模型没有任何输出（{0}）": {
+    "en": "Extraction failed: the model produced no output ({0})",
+    "ja": "抽出失敗：モデルが何も出力しませんでした（{0}）",
+    "ko": "추출 실패: 모델이 아무것도 출력하지 않았습니다({0})"
+  },
+  "提炼失败：模型这条通道退出码 {0}。{1}": {
+    "en": "Extraction failed: the model's channel exited with code {0}. {1}",
+    "ja": "抽出失敗：モデルのチャンネルが終了コード {0} で終了しました。{1}",
+    "ko": "추출 실패: 모델 채널이 종료 코드 {0}로 끝났습니다. {1}"
+  },
+  "提炼已取消（那条一次性进程已经终止，没有留下任何东西）。": {
+    "en": "Extraction cancelled (the one-shot process has been terminated and left nothing behind).",
+    "ja": "抽出を中止しました（一回限りのプロセスは終了済みで、何も残していません）。",
+    "ko": "추출을 취소했습니다(일회성 프로세스는 종료되었고 아무것도 남기지 않았습니다)."
+  },
+  "提炼没能跑起来：{0}": {
+    "en": "Extraction could not start: {0}",
+    "ja": "抽出を開始できませんでした：{0}",
+    "ko": "추출을 시작할 수 없습니다: {0}"
+  },
+  "提炼超时：{0} 秒内模型没有返回。可以重试，或直接手写一条。": {
+    "en": "Extraction timed out: the model did not answer within {0} seconds. You can retry, or just write one yourself.",
+    "ja": "抽出がタイムアウトしました：{0} 秒以内にモデルが応答しませんでした。再試行するか、自分で 1 件書いてください。",
+    "ko": "추출 시간 초과: {0}초 안에 모델이 응답하지 않았습니다. 다시 시도하거나 직접 한 건 작성하세요."
+  },
+  "搜索记忆（按内容或分类）": {
+    "en": "Search memories (by content or category)",
+    "ja": "記憶を検索（内容または分類）",
+    "ko": "기억 검색(내용 또는 분류)"
+  },
+  "更换壁纸": {
+    "en": "Change wallpaper",
+    "ja": "壁紙を変更",
+    "ko": "배경화면 변경"
+  },
+  "模型": {
+    "en": "Model",
+    "ja": "モデル",
+    "ko": "모델"
+  },
+  "模型没有返回任何内容。": {
+    "en": "The model returned nothing at all.",
+    "ja": "モデルが何も返しませんでした。",
+    "ko": "모델이 아무것도 반환하지 않았습니다."
+  },
+  "模型的 JSON 里没有 items 数组 —— 这次没提炼出结果。": {
+    "en": "The model's JSON has no items array — nothing was extracted this time.",
+    "ja": "モデルの JSON に items 配列がありません —— 今回は何も抽出できませんでした。",
+    "ko": "모델의 JSON에 items 배열이 없습니다 — 이번에는 아무것도 추출하지 못했습니다."
+  },
+  "模型的输出不是合法 JSON（{0}）": {
+    "en": "The model's output is not valid JSON ({0})",
+    "ja": "モデルの出力が有効な JSON ではありません（{0}）",
+    "ko": "모델의 출력이 올바른 JSON이 아닙니다({0})"
+  },
+  "模型的输出解析失败：{0}": {
+    "en": "Failed to parse the model's output: {0}",
+    "ja": "モデルの出力を解析できませんでした：{0}",
+    "ko": "모델 출력을 해석하지 못했습니다: {0}"
+  },
+  "模型的输出里找不到 JSON 结构（前 120 字：{0}）": {
+    "en": "No JSON structure found in the model's output (first 120 chars: {0})",
+    "ja": "モデルの出力に JSON 構造が見つかりません（先頭 120 文字：{0}）",
+    "ko": "모델 출력에서 JSON 구조를 찾지 못했습니다(앞 120자: {0})"
+  },
+  "模型的输出顶层既不是对象也不是数组。": {
+    "en": "The model's output is neither an object nor an array at the top level.",
+    "ja": "モデルの出力は最上位がオブジェクトでも配列でもありません。",
+    "ko": "모델 출력의 최상위가 객체도 배열도 아닙니다."
+  },
+  "模糊": {
+    "en": "Blur",
+    "ja": "ぼかし",
+    "ko": "흐리게"
+  },
+  "正在做的事、技术选型、约定": {
+    "en": "What I'm working on, technology choices, conventions",
+    "ja": "今やっていること・技術選定・取り決め",
+    "ko": "지금 하는 일, 기술 선택, 약속"
+  },
+  "正在取消（会终止这次模型调用）…": {
+    "en": "Cancelling (this will terminate the model call)…",
+    "ja": "中止しています（このモデル呼び出しを終了します）…",
+    "ko": "취소하는 중입니다(이번 모델 호출을 종료합니다)…"
+  },
+  "正在让模型提炼（最多等 {0} 秒，中途可以取消）…": {
+    "en": "Asking the model to extract (up to {0} seconds; you can cancel meanwhile)…",
+    "ja": "モデルに抽出を依頼しています（最大 {0} 秒、途中で中止できます）…",
+    "ko": "모델에 추출을 요청하는 중입니다(최대 {0}초, 중간에 취소 가능)…"
+  },
+  "正在读取磁盘上的会话列表…": {
+    "en": "Reading the on-disk session list…",
+    "ja": "ディスク上のセッション一覧を読み込み中…",
+    "ko": "디스크의 세션 목록을 읽는 중…"
+  },
+  "正在读取这条会话的历史…": {
+    "en": "Reading this session's history…",
+    "ja": "このセッションの履歴を読み込み中…",
+    "ko": "이 세션의 기록을 읽는 중…"
+  },
+  "没找到要存的二维码图片（assets/images/wechat_qr.png 不在包里），存相册这一步跳过了。": {
+    "en": "The QR image to save was not found (assets/images/wechat_qr.png is not bundled), so the gallery step was skipped.",
+    "ja": "保存する QR 画像が見つかりません（assets/images/wechat_qr.png が同梱されていません）。アルバムへの保存はスキップしました。",
+    "ko": "저장할 QR 이미지를 찾지 못했습니다(assets/images/wechat_qr.png가 패키지에 없음). 앨범 저장 단계는 건너뛰었습니다."
+  },
+  "没有匹配「{0}」的记忆。": {
+    "en": "No memory matches \"{0}\".",
+    "ja": "「{0}」に一致する記憶はありません。",
+    "ko": "'{0}'와 일치하는 기억이 없습니다."
+  },
+  "没有提炼出内容": {
+    "en": "Nothing was extracted",
+    "ja": "何も抽出できませんでした",
+    "ko": "추출된 내용이 없습니다"
+  },
+  "没能唤起微信（可能是没装微信，或这条指令被别的应用接管了）—— 可以自己打开微信扫一扫再扫这张图。": {
+    "en": "Could not open WeChat (it may not be installed, or another app has taken over this command) — open WeChat's scanner yourself and scan this image.",
+    "ja": "WeChat を起動できませんでした（インストールされていないか、このコマンドを別のアプリが引き受けています）—— ご自分で WeChat のスキャンを開いてこの画像を読み取ってください。",
+    "ko": "WeChat을 열지 못했습니다(설치되어 있지 않거나 다른 앱이 이 명령을 가져갔을 수 있습니다) — 직접 WeChat 스캔을 열어 이 이미지를 스캔하세요."
+  },
+  "置顶": {
+    "en": "Pin to top",
+    "ja": "先頭に固定",
+    "ko": "맨 위로 고정"
+  },
+  "自己手写一条": {
+    "en": "Write one yourself",
+    "ja": "自分で 1 件書く",
+    "ko": "직접 한 건 작성"
+  },
+  "让模型**长期记住**你的事（身份、偏好、项目事实、禁忌）：可以自己写，也可以从最近的会话里**自动提炼**候选、由你确认。它写进 AGENTS.md，DSH 在**每个新会话的第一个请求前**注入模型上下文；**对已经打开的会话不生效**，要新建会话。": {
+    "en": "Let the model **remember your things long-term** (identity, preferences, project facts, taboos): write them yourself, or **auto-extract** candidates from a recent session and confirm them. They go into AGENTS.md, and DSH injects them into the model context **before the first request of every new session**; **they do not apply to sessions already open** — start a new one.",
+    "ja": "モデルに**長期的に覚えてほしいこと**（立場・好み・プロジェクトの事実・禁忌）を書けます。自分で書くことも、最近のセッションから候補を**自動抽出**して確認することもできます。AGENTS.md に書き込まれ、DSH が**新しいセッションの最初のリクエスト前**にモデルのコンテキストへ注入します。**すでに開いているセッションには効きません** —— 新しいセッションを作ってください。",
+    "ko": "모델이 **장기적으로 기억할 것**(정체성, 선호, 프로젝트 사실, 금기)을 적을 수 있습니다. 직접 쓰거나 최근 세션에서 후보를 **자동 추출**해 확인할 수 있습니다. AGENTS.md에 기록되고 DSH가 **새 세션의 첫 요청 전에** 모델 컨텍스트에 주입합니다. **이미 열려 있는 세션에는 적용되지 않습니다** — 새 세션을 만드세요."
+  },
+  "让模型记住这些（关闭后不再注入）": {
+    "en": "Let the model remember these (turn off to stop injecting)",
+    "ja": "モデルにこれらを覚えさせる（オフにすると注入しなくなります）",
+    "ko": "모델이 이것들을 기억하게 하기(끄면 주입하지 않습니다)"
+  },
+  "让模型读一段真实对话，提炼出长期有效的偏好与事实。**提炼结果不会自动写入**，要你勾选确认；每次提炼都会真实调用一次模型（会花额度）。": {
+    "en": "Have the model read a real conversation and extract lasting preferences and facts. **Extracted results are not written automatically** — you tick what to keep; every extraction really calls the model once (it uses quota).",
+    "ja": "モデルに実際の会話を読ませ、長期的に有効な好みや事実を抽出させます。**抽出結果は自動では書き込まれません** —— 残すものをチェックしてください。抽出のたびに実際にモデルを 1 回呼び出します（枠を消費します）。",
+    "ko": "모델이 실제 대화를 읽고 오래 유효한 선호와 사실을 추출합니다. **추출 결과는 자동으로 기록되지 않습니다** — 남길 항목을 선택하세요. 추출할 때마다 실제로 모델을 한 번 호출합니다(할당량을 사용합니다)."
+  },
+  "请选择记忆的 JSON 文件（.json）。": {
+    "en": "Choose the memory JSON file (.json).",
+    "ja": "記憶の JSON ファイル（.json）を選んでください。",
+    "ko": "기억 JSON 파일(.json)을 선택하세요."
+  },
+  "读不到会话历史": {
+    "en": "Could not read the session history",
+    "ja": "セッションの履歴を読み込めませんでした",
+    "ko": "세션 기록을 읽지 못했습니다"
+  },
+  "读取会话列表失败：{0}": {
+    "en": "Could not read the session list: {0}",
+    "ja": "セッション一覧を読み込めませんでした：{0}",
+    "ko": "세션 목록을 읽지 못했습니다: {0}"
+  },
+  "读取文件失败：{0}": {
+    "en": "Could not read the file: {0}",
+    "ja": "ファイルを読み込めませんでした：{0}",
+    "ko": "파일을 읽지 못했습니다: {0}"
+  },
+  "身份": {
+    "en": "Identity",
+    "ja": "立場",
+    "ko": "정체성"
+  },
+  "还没有任何记忆。上面写一条，新建会话后模型就会看到它。也可以往下翻，从最近一次会话里提炼。": {
+    "en": "No memories yet. Write one above and the model will see it in a new session. You can also scroll down and extract from a recent session.",
+    "ja": "まだ記憶がありません。上に 1 件書けば、新しいセッションでモデルがそれを見ます。下へスクロールして、最近のセッションから抽出することもできます。",
+    "ko": "아직 기억이 없습니다. 위에 한 건 작성하면 새 세션에서 모델이 그것을 봅니다. 아래로 내려가 최근 세션에서 추출할 수도 있습니다."
+  },
+  "这台设备上没有可以提炼的会话。": {
+    "en": "There is no session on this device to extract from.",
+    "ja": "この端末には抽出できるセッションがありません。",
+    "ko": "이 기기에는 추출할 세션이 없습니다."
+  },
+  "这张图读不到了（可能刚被删除或移动），换一张试试。": {
+    "en": "This image can no longer be read (it may just have been deleted or moved). Try another one.",
+    "ja": "この画像はもう読めません（削除・移動された可能性があります）。別のものを試してください。",
+    "ko": "이 이미지를 더 이상 읽을 수 없습니다(방금 삭제되거나 이동되었을 수 있습니다). 다른 이미지를 시도하세요."
+  },
+  "这条会话的记录没读出来 —— 会话文件可能已经不在了。你可以换一条，或者自己手写一条。": {
+    "en": "This session's record could not be read — the session file may be gone. Pick another session, or write one yourself.",
+    "ja": "このセッションの記録を読み込めませんでした —— セッションファイルがもう無い可能性があります。別のセッションを選ぶか、自分で 1 件書いてください。",
+    "ko": "이 세션의 기록을 읽지 못했습니다 — 세션 파일이 사라졌을 수 있습니다. 다른 세션을 고르거나 직접 한 건 작성하세요."
+  },
+  "这条会话里没有可提炼的对话内容（没有用户或助手的消息）。": {
+    "en": "This session has no conversation content to extract from (no user or assistant messages).",
+    "ja": "このセッションには抽出できる会話内容がありません（ユーザーまたはアシスタントのメッセージがありません）。",
+    "ko": "이 세션에는 추출할 대화 내용이 없습니다(사용자 또는 어시스턴트 메시지가 없습니다)."
+  },
+  "这次没有提炼出值得长期记住的内容 —— 这不代表失败，只是这段对话里没有跨会话有用的事实。你也可以自己手写一条。": {
+    "en": "Nothing worth remembering long-term came out of this one — that is not a failure, it just means this conversation had no facts useful across sessions. You can also write one yourself.",
+    "ja": "今回は長期的に覚えておく価値のある内容は出ませんでした —— 失敗ではなく、この会話にセッションをまたいで役立つ事実が無かっただけです。自分で 1 件書くこともできます。",
+    "ko": "이번에는 장기적으로 기억할 만한 내용이 나오지 않았습니다 — 실패가 아니라 이 대화에 세션을 넘어 유용한 사실이 없었다는 뜻입니다. 직접 한 건 작성할 수도 있습니다."
+  },
+  "选了「仅当前工作区」但没有工作目录路径 —— 这条记忆不知道该在哪儿生效。": {
+    "en": "\"This workspace only\" was selected but there is no working directory path — this memory has nowhere to apply.",
+    "ja": "「現在のワークスペースのみ」が選ばれましたが、作業ディレクトリのパスがありません —— この記憶は適用先がありません。",
+    "ko": "'현재 작업 공간만'을 선택했지만 작업 디렉터리 경로가 없습니다 — 이 기억은 적용될 곳이 없습니다."
+  },
+  "选择一条会话": {
+    "en": "Pick a session",
+    "ja": "セッションを選択",
+    "ko": "세션 선택"
+  },
+  "选择壁纸": {
+    "en": "Choose wallpaper",
+    "ja": "壁紙を選択",
+    "ko": "배경화면 선택"
+  },
+  "选择文件失败：{0}": {
+    "en": "Could not pick a file: {0}",
+    "ja": "ファイルを選択できませんでした：{0}",
+    "ko": "파일을 선택하지 못했습니다: {0}"
+  },
+  "重要度": {
+    "en": "Importance",
+    "ja": "重要度",
+    "ko": "중요도"
+  },
+  "重要度 {0}": {
+    "en": "Importance {0}",
+    "ja": "重要度 {0}",
+    "ko": "중요도 {0}"
+  },
+  "长按二维码：复制公众号 ID / 存到相册（微信扫一扫 → 相册选图）": {
+    "en": "Long-press the QR code: copy the official account ID / save to the gallery (WeChat Scan → Album)",
+    "ja": "QR コードを長押し：公式アカウント ID をコピー／アルバムに保存（WeChat スキャン → アルバム）",
+    "ko": "QR 코드를 길게 누르기: 공식 계정 ID 복사 / 앨범에 저장(WeChat 스캔 → 앨범)"
+  },
+  "项目与事实": {
+    "en": "Project & facts",
+    "ja": "プロジェクトと事実",
+    "ko": "프로젝트와 사실"
+  },
+  "高": {
+    "en": "High",
+    "ja": "高",
+    "ko": "높음"
   }
 }

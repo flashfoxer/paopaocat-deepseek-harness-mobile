@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../data/easter_egg.dart';
 import '../../data/mascot_lines.dart';
 import '../../i18n/dsh_i18n.dart';
 import '../theme/dsh_tokens.dart';
@@ -20,14 +21,25 @@ import 'brand_logo.dart';
 ///
 ///   * 点一下 → 按顺序说下一句（**轮换**，不是随机：轮换保证每次点的都不一样，
 ///     又不会连着两次撞同一句）；
+///   * **连点 6 下 → 解锁一个彩蛋**（用户 2026-10-15 指定：「菜单是连点 6 下猫咪
+///     就会出现」）—— 设置页「模型」组里会多出「实验通道 · OpenCode Zen」
+///     （见 `data/easter_egg.dart`）；
 ///   * 再说一句会**顶掉**上一句（不会叠成一堆）；
 ///   * 5 秒后自己消失；气泡也可以点掉。
 ///
 /// 文案本身在 `data/mascot_lines.dart`（本地写死、走 i18n、不发任何请求）。
 class MascotSpeech extends StatefulWidget {
-  const MascotSpeech({super.key, this.size = 70});
+  const MascotSpeech({super.key, this.size = 70, this.clock = DateTime.now});
 
   final double size;
+
+  /// 取"现在"的函数。**默认就是 `DateTime.now`，生产代码不用改。**
+  ///
+  /// ⚠️ 存在的唯一理由是**可测**：连点窗口是按真实时间算的，而 widget 测试里
+  /// `tester.pump(Duration)` 只推进*测试时钟*，不会让 `DateTime.now()` 走动 ——
+  /// 于是"慢慢点不该解锁"这条根本没被验证过（点得再慢，真实时间也只过了几毫秒）。
+  /// 注入时钟之后，测试可以明确地把时间往前拨。
+  final DateTime Function() clock;
 
   @override
   State<MascotSpeech> createState() => _MascotSpeechState();
@@ -38,6 +50,13 @@ class _MascotSpeechState extends State<MascotSpeech> {
   OverlayEntry? _entry;
   Timer? _timer;
   int _tick = 0;
+
+  /// 连点计数与上一次点击的时刻（彩蛋用）。
+  ///
+  /// 超过 [EasterEggStore.tapWindow] 就从 1 重新数 —— 否则"今天点 3 下、明天点 3 下"
+  /// 也会解锁，那就不像彩蛋了。
+  int _taps = 0;
+  DateTime? _lastTapAt;
 
   @override
   void dispose() {
@@ -54,7 +73,32 @@ class _MascotSpeechState extends State<MascotSpeech> {
     _entry = null;
   }
 
-  void _speak() {
+  /// 一次点击：先说一句话；如果是第 [EasterEggStore.tapsToUnlock] 次连点，就解锁彩蛋。
+  void _onTapCat() {
+    final now = widget.clock();
+    final last = _lastTapAt;
+    if (last == null || now.difference(last) > EasterEggStore.tapWindow) {
+      _taps = 1;
+    } else {
+      _taps++;
+    }
+    _lastTapAt = now;
+
+    if (_taps >= EasterEggStore.tapsToUnlock) {
+      _taps = 0;
+      _lastTapAt = null;
+      // 已经解锁过就只说普通的话（别每次连点都报一遍"找到我了"）。
+      final first = !EasterEggStore.instance.zenUnlocked;
+      unawaited(EasterEggStore.instance.unlockZen());
+      if (first) {
+        _speak(text: context.tr('找到我了！去「设置 → 模型」看看 —— 多了一条实验通道。'));
+        return;
+      }
+    }
+    _speak();
+  }
+
+  void _speak({String? text}) {
     _dismiss();
     final box = _anchor.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !mounted) return;
@@ -63,7 +107,7 @@ class _MascotSpeechState extends State<MascotSpeech> {
 
     final topLeft = box.localToGlobal(Offset.zero);
     final bottom = topLeft.dy + box.size.height;
-    final text = mascotLineAt(_tick++);
+    final line = text ?? mascotLineAt(_tick++);
 
     _entry = OverlayEntry(
       builder: (ctx) => Positioned(
@@ -71,7 +115,7 @@ class _MascotSpeechState extends State<MascotSpeech> {
         right: DshMetrics.pagePad,
         // 放在猫**下面**：上面是顶栏与状态行，气泡会被挤到屏幕外。
         top: bottom + 4,
-        child: _Bubble(text: text, onTap: _dismiss),
+        child: _Bubble(text: line, onTap: _dismiss),
       ),
     );
     overlay.insert(_entry!);
@@ -89,7 +133,7 @@ class _MascotSpeechState extends State<MascotSpeech> {
       child: GestureDetector(
         key: _anchor,
         behavior: HitTestBehavior.opaque,
-        onTap: _speak,
+        onTap: _onTapCat,
         child: BrandLogo(size: widget.size),
       ),
     );
@@ -141,33 +185,43 @@ class _Bubble extends StatelessWidget {
                     )),
               ),
             ),
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.only(top: -4),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-              decoration: BoxDecoration(
-                color: DshColors.surfaceStrong,
-                borderRadius: BorderRadius.circular(DshMetrics.radius(12)),
-                border: Border.all(
-                    color: DshColors.accent, width: DshMetrics.borderWidth),
-                boxShadow: DshColors.panelShadow,
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('🐱', style: TextStyle(fontSize: 14)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: TextStyle(
-                        color: DshColors.text,
-                        fontSize: 13,
-                        height: 1.45,
+            // ⚠️ **不要用负 margin**：Flutter 3.x 的 `Container` 直接断言
+            //    `margin.isNonNegative` —— 也就是 debug 构建下、气泡一画出来就抛异常
+            //    （真机 release 没断言，所以这个洞一直没被发现；是 0.75 给彩蛋写
+            //     测试时第一次真正构建气泡才抓到的）。
+            //    原来这里是 `margin: EdgeInsets.only(top: -4)`，目的是让圆角块
+            //    和上面那个 45° 的小尾巴重叠 4px；改成 `Transform.translate` 上移
+            //    同样的距离 —— **绘制位置一样，但不参与布局测量**（这正是负 margin
+            //    与它的区别），视觉与原来一致。
+            Transform.translate(
+              offset: const Offset(0, -4),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: DshColors.surfaceStrong,
+                  borderRadius: BorderRadius.circular(DshMetrics.radius(12)),
+                  border: Border.all(
+                      color: DshColors.accent, width: DshMetrics.borderWidth),
+                  boxShadow: DshColors.panelShadow,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('🐱', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: TextStyle(
+                          color: DshColors.text,
+                          fontSize: 13,
+                          height: 1.45,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],

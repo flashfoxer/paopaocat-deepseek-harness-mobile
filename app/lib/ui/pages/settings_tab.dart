@@ -9,6 +9,8 @@ import '../../app_version.dart';
 import '../../i18n/app_language.dart';
 import '../../data/media_models.dart';
 import '../../state/provider_keys.dart';
+import '../../data/configured_models.dart';
+import '../../data/polli_channel.dart';
 import '../../data/zen_channel.dart';
 import '../../local/dsh_runtime.dart';
 import '../../state/app_settings.dart';
@@ -185,10 +187,27 @@ class _SettingsTabState extends State<SettingsTab> {
                 child: _card(child: _MediaModelsSection(runtime: runtime)),
               ),
               const SizedBox(height: 10),
-              // 「免费模型（无需 Key）」—— 用户 2026-10-11 要求把它做成
-              // **设置里显式开启的通道**（默认关）。
+              // 「免费模型（无需 Key）」= **Pollinations**（2026-10-15 新增，**默认开**）。
+              //
+              // 为什么把它放在 Zen 前面、而且是默认开：用户对外的承诺是
+              // 「不需要填写 Key」（原话：「主要就是以前承诺过不需要填写 key」）。
+              // Zen 那条 2026-10-13/14 被上游第五次收紧之后基本已死（社区里测得最扎实的
+              // 插件都不提供它了），所以现在**这条才是那句承诺的实现**。
               DshCollapsibleSection(
                 title: context.tr('免费模型（无需 Key）'),
+                child: _card(
+                  child: _PolliChannelBlock(
+                    runtime: runtime,
+                    settings: widget.appSettings,
+                    onModelChanged: onModelChanged,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // OpenCode Zen 通道：**保留成彩蛋**（默认关、界面上写明可能已失效）。
+              // 它的价值是"万一哪天上游又开了"，成本是一个开关 + 一段说明。
+              DshCollapsibleSection(
+                title: context.tr('免费模型 · OpenCode Zen（第三方通道）'),
                 child: _card(
                   child: _ZenChannelBlock(
                     runtime: runtime,
@@ -1565,6 +1584,180 @@ String _fill(String template, String v) => template.replaceAll('{0}', v);
 ///      （2026-10-11 用户纠正："这个项目的特点就是不用写key"）；
 ///   3. **显示真实状态**（代理在不在跑、拿到几个模型、上次什么错），
 ///      而不是一个"已开启"的空壳。
+/// 「免费模型（无需 Key）」= **Pollinations** 那条（2026-10-15 新增）。
+///
+/// 用户原话：「主要就是以前承诺过不需要填写 key」—— 所以这一块的每一个字都围着
+/// **"不用填任何 Key"** 写：默认开着、装完模型列表里就有、失败如实说。
+///
+/// 与「OpenCode Zen」那块的**根本区别**（界面上也要让人看明白）：
+///   * Zen 是把请求**伪装成官方 CLI**去通过上游的限制（灰色用法、被反复收紧）；
+///   * Pollinations 是**它自己就开放匿名层**（它 README 原话就是 No signup, no key），
+///     属于正常用法，不需要我们去绕什么。
+///
+/// 实现上它也不起本地进程：上游本身就是 OpenAI 兼容的（见 `data/polli_channel.dart`），
+/// 所以"刷新"只是拉一次模型清单。
+class _PolliChannelBlock extends StatefulWidget {
+  const _PolliChannelBlock({
+    required this.runtime,
+    required this.settings,
+    required this.onModelChanged,
+  });
+
+  final DshRuntime runtime;
+  final AppSettings settings;
+
+  /// 写完 models.json 要让外面重读并把 overlay 重写一遍（与 zen 那块同一个回调）。
+  final Future<void> Function() onModelChanged;
+
+  @override
+  State<_PolliChannelBlock> createState() => _PolliChannelBlockState();
+}
+
+class _PolliChannelBlockState extends State<_PolliChannelBlock> {
+  bool _busy = false;
+  String? _notice;
+
+  /// 配置里现在写着几个这条通道的模型（`null` = 还没读过）。
+  int? _configured;
+
+  @override
+  void initState() {
+    super.initState();
+    _readConfigured();
+  }
+
+  void _readConfigured() {
+    try {
+      final cfg = ConfiguredModels.readConfig(widget.runtime.filesDir);
+      final n = cfg.models.where((m) => m.provider == PolliChannel.providerId).length;
+      if (mounted) setState(() => _configured = n);
+    } catch (_) {
+      if (mounted) setState(() => _configured = null);
+    }
+  }
+
+  Future<void> _toast(String msg) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _toggle(bool v) async {
+    setState(() => _busy = true);
+    await widget.settings.setPolliEnabled(v);
+    if (v) {
+      final r = await PolliChannel.enable(runtime: widget.runtime);
+      if (!mounted) return;
+      if (r.ok) {
+        PolliChannel.clearRefreshError();
+        await widget.onModelChanged();
+        if (!mounted) return;
+        _notice = context.tr(
+            '已打开：模型列表里现在有 {0} 个「免费模型（无需 Key）」，直接就能用。',
+            <Object?>[r.models]);
+      } else {
+        _notice = r.error;
+      }
+    } else {
+      await PolliChannel.disable(runtime: widget.runtime);
+      await widget.onModelChanged();
+      if (!mounted) return;
+      _notice = context.tr('已关闭：那批免费模型已从列表里移除（你自己的模型一点没动）。');
+    }
+    _readConfigured();
+    setState(() => _busy = false);
+    if (_notice != null) await _toast(_notice!);
+  }
+
+  Future<void> _retry() async {
+    setState(() => _busy = true);
+    final r = await PolliChannel.enable(runtime: widget.runtime);
+    if (!mounted) return;
+    if (r.ok) {
+      PolliChannel.clearRefreshError();
+      await widget.onModelChanged();
+      if (!mounted) return;
+      _notice = context.tr('取到了 {0} 个免费模型，已写进列表。', <Object?>[r.models]);
+    } else {
+      _notice = r.error;
+    }
+    _readConfigured();
+    setState(() => _busy = false);
+    if (_notice != null) await _toast(_notice!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.settings.polliEnabled;
+    final err = PolliChannel.lastRefreshError;
+    final String status;
+    if (!enabled) {
+      status = context.tr('已关闭');
+    } else if ((_configured ?? 0) > 0) {
+      status = context.tr('已开启 · 模型列表里已有 {0} 个免 Key 模型', <Object?>[_configured]);
+    } else {
+      status = err == null
+          ? context.tr('已开启 · 但这次没取到模型（点下面「重新获取」再试）')
+          : context.tr('已开启 · 上次没取到：{0}', <Object?>[err]);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        DshRichText(
+          context.tr('**这条通道不需要你填任何 Key** —— 它就是给"不想配 Key"准备的：'
+              '打开后模型列表里会出现「免费模型（无需 Key）」这一组，直接用就行。\n\n'
+              '内容由 [pollinations.ai](https://pollinations.ai) 的**匿名层**提供'
+              '（它自己就是这么开放的：不用注册、不用 Key），不是我们绕出来的。'),
+          style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.tr('⚠️ 先说清它能做什么、不能做什么：\n'
+              '· 匿名层**只有一个 20B 级的模型**（`openai-fast`）：聊天、用工具都行，'
+              '但**不是聪明模型** —— 写小说、长文、画布这类重活它接不住，那些请用自己的模型。\n'
+              '· 有速率限制（人多了会慢或被限），失败了再试一次即可。\n'
+              '· 上游是社区项目，**随时可能变**；真变了他会如实报错，不会假装成功。\n'
+              '· 用不到时把开关关掉即可，你自己的模型配置一点都不会动。'),
+          style: TextStyle(
+              color: DshColors.textFaint, fontSize: 11, height: 1.5),
+        ),
+        const SizedBox(height: 6),
+        // ⚠️ 不用 SwitchListTile：它放进玻璃卡会触发 Flutter 的
+        //    「background color or ink splashes may be invisible」告警，
+        //    `clickthrough_test` 会判失败（这个坑 0.71 那轮踩过）。
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(context.tr('启用免 Key 免费模型'),
+                  style: const TextStyle(fontSize: 13)),
+            ),
+            Switch(value: enabled, onChanged: _busy ? null : _toggle),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(status,
+            style: TextStyle(
+                color: enabled && (_configured ?? 0) == 0
+                    ? DshColors.err
+                    : DshColors.textFaint,
+                fontSize: 11,
+                height: 1.4)),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _busy ? null : _retry,
+            icon: const Icon(Icons.refresh, size: 15),
+            label: Text(context.tr('重新获取模型')),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ZenChannelBlock extends StatefulWidget {
   const _ZenChannelBlock({
     required this.runtime,
@@ -1666,7 +1859,10 @@ class _ZenChannelBlockState extends State<_ZenChannelBlock> {
         DshRichText(
           context.tr('打开后，App 会在本机起一个小小的**转发代理**，把请求按'
               '**官方 CLI 的样子**发到 OpenCode 的匿名免费额度，并把拿到的免费模型'
-              '直接加进你的模型列表 —— **不用配置任何 Key**。'),
+              '直接加进你的模型列表 —— **不用配置任何 Key**。\n\n'
+              '⚠️ 只是想"不用 Key 就能聊"的话，**用上面那条（免 Key 免费模型）就好** —— '
+              '这条 Zen 通道自 2026-10-13/14 起被上游反复收紧，现在多半是失效状态，'
+              '留在这里只是"万一上游又开了"。'),
           style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
         ),
         const SizedBox(height: 8),

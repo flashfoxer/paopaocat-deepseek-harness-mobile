@@ -72,6 +72,14 @@ class AppSettings extends ChangeNotifier {
   /// 所以任何"去填一个 Key"的提示都是错的（2026-10-11 用户纠正）。
   static const String _kZenEnabled = 'dsh_zen_free_channel';
 
+  /// 「免费模型（无需 Key）」= Pollinations 那条（见 `data/polli_channel.dart`）。
+  ///
+  /// ⚠️ 它和 [_kZenEnabled] 的默认值**刻意相反**：用户对外的承诺是
+  /// 「**不需要填写 Key**」（2026-10-15 原话：「主要就是以前承诺过不需要填写 key」），
+  /// 所以这条**默认开着** —— 装完就能聊，而不是让用户去设置里找一个开关。
+  /// Zen 那条（灰色、且 2026-10-13/14 起基本已死）仍然默认关着。
+  static const String _kPolliEnabled = 'dsh_polli_free_channel';
+
   /// 「正在取图」的时间戳（epoch ms，空 = 没有）。
   ///
   /// 为什么需要它：取图会离开 App（相机/相册是系统页面），回来的路上 App 可能被
@@ -133,6 +141,9 @@ class AppSettings extends ChangeNotifier {
   /// 生图/生视频是否走本机（见 [_kImageLocal]）。
   /// 「社区免费通道」是否开启（见 [_kZenEnabled]）。
   bool _zenEnabled = false;
+
+  /// 「免费模型（无需 Key）」是否开启（见 [_kPolliEnabled]）。**默认开**。
+  bool _polliEnabled = true;
   String _skinId = kDefaultSkin;
   AppLanguage _language = AppLanguage.fallback;
 
@@ -239,8 +250,11 @@ class AppSettings extends ChangeNotifier {
   double get textScale => _textScale;
 
   /// 生图/生视频走本机吗。
-  /// 「社区免费通道」是否开启（默认 false）。
+  /// 「社区免费通道（OpenCode Zen）」是否开启（默认 false）。
   bool get zenEnabled => _zenEnabled;
+
+  /// 「免费模型（无需 Key）」（Pollinations）是否开启 —— **默认 true**，见 [_kPolliEnabled]。
+  bool get polliEnabled => _polliEnabled;
 
   bool get loaded => _loaded;
 
@@ -385,6 +399,9 @@ class AppSettings extends ChangeNotifier {
       // 不让界面停在一个"没有语言"的状态上。
       _language = AppLanguage.byId(prefs.getString(_kLanguage));
       _zenEnabled = prefs.getBool(_kZenEnabled) ?? false;
+      // 默认 **true**：装完就能聊（"不用填 Key"这句承诺的实现）。
+      // 用户主动关掉过就尊重他存下来的值。
+      _polliEnabled = prefs.getBool(_kPolliEnabled) ?? true;
       // 本地模型那两项：只认白名单里的值，磁盘上有脏值就退回默认
       // （绝不把后端留在一个"不认识"的状态上）。
       final lb = prefs.getString(_kLocalBackend);
@@ -474,6 +491,23 @@ class AppSettings extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kSkin, id);
       debugPrint('[dsh-app-settings] 主题 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 开/关「免费模型（无需 Key）」（Pollinations）。
+  ///
+  /// ⚠️ 与 zen 那条一样：真正的启停（往模型配置里加/删模型）由调用方负责 ——
+  /// 见 `data/polli_channel.dart`。这里只记住用户的选择。
+  Future<void> setPolliEnabled(bool v) async {
+    if (v == _polliEnabled) return;
+    _polliEnabled = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kPolliEnabled, v);
+      debugPrint('[dsh-app-settings] 免 Key 免费通道 = $v');
     } catch (e) {
       debugPrint('[dsh-app-settings] persist failed: $e');
     }

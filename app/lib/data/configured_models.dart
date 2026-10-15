@@ -78,7 +78,14 @@ class ConfiguredModels {
   ///     "还没有可用模型：去填地址和 API Key"，明明能用的模型就在旁边。
   ///
   /// 所以判定口径统一成一句：**Key 要么在安全区，要么由 App 自己提供**。
-  static const Set<String> appProvidedCredentialIds = <String>{'zen', 'local'};
+  static const Set<String> appProvidedCredentialIds = <String>{
+    'zen',
+    'local',
+    // 2026-10-15 新增：Pollinations 免 Key 通道（见 data/polli_channel.dart）。
+    // 它的匿名层**本来就不要 Key**，所以这里必须算进去 —— 否则模型选择器会给它
+    // 打红字「未配 Key」并催用户"去填地址和 Key"，而用户根本不需要填。
+    'polli',
+  };
 
   static File fileOf(String filesDir) => File('$filesDir/models.json');
 

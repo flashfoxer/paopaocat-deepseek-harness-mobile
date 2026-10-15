@@ -12,6 +12,7 @@ import 'data/memory_store.dart';
 import 'i18n/dsh_i18n.dart';
 import 'local/android_toolbox.dart';
 import 'local/diagnostics_log.dart';
+import 'data/polli_channel.dart';
 import 'data/zen_channel.dart';
 import 'local/dsh_runtime.dart';
 // 「检查更新」：启动后台查一次（结果塞进 AppSettings，设置页自己会读）。
@@ -392,6 +393,21 @@ class _LocalShellState extends State<LocalShell> {
         );
       } catch (e) {
         debugPrint('[dsh-shell] 社区免费通道刷新失败（不影响启动）: $e');
+      }
+
+      // 「免费模型（无需 Key）」= Pollinations 那条：**默认开着**，所以这里要真的
+      // 拉一次模型清单写进配置 —— 这就是"装完不用填任何 Key 就能聊"的实现。
+      //
+      // ⚠️ 与 zen 那条同一个道理：必须**在 ensureModelConfig 之前**（它按这份配置写 overlay）。
+      // ⚠️ 只有"配置里还没有它"时才等这一次网络（首次安装/被关过再打开）；已经有了就
+      //    不等 —— 不然每次启动都被一次公网请求拖住（见 refreshIfEnabled 的注释）。
+      try {
+        await PolliChannel.refreshIfEnabled(
+          enabled: widget.appSettings.polliEnabled,
+          runtime: runtime,
+        );
+      } catch (e) {
+        debugPrint('[dsh-shell] 免 Key 免费通道刷新失败（不影响启动）: $e');
       }
 
       // 运行时已就绪时立刻保证 overlay 存在：否则用户不进设置页就发消息，

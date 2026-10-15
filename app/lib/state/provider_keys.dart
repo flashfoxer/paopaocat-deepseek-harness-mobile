@@ -200,6 +200,12 @@ class ProviderKeys {
     // ⚠️ 这个占位值**不会**被转发到上游（zen-proxy.mjs 用 `Bearer public` 覆盖它）。
     env['ZEN_API_KEY'] = 'local-zen';
 
+    // **Pollinations（免 Key 通道）**同理，而且它比 zen 更"真的不用 Key"：
+    // 上游的匿名层本来就不看这个头（实测带不带、带什么都 200）。
+    // 这里给占位值只是为了让 overlay 里那个 provider 过 DSH 的凭据检查 ——
+    // 见 data/polli_channel.dart 的类注释。
+    env['POLLI_API_KEY'] = 'local-polli';
+
     // **端侧模型（`local`）同理，而且这里原先漏了 —— 那是个真 bug。**
     //
     // overlay 里给 `local` 厂家写了 `apiKeyEnv: LOCAL_MODEL_API_KEY`，但从来没人

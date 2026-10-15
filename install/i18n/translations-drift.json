@@ -3128,5 +3128,75 @@
     "en": "⚠️ Read this first:\n· The upstream free quota is **meant for its own client only**; this lane disguises requests as the official CLI to get past that limit — a grey-area usage that can **stop working at any time** (it was tightened a third time on 2026-10-13/14: new endpoint, extra session header and tool checks).\n· **It needs no Key at all**: that lane is anonymous (the upstream credential is the literal `public`), so there is nothing to fill in here; when it fails it says so honestly instead of pretending to work.\n· It is rate-limited by egress IP; if you get throttled, wait a bit and retry.\n· This app does **not** rotate IPs or hammer retries (it will not be used to farm quota).\n· Turn it off when you do not need it.",
     "ja": "⚠️ 先にお読みください：\n· 上流の無料枠は**自社クライアント専用**で、この経路はリクエストを**公式 CLI に偽装**して制限を通過するものです —— グレーな使い方で、**いつ止まってもおかしくありません**（2026-10-13/14 に三度目の締め付けがありました：エンドポイント変更、セッションヘッダーとツール検証の追加）。\n· **Key は一切不要**です。この経路はもともと匿名で（上流の資格情報は公開の `public`）、ここに入力するものはありません。失敗したときは正直にエラーを出し、成功したふりはしません。\n· 出口 IP 単位でレート制限されます。制限されたら少し待って再試行してください。\n· 本アプリは IP ローテーションやしつこい再試行を**行いません**（枠を稼ぐ使い方はしません）。\n· 使わないときはオフにしてください。",
     "ko": "⚠️ 먼저 읽어 주세요:\n· 상류의 무료 할당량은 **자사 클라이언트 전용**이며, 이 경로는 요청을 **공식 CLI로 위장**해 그 제한을 통과하는 방식입니다 — 회색 지대 사용이라 **언제든 중단될 수 있습니다**(2026-10-13/14에 세 번째로 조여졌습니다: 엔드포인트 변경, 세션 헤더와 도구 검증 추가).\n· **Key는 전혀 필요하지 않습니다**: 이 경로는 원래 익명이고(상류 자격 증명은 공개된 `public`), 여기에 입력할 것은 없습니다. 실패하면 솔직하게 오류를 알리며 성공한 척하지 않습니다.\n· 출구 IP 기준으로 속도 제한이 걸립니다. 제한되면 잠시 후 다시 시도하세요.\n· 이 앱은 IP 로테이션이나 반복 재시도를 **하지 않습니다**(할당량을 긁는 데 쓰지 않습니다).\n· 필요 없을 때는 꺼 두세요."
+  },
+  "**这条通道不需要你填任何 Key** —— 它就是给\"不想配 Key\"准备的：打开后模型列表里会出现「免费模型（无需 Key）」这一组，直接用就行。\n\n内容由 [pollinations.ai](https://pollinations.ai) 的**匿名层**提供（它自己就是这么开放的：不用注册、不用 Key），不是我们绕出来的。": {
+    "en": "**This lane needs no Key from you at all** — it exists for people who do not want to set one up: turn it on and a group named \"Free models (no Key needed)\" appears in the model list, ready to use.\n\nThe models come from the **anonymous tier** of [pollinations.ai](https://pollinations.ai) (which is how it presents itself: no signup, no key) — this is not something we work around.",
+    "ja": "**この経路は Key の入力が一切不要です** —— 「Key を設定したくない」人のためのものです。オンにすると、モデル一覧に「無料モデル（Key 不要）」というグループが現れ、そのまま使えます。\n\nモデルは [pollinations.ai](https://pollinations.ai) の**匿名レイヤー**から提供されます（同サービス自身が「登録不要・Key 不要」として公開しているもので、当アプリが制限を回避しているわけではありません）。",
+    "ko": "**이 경로는 Key 입력이 전혀 필요 없습니다** — Key를 설정하고 싶지 않은 분을 위한 기능입니다. 켜면 모델 목록에 「무료 모델(Key 불필요)」 그룹이 나타나 바로 쓸 수 있습니다.\n\n모델은 [pollinations.ai](https://pollinations.ai)의 **익명 레이어**에서 제공됩니다(해당 서비스가 \"가입 불필요, Key 불필요\"로 공개한 방식이며, 저희가 제한을 우회한 것이 아닙니다)."
+  },
+  "⚠️ 先说清它能做什么、不能做什么：\n· 匿名层**只有一个 20B 级的模型**（`openai-fast`）：聊天、用工具都行，但**不是聪明模型** —— 写小说、长文、画布这类重活它接不住，那些请用自己的模型。\n· 有速率限制（人多了会慢或被限），失败了再试一次即可。\n· 上游是社区项目，**随时可能变**；真变了他会如实报错，不会假装成功。\n· 用不到时把开关关掉即可，你自己的模型配置一点都不会动。": {
+    "en": "⚠️ What it can and cannot do:\n· The anonymous tier has **only one 20B-class model** (`openai-fast`): fine for chat and tool use, but it is **not a smart model** — novels, long documents and canvas work are beyond it; use your own model for those.\n· There is a rate limit (it gets slow or refused when busy); just retry.\n· Upstream is a community project and **may change at any time**; when it does, it reports the failure honestly instead of pretending to work.\n· Turn the switch off when you do not need it — none of your own model settings are touched.",
+    "ja": "⚠️ できること・できないことを先に：\n· 匿名レイヤーのモデルは**20B クラスが 1 つだけ**（`openai-fast`）。チャットとツール利用は可能ですが、**賢いモデルではありません** —— 小説・長文・キャンバス系の重い作業には向きません。それらはご自身のモデルで。\n· レート制限があります（混雑時は遅くなる／拒否される）。その場合は再試行してください。\n· 上流はコミュニティプロジェクトで、**いつ変わるか分かりません**。変わったときは正直にエラーを出し、成功したふりはしません。\n· 不要なときはスイッチをオフに。ご自身のモデル設定には一切触れません。",
+    "ko": "⚠️ 할 수 있는 일과 없는 일을 먼저:\n· 익명 레이어 모델은 **20B급 하나뿐**입니다(`openai-fast`). 대화와 도구 사용은 되지만 **똑똑한 모델은 아닙니다** — 소설, 장문, 캔버스 같은 무거운 작업에는 부족합니다. 그런 작업은 직접 설정한 모델을 쓰세요.\n· 속도 제한이 있습니다(혼잡하면 느려지거나 거부됩니다). 그럴 땐 다시 시도하세요.\n· 상류는 커뮤니티 프로젝트라 **언제든 바뀔 수 있습니다**. 바뀌면 솔직하게 오류를 알리고 성공한 척하지 않습니다.\n· 필요 없을 때 스위치를 끄면 됩니다. 직접 설정한 모델 구성은 전혀 건드리지 않습니다."
+  },
+  "免费模型 · OpenCode Zen（第三方通道）": {
+    "en": "Free models · OpenCode Zen (third-party lane)",
+    "ja": "無料モデル · OpenCode Zen（サードパーティ経路）",
+    "ko": "무료 모델 · OpenCode Zen(서드파티 경로)"
+  },
+  "取到了 {0} 个免费模型，已写进列表。": {
+    "en": "Fetched {0} free models and added them to the list.",
+    "ja": "{0} 個の無料モデルを取得し、一覧に追加しました。",
+    "ko": "무료 모델 {0}개를 가져와 목록에 추가했습니다."
+  },
+  "启用免 Key 免费模型": {
+    "en": "Enable the no-Key free models",
+    "ja": "Key 不要の無料モデルを有効にする",
+    "ko": "Key 불필요 무료 모델 사용"
+  },
+  "已关闭": {
+    "en": "Off",
+    "ja": "オフ",
+    "ko": "꺼짐"
+  },
+  "已关闭：那批免费模型已从列表里移除（你自己的模型一点没动）。": {
+    "en": "Off",
+    "ja": "オフ",
+    "ko": "꺼짐"
+  },
+  "已开启 · 上次没取到：{0}": {
+    "en": "On · last fetch failed: {0}",
+    "ja": "オン · 前回の取得に失敗：{0}",
+    "ko": "켜짐 · 지난번 가져오기 실패: {0}"
+  },
+  "已开启 · 但这次没取到模型（点下面「重新获取」再试）": {
+    "en": "On · but no models were fetched this time (tap \"Fetch models again\")",
+    "ja": "オン · ただし今回はモデルを取得できませんでした（「モデルを再取得」を押してください）",
+    "ko": "켜짐 · 하지만 이번에는 모델을 가져오지 못했습니다('모델 다시 가져오기'를 눌러 주세요)"
+  },
+  "已开启 · 模型列表里已有 {0} 个免 Key 模型": {
+    "en": "On · {0} no-Key models are already in the list",
+    "ja": "オン · 一覧に Key 不要のモデルが {0} 個あります",
+    "ko": "켜짐 · 목록에 Key 불필요 모델이 {0}개 있습니다"
+  },
+  "已打开：模型列表里现在有 {0} 个「免费模型（无需 Key）」，直接就能用。": {
+    "en": "Turned on: the list now has {0} \"Free models (no Key needed)\" — ready to use.",
+    "ja": "オンにしました：一覧に「無料モデル（Key 不要）」が {0} 個入りました。すぐ使えます。",
+    "ko": "켜졌습니다: 목록에 「무료 모델(Key 불필요)」이 {0}개 들어갔습니다. 바로 쓸 수 있습니다."
+  },
+  "打开后，App 会在本机起一个小小的**转发代理**，把请求按**官方 CLI 的样子**发到 OpenCode 的匿名免费额度，并把拿到的免费模型直接加进你的模型列表 —— **不用配置任何 Key**。\n\n⚠️ 只是想\"不用 Key 就能聊\"的话，**用上面那条（免 Key 免费模型）就好** —— 这条 Zen 通道自 2026-10-13/14 起被上游反复收紧，现在多半是失效状态，留在这里只是\"万一上游又开了\"。": {
+    "en": "After turning it on, the app starts a small **local forwarder** that sends requests in the shape of the **official CLI** to OpenCode's anonymous free quota and adds the models it gets to your model list — **no Key to configure**.\n\n⚠️ If all you want is \"chat without a Key\", **use the lane above (no-Key free models)** — this Zen lane has been tightened by upstream repeatedly since 2026-10-13/14 and is most likely dead now; it stays here only in case upstream reopens it.",
+    "ja": "オンにすると、アプリは小さな**ローカル転送プロキシ**を起動し、リクエストを**公式 CLI の形**にして OpenCode の匿名無料枠へ送り、取得した無料モデルをモデル一覧に追加します —— **Key の設定は不要**です。\n\n⚠️ ただ「Key なしでチャットしたい」だけなら、**上の経路（Key 不要の無料モデル）**をお使いください。この Zen 経路は 2026-10-13/14 以降、上流に繰り返し締め付けられており、現在はほぼ使えない状態です（上流が再開したときのための残置です）。",
+    "ko": "켜면 앱이 작은 **로컬 포워딩 프록시**를 띄워 요청을 **공식 CLI 모양**으로 OpenCode의 익명 무료 할당량에 보내고, 받은 무료 모델을 모델 목록에 추가합니다 — **Key 설정은 필요 없습니다**.\n\n⚠️ 그저 \"Key 없이 대화\"하고 싶다면 **위의 경로(Key 불필요 무료 모델)**를 쓰세요. 이 Zen 경로는 2026-10-13/14 이후 상류에서 거듭 조여졌고 지금은 사실상 사용할 수 없는 상태입니다(상류가 다시 열 경우를 위한 잔여 기능입니다)."
+  },
+  "没取到免费模型 —— 上游那条通道可能暂时不可用（或这台机器上不了网）。": {
+    "en": "No free models were fetched — that upstream lane may be temporarily unavailable (or this device is offline).",
+    "ja": "無料モデルを取得できませんでした —— 上流の経路が一時的に使えないか、この端末がオフラインの可能性があります。",
+    "ko": "무료 모델을 가져오지 못했습니다 — 상류 경로가 일시적으로 불가하거나 이 기기가 오프라인일 수 있습니다."
+  },
+  "重新获取模型": {
+    "en": "Fetch models again",
+    "ja": "モデルを再取得",
+    "ko": "모델 다시 가져오기"
   }
 }

@@ -11,6 +11,7 @@
 library;
 
 import 'package:dsh_mobile/data/configured_models.dart';
+import 'package:dsh_mobile/data/polli_channel.dart';
 import 'package:dsh_mobile/data/zen_channel.dart';
 import 'package:dsh_mobile/local/local_model_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -106,13 +107,20 @@ void main() {
   //     "还没有可用模型：去填地址和 API Key"，而能用的模型就在旁边。
   // 下面是钉住这份名单的测试：改 provider id / 改这份集合，必须两边一起改。
 
-  test('zen / local 属于「凭据由 App 自己提供」的厂家 —— 界面不该要求用户填 Key', () {
+  test('zen / local / polli 属于「凭据由 App 自己提供」的厂家 —— 界面不该要求用户填 Key', () {
     expect(
       ConfiguredModels.appProvidedCredentialIds,
-      <String>{ZenChannel.providerId, LocalModelSpec.providerId},
+      <String>{
+        ZenChannel.providerId,
+        LocalModelSpec.providerId,
+        // 2026-10-15 新增：Pollinations 免 Key 通道。它的匿名层**本来就不要 Key**
+        // （实测不带任何 Authorization 就是 200），所以必须在名单里 ——
+        // 否则换了供应商，同一个"催用户填 Key"的毛病会原样复现。
+        PolliChannel.providerId,
+      },
       reason: '这份名单就是"哪些厂家不用用户写 Key"。名单里少一个 → 那一组又会被'
           '标成「未配 Key」并催用户去填一个根本不需要的 Key（用户实测纠正过）；'
-          '多一个 → 会掩盖"用户确实还没填 Key"这个真实状态。',
+          '多一个（把一个真要 Key 的厂家塞进来）→ 会掩盖"用户确实还没填 Key"这个真实状态。',
     );
     // 具体到 zen：它的凭据变量名是 ZEN_API_KEY，而**安全区里永远没有**它 ——
     // 值由 `ProviderKeys.envFor` 注入占位值 `local-zen`，转发时被代理覆盖成 `public`。

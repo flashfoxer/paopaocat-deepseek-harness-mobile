@@ -1816,7 +1816,6 @@ const Map<String, String> kEnTable = <String, String>{
   '（无简介）': '(No description)',
   '（未能取到命令详情，toolCallId={0}）': '(Couldn\'t get the command details; toolCallId={0})',
   '（模型清单来自接口真实返回，共 {0} 个。）': '(The model list comes from the real API response — {0} in total.)',
-  '（模型清单来自接口真实返回：共 {0} 个，这里先登记前 {1} 个 —— 要更多就点「获取模型」自己勾选。）': '(The model list comes from a real API response: {0} in total; the first {1} are registered here — for more, tap "Fetch models" and pick them yourself.)',
   '（没有输出）': '(no output)',
   '（没读到模型）': '(no model read)',
   '（注意：接口确实打通了，但它返回的 {0} 个模型全是图像/视频模型 —— 那些端口是内置的、不列进会话；这里登记的是预置文本模型 {1}。）': '(Note: the API is reachable, but all {0} models it returned are image/video models — those endpoints are built in and don\'t show up in sessions; what\'s registered here is the preset text model {1}.)',

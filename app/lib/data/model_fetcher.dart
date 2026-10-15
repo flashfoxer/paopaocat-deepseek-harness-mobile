@@ -19,6 +19,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'api_error_text.dart';
 import 'model_providers.dart';
+import 'model_order.dart';
 
 import '../i18n/dsh_i18n.dart';
 
@@ -127,8 +128,13 @@ Future<ModelListResult> fetchModelList({
         ),
       );
     }
-    final sorted = List<FetchedModel>.from(parsed)
-      ..sort((a, b) => a.id.toLowerCase().compareTo(b.id.toLowerCase()));
+    // **带 free 的排前面**（用户 2026-10-16），同类里按 id —— 规则与
+    // 会话面板、models.json 的保存顺序共用一份，见 data/model_order.dart。
+    final sorted = sortModelsFreeFirst(
+      parsed,
+      idOf: (m) => m.id,
+      nameOf: (m) => m.displayName,
+    );
     return ModelListResult(ok: true, models: sorted, rawCount: sorted.length);
   } catch (e) {
     final error = translateException(e);

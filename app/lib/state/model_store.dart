@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../data/model_order.dart';
 import '../data/configured_models.dart';
 import '../local/local_model_server.dart';
 import '../data/model_catalog.dart';
@@ -203,17 +204,25 @@ class ModelStore extends ChangeNotifier {
       }
     }
 
-    _catalog = <ModelEntry>[
-      for (final c in cfg.choices)
-        ModelEntry(
-          id: c.route,
-          name: c.name,
-          // routeId 就是全限定 route —— overlay 里会把前半段当 provider、
-          // 后半段当 model（见 DshRuntime.writeOverlayFromConfig）。
-          routeId: c.route,
-          description: c.description,
-        ),
-    ];
+    // ⚠️ 按「**带 free 的排前面**」排一遍（用户 2026-10-16）。
+    //    排在这个位置最省事也最有效：会话里点模型名的选择面板、设置页的列表
+    //    都读这份 `catalog`，而且**老用户现有的 models.json 立刻跟着变顺序**
+    //    （不必重新「获取模型」一次）。
+    _catalog = sortModelsFreeFirst(
+      <ModelEntry>[
+        for (final c in cfg.choices)
+          ModelEntry(
+            id: c.route,
+            name: c.name,
+            // routeId 就是全限定 route —— overlay 里会把前半段当 provider、
+            // 后半段当 model（见 DshRuntime.writeOverlayFromConfig）。
+            routeId: c.route,
+            description: c.description,
+          ),
+      ],
+      idOf: (e) => e.id,
+      nameOf: (e) => e.name,
+    );
 
     String? selectedId;
     try {

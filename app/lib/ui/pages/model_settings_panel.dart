@@ -6,6 +6,7 @@ import '../../data/api_error_text.dart';
 import '../../data/chat_model_rule.dart';
 import '../../data/configured_models.dart';
 import '../../data/model_fetcher.dart';
+import '../../data/model_order.dart';
 import '../../data/model_providers.dart';
 import '../../local/dsh_runtime.dart';
 import '../../local/local_model_server.dart';
@@ -42,7 +43,7 @@ import '../widgets/common.dart';
 ///      Key 输入框留空时回落到安全区里已经存好的那把（与「获取模型」同一口径）——
 ///      否则"重开卡片想再测一次"的用户会被挡在"请先填 Key"上，而他明明填过了；
 ///   ② 决定这家要有哪些模型：**已经登记过的**就用它 → 否则真拉一次 `/models`
-///      （最多自动登记 [_autoRegisterLimit] 个）→ 再否则回退到
+///      （**全部登记、不截断** —— 用户 2026-10-16 明确要求）→ 再否则回退到
 ///      `ModelProvider.exampleModels`（并在界面与日志里**如实说明**用的是预置建议模型）；
 ///      一条都凑不出来就**不算保存成功**，明确报错；
 ///      ⚠️ 登记前先过 [_isChatModel]：Agnes 的图像/视频模型是**内置端口**，
@@ -136,16 +137,6 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
   /// 为什么要有个上限：Command 是聚合端点，`/models` 动辄几百个 —— 全写进
   /// `models.json` 会让会话里的模型面板变成一堵墙，而用户并没有选它们。
   /// 想精确挑选就走「获取模型」自己勾（那条路没有上限）。
-  /// 「测试并保存」时**最多自动登记**多少个模型。
-  ///
-  /// ⚠️ 2026-10-15 从 **12 提到 40**：真机反馈「没有读取出全部模型」——
-  /// 12 对很多 OpenAI 兼容端点（动辄二三十个、甚至上百个模型）来说太小，
-  /// 用户点一下"测试并保存"就只拿到前 12 个，剩下的得自己去「获取模型」里勾。
-  /// 40 能覆盖绝大多数厂家的全部模型；**仍然保留上限**是因为聚合端点可能有几百个，
-  /// 一次全塞进会话的模型选择器会让它长到没法用（那条路仍然留着：截断时界面会
-  /// 明确写出"共 N 个，先登记前 40 个 —— 要更多就点「获取模型」自己勾选"）。
-  static const int _autoRegisterLimit = 40;
-
   ConfiguredConfig _cfg = ConfiguredConfig.empty;
   final Map<String, bool> _keyReady = <String, bool>{};
 
@@ -955,16 +946,21 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
     setState(() => rt.busy = true);
     final old = ConfiguredModels.readConfig(widget.filesDir);
     final before = old.models.where((m) => m.provider == p.id).length;
-    final add = <ModelSpec>[
-      for (final f in _fetched)
-        if (_picked.contains(f.id) &&
-            !old.models.any((m) => m.provider == p.id && m.id == f.id))
-          ModelSpec(
-              provider: p.id,
-              id: f.id,
-              name: f.label,
-              context: f.contextLength),
-    ];
+    // 保存顺序也按「free 优先」——`models.json` 里的顺序就是界面上看到的顺序。
+    final add = sortModelsFreeFirst(
+      <ModelSpec>[
+        for (final f in _fetched)
+          if (_picked.contains(f.id) &&
+              !old.models.any((m) => m.provider == p.id && m.id == f.id))
+            ModelSpec(
+                provider: p.id,
+                id: f.id,
+                name: f.label,
+                context: f.contextLength),
+      ],
+      idOf: (m) => m.id,
+      nameOf: (m) => m.name,
+    );
     final next = _upsertProvider(
       old: old,
       spec: ConfiguredModels.provider(
@@ -1063,7 +1059,6 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
     ];
     var source = mine.isNotEmpty ? 'keep' : '';
     var listed = 0;
-    var truncated = false;
     var hidden = 0;
     ApiErrorText? listErr;
     if (mine.isEmpty) {
@@ -1077,21 +1072,24 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
       hidden = r.ok ? r.models.length - usable.length : 0;
       if (usable.isNotEmpty) {
         listed = r.models.length;
-        final take = usable.take(_autoRegisterLimit).toList();
-        truncated = usable.length > take.length;
-        if (truncated) {
-          debugPrint('[dsh-model-panel] 厂家=$pid 接口返回 ${usable.length} 个模型，'
-              '按上限 $_autoRegisterLimit 只自动登记前 ${take.length} 个'
-              '（其余用户可在「获取模型」里自己勾选）');
-        }
-        mine = <ModelSpec>[
-          for (final m in take)
-            ModelSpec(
-                provider: pid,
-                id: m.id,
-                name: m.label,
-                context: m.contextLength),
-        ];
+        // **全部登记，不截断**（用户 2026-10-16：「所有模型全部可以获取」）。
+        //
+        // 这里以前有个上限（最早 12、后来 40），理由是"聚合端点几百个会把选择器撑爆"。
+        // 用户明确要全部之后把上限去掉了 —— 模型多时的可读性交给**排序**
+        // （带 free 的排前面，见 data/model_order.dart）与选择器自身的滚动，
+        // 而不是把模型藏起来、让人以为自己账号里没有。
+        mine = sortModelsFreeFirst(
+          <ModelSpec>[
+            for (final m in usable)
+              ModelSpec(
+                  provider: pid,
+                  id: m.id,
+                  name: m.label,
+                  context: m.contextLength),
+          ],
+          idOf: (m) => m.id,
+          nameOf: (m) => m.name,
+        );
         source = 'fetched';
       } else {
         // 拉取失败，或者拉回来的**全是**"不该进会话"的模型 → 回退到内置建议模型。
@@ -1099,10 +1097,13 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
         // 图像/视频模型），不能都写成"拉取失败"。
         listErr = r.error;
         listed = r.models.length;
-        mine = <ModelSpec>[
-          for (final id in p.exampleModels)
-            if (id.trim().isNotEmpty) ModelSpec(provider: pid, id: id.trim()),
-        ];
+        mine = sortModelsFreeFirst(
+          <ModelSpec>[
+            for (final id in p.exampleModels)
+              if (id.trim().isNotEmpty) ModelSpec(provider: pid, id: id.trim()),
+          ],
+          idOf: (m) => m.id,
+        );
         source = mine.isEmpty ? 'none' : (r.ok ? 'preset-filtered' : 'preset');
       }
     }
@@ -1159,8 +1160,7 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
     debugPrint('[dsh-model-panel] 测试结果：厂家=$pid 模型=${mine.first.id} '
         '→ ${test.ok ? '通过 ${test.latencyMs ?? 0}ms' : '失败：${test.error?.zh ?? ''}'}');
 
-    final sourceNote =
-        _sourceNote(source, listed, truncated, p, listErr, hidden: hidden);
+    final sourceNote = _sourceNote(source, listed, p, listErr, hidden: hidden);
     // 用了安全区里那把 Key 就如实说一句：用户没在这张卡里重新输入，得让他知道
     // 测试用的是哪把 Key，不然"我没填它怎么测的"会成为新的疑问。
     final keyNote = usingStored ? tr('（这次用的是安全区里已经存好的那把 Key，没有改动它。）') : '';
@@ -1228,7 +1228,6 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
   String _sourceNote(
     String source,
     int listed,
-    bool truncated,
     ModelProvider p,
     ApiErrorText? listErr, {
     int hidden = 0,
@@ -1241,11 +1240,9 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
             '另外接口返回的 {0} 个是图像/视频模型 —— 那些端口是内置的（生成图片/视频时自动调用），不列进会话的模型列表。',
             [hidden]);
     if (source == 'fetched') {
-      final head = truncated
-          ? context.tr(
-              '（模型清单来自接口真实返回：共 {0} 个，这里先登记前 {1} 个 —— 要更多就点「获取模型」自己勾选。）',
-              [listed, _autoRegisterLimit])
-          : context.tr('（模型清单来自接口真实返回，共 {0} 个。）', [listed]);
+      // 全部登记之后就没有"只登记前 N 个"那种说法了；文案沿用原来那句
+      // （"共 {0} 个"在不再截断之后本身就意味着"全部"），免得为一个分支新加四语翻译。
+      final head = context.tr('（模型清单来自接口真实返回，共 {0} 个。）', [listed]);
       return '$head$hiddenNote';
     }
     if (source == 'preset-filtered') {

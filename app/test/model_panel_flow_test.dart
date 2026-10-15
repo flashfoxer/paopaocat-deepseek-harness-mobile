@@ -296,6 +296,18 @@ void main() {
           reason: '切页刷新应该把展开态收回去 —— 这条语义改坏了也是一样烦人');
     });
 
+    // 用户 2026-10-16：「**所有模型全部可以获取**」—— 所以这里不能再有任何
+    // "一次最多自动登记 N 个"的上限（曾经是 12，后来 40）。这条是**源码断言**：
+    // 上限一旦回来，用户又会觉得"我的模型没读全"。
+    test('「测试并保存」不许再有任何自动登记上限', () {
+      final src =
+          File('lib/ui/pages/model_settings_panel.dart').readAsStringSync();
+      expect(src.contains('_autoRegisterLimit'), isFalse,
+          reason: '自动登记上限又出现了 —— 用户明确要求全部模型都能获取');
+      expect(src.contains('truncated'), isFalse,
+          reason: '"只登记前 N 个"的截断逻辑又回来了');
+    });
+
     testWidgets(
         '测试并保存（拉不到真实列表 → 回退 exampleModels）：Key 进安全区、模型进 models.json、'
         '别的厂家与轮换池一条不丢、并通知会话侧重读', (tester) async {

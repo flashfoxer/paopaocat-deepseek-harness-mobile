@@ -375,7 +375,23 @@ section('错误呈现：不许假装成功，要说清"怎么办"');
   });
 }
 
-  await test('会话 id 前 12 位必须是时间戳编码，不是种子摘要（2026-10-13 上游新门禁）', async () => {
+  await test('UA 里的版本号必须落在门禁接受的带内 [1.18.0, 1.18.33]（2026-10-14 新带）', async () => {
+    // 上游 2026-10-14 13:45 UTC 起对免费层加了 UA 版本带：<1.18.0 → 426，
+    // [1.18.0, 1.18.33] → 放行，>=1.18.34 → 403（连官方 1.19.0 自己也被拒，属上游回归）。
+    // 这条测试**直接咬住源码里的常量**：有人把它"顺手升到最新"时立刻变红。
+    const m = /opencode\/(\d+)\.(\d+)\.(\d+)/.exec(SCRIPT_SRC);
+    assert.ok(m, '源码里没找到 opencode/<version> 形状的 UA');
+    const v = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const cmp = (a, b) => (a[0] - b[0]) || (a[1] - b[1]) || (a[2] - b[2]);
+    assert.ok(cmp(v, [1, 18, 0]) >= 0 && cmp(v, [1, 18, 33]) <= 0,
+      `UA 版本 ${v.join('.')} 在门禁带外（必须落在 1.18.0 ~ 1.18.33）`);
+    // 自证这条判据真的会拒掉带外的（否则它是个永远绿的断言）
+    assert.ok(cmp([1, 19, 0], [1, 18, 33]) > 0, '1.19.0 必须被判成带外');
+    assert.ok(cmp([1, 18, 34], [1, 18, 33]) > 0, '1.18.34 必须被判成带外');
+    assert.ok(cmp([1, 17, 9], [1, 18, 0]) < 0, '1.17.9 必须被判成带外');
+  });
+
+  await test('会话 id 必须是官方 tA() 完整编码（2026-10-14 上游加强：光"能解出时间戳"不够）', async () => {
     await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
       const p = await startProxy(upstream);
       try {
@@ -390,11 +406,21 @@ section('错误呈现：不许假装成功，要说清"怎么办"');
         for (const id of ids) assert.match(id, /^ses_[0-9a-f]{12}[0-9A-Za-z]{14}$/, `形状不对：${id}`);
         assert.equal(ids[0], ids[1], '同一个 x-zen-seed 两次必须拿到同一个会话 id（缓存亲和）');
         assert.notEqual(ids[0], ids[2], '不同种子应当拿到不同的会话 id');
-        // 那 12 位 = ~(ms*0x1000 + counter) 的低 48 位 → 低 12 位必然很大（官方 id 总以 fff/ffe 收尾）。
-        // 旧的「摘要派生」实现没有这个性质 —— 这就是这条测试要咬住的回归。
+
+        // 官方 tA() 公式：hex = ((27<<36) - 1 - unix_millis) << 12 | 0xFFE （取低 48 位）
+        // 两条性质一起验，缺一条都不算"完整编码"：
+        //   ① 低 12 位**恰好** 0xFFE（社区实测：手工把末 3 位凑成 ffe 仍会被拒，
+        //      因为上游是拿整个编码**反解时间戳**的）；
+        //   ② 反解出来的毫秒数**就是刚才**（这条最容易退化 —— 旧实现是"30 天里
+        //      随机挑一天"，能过 10-13 的旧门禁，过不了 10-14 的新门禁）。
         for (const id of ids) {
-          const low12 = parseInt(id.slice(13, 16), 16);
-          assert.ok(low12 >= 0xf00, `低 12 位不像时间戳编码（${id}）：0x${low12.toString(16)}`);
+          const hex = BigInt('0x' + id.slice(4, 16));
+          assert.equal(Number(hex & 0xFFFn), 0xFFE,
+            `低 12 位必须是 0xFFE（${id}）`);
+          const ms = Number((27n << 36n) - 1n - (hex >> 12n));
+          const skew = Math.abs(Date.now() - ms);
+          assert.ok(skew < 120000,
+            `会话 id 里编码的时间戳必须接近当前时刻，偏差 ${Math.round(skew / 1000)} 秒（${id}）`);
         }
       } finally { await p.stop(); }
     });

@@ -31,6 +31,8 @@
  * | 会话 id 形状 | `ses_` + 12 位 hex 必须是**铸造**形状 `~(ms·0x1000+seq)`（低 12 位 ≈ `0xFFE`） | sha256 派生 / 随机 hex → 403 |
  * | 工具指纹 | **`bash` 与 `read` 必须同时声明**，且**各自 schema 至少有一个 property** | 只其一 → 403；`properties: {}` → 403 |
  * | User-Agent | **含 `deepseek-harness` 一律 403**（大小写不敏感、位置无关）；`dsh/…`、`opencode/1.18.x` 放行 | 403 |
+ * | UA **版本号** | 必须在 **`[1.18.0, 1.18.33]`**（2026-10-14 13:45 UTC 起加的带；`<1.18.0` → **426**，`≥1.18.34` → **403**，官方 1.19.0 自己也被拒） | 426 / 403 |
+ * | 会话 id（**加强**） | 不再是"能解出时间戳"，而是**官方 tA() 完整编码**：`((27<<36)-1-ms)<<12 \| 0xFFE`。手工把末 3 位凑成 `ffe` **仍然 403** | 403 |
  * | 其它 | `Authorization: Bearer public` 必须保留；`stream: true` 必须 | 401 / 403 |
  *
  * ⚠️ **两条遗留头必须不发**：`x-session-affinity` 与 `x-session-id`。
@@ -38,10 +40,25 @@
  * 非官方客户端信号（`MingLoong/Aether` PR#72 的头部矩阵：仅 `x-opencode-*` → 200，
  * 再加 `x-session-id` → 200，**再加 `x-session-affinity` → 403**）。
  *
- * ⚠️ 与"是不是服务器的出口"有关：2026-10-15 我们在**本机（容器/服务器出口）**
- * 按上表做了 6 组变体（三种工具集 × 有/无 `x-opencode-request`，走 node:https 的
- * HTTP/1.1）**全部 403**；而社区在各自机器上用同样的形状拿到 200。所以**手机上的
- * 结果要以真机为准** —— 失败时如实报出来，别假装成功。
+ * ## ⚠️ 但"契约全对"≠"就能用"：**出口也是被闸的一环**（2026-10-15 本机实测）
+ *
+ * 把上面每一条都对齐之后（含最新的 UA 带 + 官方 tA() 会话编码），我们在本机仍然 403。
+ * 一次判别实验把原因指出来了（同一个出口、同一时刻、只换模型）：
+ *
+ * | 请求 | 结果 | 说明 |
+ * |---|---|---|
+ * | `chat/completions` + **不存在的模型** | **400** `Model is unavailable` | 说明请求**已经穿过了门禁层**，是模型解析拒绝的 |
+ * | `chat/completions` + `cat-jam-free` | **403 `RegionError`**（"not available in your region"） | **出口地区被封** |
+ * | `chat/completions` + 其它免费模型 | 403 `FreeTierError` | 匿名免费层不认非官方客户端 |
+ * | `/responses`、`/messages` 同样形状 | 403 `RegionError` / 400 | 同理 |
+ *
+ * 也就是说：**同一个请求里，"门禁"和"地区"是两道独立的闸**，而我们的出口两道都过不去
+ * （一个不存在的模型能拿到 400，恰好证明前一道不是"看形状"那么简单）。
+ * 社区那边（不同出口）用同样的形状拿到 200 —— 所以**手机上的结果只能真机判**。
+ *
+ * **结论（别推翻）**：这条通道对**大陆网络**尤其不可靠（8-27 就实测过 `RegionError`），
+ * 它在本 App 里的定位是**彩蛋**，不是承诺 —— 兑现"不用填 Key"的是 Pollinations
+ * （见 `app/lib/data/polli_channel.dart`）。失败时如实报出来，绝不假装成功。
  *
  * ## 更早的形状（2026-10-13，已被上面这条取代，留着是为了看懂历史 403）
  *
@@ -165,40 +182,51 @@ function base62Fixed(value, width) {
 }
 
 /**
- * 把任意种子**确定性地**换算成官方会话 id。
- * 同一个会话拿到同一个 id（保持上游的 prompt cache 亲和性）。
+ * 把任意种子**确定性地**换算成官方会话 id，同一个会话拿到同一个 id
+ * （保持上游的 prompt cache 亲和性）。
  *
- * ## ⚠️ 前 12 位 hex 必须是「时间戳编码」，不能是摘要（2026-10-13 上游这么改的）
+ * ## ⚠️ 12 位 hex 必须是**官方 tA() 的完整编码**（2026-10-14 再次收紧）
  *
- * 上游现在会把这 12 位 hex **解码回一个毫秒时间戳**，合理才认；不合理就一律
- * `403 FreeTierError: free tier can only be used from within OpenCode` ——
- * 也就是说「形状对」已经不够了。官方客户端的编码是：
+ * 10-13 那次只查"这 12 位能不能解出**一个**时间戳"；10-14 起改成查**完整编码**：
  *
- *     ~(BigInt(Date.now()) * 0x1000n + counter)     // 取低 48 位 → 恰好 12 位 hex
+ *     hex = ((27 << 36) - 1 - unix_millis) << 12 | 0xFFE     // 取低 48 位
  *
- * 所以它生成的 id 总以 `ecc…ffe` 收尾。我们这边要在**确定性**（同一会话同一 id）
- * 和**时间戳合理**之间取一个折中：用种子哈希在「最近 30 天」里挑一个毫秒数 ——
- * 上游不校验会话新旧（实测 30 天前的照样 200），但会校验这 12 位能不能解成时间戳。
- * 后 14 位 Base62 仍按种子派生。
+ * 依据 `mnwlzf/sub2api` PR#22（2026-10-15）的单变量实测：
+ *   * 哈希派生（末 3 位 `f65`）→ 403；
+ *   * **手工把末 3 位凑成 `ffe`** → 仍然 403（说明它不是"看形状"）；
+ *   * 官方 tA() 完整编码 → 门禁通过（对方那边拿到 429 限额，属于"进了门"）。
  *
- * 依据：`decolua/9router#4780`（2026-10-13，已有人验修）+ 本机实测（换回时间戳编码后 200）。
+ * 所以我们这里就直接按官方公式铸造，并且**每个种子只铸造一次**（缓存起来）——
+ * 公式里带 `Date.now()`，不缓存的话每次请求都会换一个会话 id，缓存亲和就没了。
  */
+const SESSION_CACHE = new Map();
+const SESSION_CACHE_MAX = 256;
+
+/** 按官方 tA() 公式铸造一个**当场**的会话 id（低 12 位固定 `0xFFE`）。 */
+function mintSessionId(nowMs) {
+  const A = (27n << 36n) - 1n - BigInt(nowMs);
+  const hex = ((A << 12n) | 0xFFEn) & 0xFFFFFFFFFFFFn;
+  // 后 14 位必须是 Base62：用一次随机数（同一个种子只在首次铸造时用得到）
+  const rnd = createHash('sha256').update(String(Math.random())).digest();
+  const tail = base62Fixed(BigInt('0x' + rnd.subarray(0, 8).toString('hex')), 14);
+  // ⚠️ BigInt.toString 的基数是**数字** 16，不是字符串 'hex'（写成 'hex' 会抛
+  //    RangeError —— 2026-10-15 自测当场抓到，代理一崩就是"fetch failed"）。
+  return `ses_${hex.toString(16).padStart(12, '0')}${tail}`;
+}
+
 function canonicalSessionId(seed) {
   const s = String(seed || '');
   if (CANONICAL_SESSION.test(s)) return s;
-  const sum = createHash('sha256').update('ses\u0000' + s).digest();
-  const tsum = createHash('sha256').update('ses-time\u0000' + s).digest();
-  // 在最近 30 天里取一个由种子决定的毫秒数，并把基准**按天取整** ——
-  // 这样同一天里同一会话拿到的 id 完全一致（缓存亲和），跨天才会换一个。
-  const spanMs = 30 * 24 * 60 * 60 * 1000;
-  const dayMs = 24 * 60 * 60 * 1000;
-  const back = Number(BigInt('0x' + tsum.subarray(0, 6).toString('hex')) % BigInt(spanMs));
-  const ms = Math.floor(Date.now() / dayMs) * dayMs - (back % dayMs);
-  const counter = Number(tsum[6] % 16);
-  const inv = (~((BigInt(ms) * 0x1000n) + BigInt(counter))) & 0xFFFFFFFFFFFFn;
-  const timePart = inv.toString(16).padStart(12, '0');
-  const randomPart = base62Fixed(BigInt('0x' + sum.subarray(6, 16).toString('hex')), 14);
-  return `ses_${timePart}${randomPart}`;
+  const hit = SESSION_CACHE.get(s);
+  if (hit) return hit;
+  const minted = mintSessionId(Date.now());
+  if (SESSION_CACHE.size >= SESSION_CACHE_MAX) {
+    // 简单 FIFO 淘汰：会话数不会太多，这里只要别无限涨
+    const oldest = SESSION_CACHE.keys().next().value;
+    SESSION_CACHE.delete(oldest);
+  }
+  SESSION_CACHE.set(s, minted);
+  return minted;
 }
 
 function requestId(seed) {
@@ -209,11 +237,25 @@ function projectId(seed) {
   return 'prj_' + createHash('sha256').update('prj\u0000' + seed).digest('hex').slice(0, 20);
 }
 
-/** 官方 CLI 形状的 UA（版本号与平台串按实测值；上游现在不检查，但保持同形）。 */
-/// ⚠️ **`deepseek-harness` 这几个字不能出现在发往上游的 UA 里**（2026-10-14 实测：
-/// 含它一律 403，大小写不敏感、位置无关；`dsh/…` 与 `opencode/1.18.x` 放行）。
-/// 这里本来就是我们自己拼的 UA，但加一道净化 —— 将来有人往里加"归属信息"时，
-/// 不至于把整条通道打死（社区那边就是这么被打死的：UA 里留了 deepseek-harness）。
+/**
+ * 官方 CLI 形状的 UA —— **版本号必须落在门禁接受的带内**。
+ *
+ * ⚠️ 2026-10-14 13:45–13:53 UTC 起，上游对免费层门禁加了 **UA 版本带**（依据
+ * `mnwlzf/sub2api` PR#22 的 24 次单变量二分，同一 key / body / 出口）：
+ *
+ * | UA 里的版本 | 结果 |
+ * |---|---|
+ * | `< 1.18.0` | **426 UpgradeRequired** |
+ * | `1.18.0 … 1.18.33` | **放行（200）** |
+ * | `>= 1.18.34` | **403 FreeTierError**（连官方最新 1.19.0 自己也被拒 —— 上游回归） |
+ *
+ * 所以这里**写死 1.18.31**（真实 release、带内中段），改了要重测 —— 见
+ * `install/test-zen-proxy.mjs` 里那条"版本必须在带内"的测试。
+ *
+ * ⚠️ 另外：**`deepseek-harness` 这几个字不能出现在 UA 里**（2026-10-14 实测：
+ * 含它一律 403，大小写不敏感、位置无关；`dsh/…` 与 `opencode/1.18.x` 放行）。
+ * `sanitizeUserAgent()` 兜这一道 —— 将来有人往里加"归属信息"时不至于把整条通道打死。
+ */
 function sanitizeUserAgent(raw) {
   return String(raw)
       .replace(/deepseek-harness/gi, 'dsh')
@@ -222,9 +264,8 @@ function sanitizeUserAgent(raw) {
 }
 
 function cliUserAgent() {
-  // 版本号与官方 1.18/1.19 一致（上游目前不校验版本，但保持同形）。
   return sanitizeUserAgent(
-      `opencode/1.18.22 (${process.platform} ${process.arch}; node${process.versions.node})`);
+      'opencode/1.18.31 ai-sdk/provider-utils/4.0.23 runtime/bun/1.3.14');
 }
 
 function disguiseHeaders(session) {

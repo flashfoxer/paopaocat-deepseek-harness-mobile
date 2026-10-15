@@ -86,6 +86,15 @@ class AppSettings extends ChangeNotifier {
   /// 关掉就是"会话不带联网搜索工具"。
   static const String _kAnysearchEnabled = 'dsh_anysearch_enabled';
 
+  /// 「会话里提供子智能体工具」（出厂是提供的）。
+  ///
+  /// 关掉 = overlay 里把这几个 id 覆盖成 `disabled: true`（见
+  /// `data/session_capabilities.dart`），**下一个会话进程**才生效。
+  static const String _kSubagentEnabled = 'dsh_subagent_enabled';
+
+  /// 子会话用哪个模型（`provider/model` 路由串）。空 = 跟随父会话。
+  static const String _kSubagentRoute = 'dsh_subagent_route';
+
   /// 「正在取图」的时间戳（epoch ms，空 = 没有）。
   ///
   /// 为什么需要它：取图会离开 App（相机/相册是系统页面），回来的路上 App 可能被
@@ -153,6 +162,12 @@ class AppSettings extends ChangeNotifier {
 
   /// 「会话里能联网搜索」是否开启（见 [_kAnysearchEnabled]）。**默认开**。
   bool _anysearchEnabled = true;
+
+  /// 「会话里提供子智能体工具」是否开启（见 [_kSubagentEnabled]）。**默认开**。
+  bool _subagentEnabled = true;
+
+  /// 子会话用的模型路由（`provider/model`）；null/空 = 跟随父会话。
+  String? _subagentRoute;
   String _skinId = kDefaultSkin;
   AppLanguage _language = AppLanguage.fallback;
 
@@ -267,6 +282,20 @@ class AppSettings extends ChangeNotifier {
 
   /// 「会话里能联网搜索」（AnySearch）是否开启 —— **默认 true**，见 [_kAnysearchEnabled]。
   bool get anysearchEnabled => _anysearchEnabled;
+
+  /// 「会话里提供子智能体工具」是否开启 —— **默认 true**，见 [_kSubagentEnabled]。
+  bool get subagentEnabled => _subagentEnabled;
+
+  /// 子会话用的模型路由（`provider/model`）；空 = 跟随父会话。
+  String? get subagentRoute => _subagentRoute;
+
+  /// 拆成 (provider, model) 给 overlay 用；跟随父会话时返回 (null, null)。
+  (String?, String?) get subagentRouteParts {
+    final r = (_subagentRoute ?? '').trim();
+    final i = r.indexOf('/');
+    if (r.isEmpty || i <= 0 || i == r.length - 1) return (null, null);
+    return (r.substring(0, i), r.substring(i + 1));
+  }
 
   bool get loaded => _loaded;
 
@@ -416,6 +445,10 @@ class AppSettings extends ChangeNotifier {
       _polliEnabled = prefs.getBool(_kPolliEnabled) ?? true;
       // 同上：默认开（匿名可用，不用填任何东西）。
       _anysearchEnabled = prefs.getBool(_kAnysearchEnabled) ?? true;
+      // 出厂就是提供子智能体的，所以默认 true。
+      _subagentEnabled = prefs.getBool(_kSubagentEnabled) ?? true;
+      final sub = prefs.getString(_kSubagentRoute);
+      _subagentRoute = (sub == null || sub.trim().isEmpty) ? null : sub.trim();
       // 本地模型那两项：只认白名单里的值，磁盘上有脏值就退回默认
       // （绝不把后端留在一个"不认识"的状态上）。
       final lb = prefs.getString(_kLocalBackend);
@@ -505,6 +538,42 @@ class AppSettings extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_kSkin, id);
       debugPrint('[dsh-app-settings] 主题 = $id（已落盘）');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 开/关「会话里提供子智能体工具」。
+  ///
+  /// ⚠️ 与联网搜索一样，**下一个会话进程**才生效（overlay 在进程启动时读）。
+  Future<void> setSubagentEnabled(bool v) async {
+    if (v == _subagentEnabled) return;
+    _subagentEnabled = v;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kSubagentEnabled, v);
+      debugPrint('[dsh-app-settings] 子智能体 = $v');
+    } catch (e) {
+      debugPrint('[dsh-app-settings] persist failed: $e');
+    }
+  }
+
+  /// 指定子会话用哪个模型（`provider/model`）；传空 = 跟随父会话。
+  Future<void> setSubagentRoute(String? route) async {
+    final v = (route ?? '').trim();
+    final next = v.isEmpty ? null : v;
+    if (next == _subagentRoute) return;
+    _subagentRoute = next;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (next == null) {
+        await prefs.remove(_kSubagentRoute);
+      } else {
+        await prefs.setString(_kSubagentRoute, next);
+      }
+      debugPrint('[dsh-app-settings] 子智能体模型 = ${next ?? "（跟随会话）"}');
     } catch (e) {
       debugPrint('[dsh-app-settings] persist failed: $e');
     }

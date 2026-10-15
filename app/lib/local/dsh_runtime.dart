@@ -6,6 +6,7 @@ import 'dart:math' show Random;
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart';
 
+import '../data/session_capabilities.dart';
 import '../data/agnes_builtin.dart';
 import '../data/configured_models.dart';
 import 'android_toolbox.dart';
@@ -533,6 +534,14 @@ class DshRuntime {
   String get filesDir => paths['filesDir'] as String? ?? '';
   String get dshBin => paths['dshBin'] as String? ?? '';
   String get nodeHome => paths['nodeHome'] as String? ?? '';
+
+  /// 出厂运行时**解包后**的根目录（`MainActivity.unpack()` 把压缩包里的 `app/`
+  /// 解到 `<filesDir>/dsh`）。判断"运行时里有没有某个插件"就看这里。
+  String get runtimeRoot => '$filesDir/dsh';
+
+  /// 运行时里有没有 AnySearch 的搜索后端插件（决定 overlay 会不会写那两行）。
+  bool get runtimeHasAnysearchPlugin =>
+      SessionCapabilities.runtimeHasAnysearchPlugin(runtimeRoot);
   String get fsShim => paths['fsShim'] as String? ?? '';
 
   /// 模型 overlay 的落盘位置（首次运行前由 [writeModelConfig] 生成）。
@@ -673,6 +682,16 @@ class DshRuntime {
     required String activeRoute,
     int? rotatePort,
     LocalModelSpec? localModel,
+    /// 会话里的联网搜索：运行时里有 AnySearch 后端插件、且用户开着 → 写激活片段。
+    ///
+    /// 见 `data/session_capabilities.dart`（⚠️ 老运行包没有这个插件，硬写会让会话起不来，
+    /// 所以调用方必须先确认 [runtimeHasAnysearchPlugin]）。
+    bool nativeWebSearch = false,
+    /// 子智能体是否提供（出厂是提供的）。关掉 → 写 disabled 片段。
+    bool subagentEnabled = true,
+    /// 指定子会话用哪家/哪个模型（都为空 = 跟随父会话，不写片段）。
+    String? subagentProvider,
+    String? subagentModel,
   }) async {
     final home = Directory(nodeHome);
     if (!home.existsSync()) home.createSync(recursive: true);
@@ -883,6 +902,21 @@ class DshRuntime {
     buf.writeln('  name: "@deepseek-ai/dsh-permission-presets"');
     buf.writeln('  config:');
     buf.writeln('    defaultPreset: danger-full-access');
+
+    // ── 会话里的两种能力（2026-10-15）：联网搜索的后端、以及子智能体开关 ──
+    //
+    // 为什么写在这里：overlay 是 App 唯一掌控的 patch 层，而出厂那层把
+    // `web.searchProvider` 钉死在 deepseek-official（要 Key）、子智能体则是默认开。
+    // 这两件事都是"按用户选择改钉"，片段由 data/session_capabilities.dart 生成（可单测）。
+    if (nativeWebSearch) {
+      buf.write(SessionCapabilities.nativeWebSearchPatch());
+    }
+    final subagent = SessionCapabilities.subagentPatch(
+      enabled: subagentEnabled,
+      provider: subagentProvider,
+      model: subagentModel,
+    );
+    if (subagent.isNotEmpty) buf.write(subagent);
 
     writeStringAtomicSync(File(overlayPath), buf.toString());
     debugPrint(

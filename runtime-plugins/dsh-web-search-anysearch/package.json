@@ -1,0 +1,25 @@
+{
+  "name": "@deepseek-ai/dsh-web-search-anysearch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AnySearch-backed search provider for the DSH ctx.web seam (anonymous-first, optional as_sk_ key).",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "import": "./lib/index.js",
+      "default": "./lib/index.js"
+    },
+    "./lib/index.js": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-credentials": "*",
+    "@deepseek-ai/dsh-launch-environment": "*",
+    "@deepseek-ai/dsh-web": "*",
+    "@deepseek-ai/schemastery": "*"
+  },
+  "files": [
+    "lib"
+  ]
+}

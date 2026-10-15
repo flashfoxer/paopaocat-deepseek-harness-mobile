@@ -424,6 +424,14 @@ class _ChatPageState extends State<ChatPage> {
   /// 将来两边共用一把 Key，不会互相"看不见"。
   Future<List<Map<String, dynamic>>> _mcpServers() async {
     if (!widget.anysearchEnabled) return const <Map<String, dynamic>>[];
+    // ⚠️ 运行时里若已经带了 **原生** 的 AnySearch 搜索后端（overlay 会把
+    //    `web.searchProvider` 钉到它），这里就**不要再挂 MCP** —— 否则会话里会同时
+    //    出现"原生 web_search"和"AnySearch 的 MCP 工具"两个搜索入口，模型容易乱选。
+    //    这正是"新运行包走原生、老运行包退回 MCP"的分工。
+    if (widget.runtime.runtimeHasAnysearchPlugin) {
+      debugPrint('[chat] 运行时自带 AnySearch 原生后端 → 不重复挂 MCP');
+      return const <Map<String, dynamic>>[];
+    }
     String? key;
     try {
       key = await ProviderKeys.read(AnySearch.keyStorageId);

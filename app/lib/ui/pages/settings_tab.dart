@@ -218,6 +218,21 @@ class _SettingsTabState extends State<SettingsTab> {
                 ),
               ),
               const SizedBox(height: 10),
+              // 「子智能体」= 会话内部分工（2026-10-15 用户要的第 2 项）。
+              //
+              // 运行时里本来就带着它（`dsh-tool-subagent` 那几行挂在这个 profile 的
+              // 基础组合里），App 这边做的是"**按用户选择改钉**"：关掉、或指定子会话的模型。
+              DshCollapsibleSection(
+                title: context.tr('子智能体'),
+                child: _card(
+                  child: _SubagentBlock(
+                    runtime: widget.runtime,
+                    settings: widget.appSettings,
+                    onModelChanged: widget.onModelChanged,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               // OpenCode Zen 通道：**保留成彩蛋**（默认关、界面上写明可能已失效）。
               // 它的价值是"万一哪天上游又开了"，成本是一个开关 + 一段说明。
               DshCollapsibleSection(
@@ -1598,6 +1613,156 @@ String _fill(String template, String v) => template.replaceAll('{0}', v);
 ///      （2026-10-11 用户纠正："这个项目的特点就是不用写key"）；
 ///   3. **显示真实状态**（代理在不在跑、拿到几个模型、上次什么错），
 ///      而不是一个"已开启"的空壳。
+/// 「子智能体」= 会话内部的委派（用户 2026-10-15 要的第 2 项）。
+///
+/// ## 它是什么（界面上的第一段话就要说清）
+///
+/// 主 agent 可以把一块子任务**交给另一个 agent 实例**去做：那个实例有**自己的上下文
+/// 窗口**，干完只把结论回传 —— 于是主会话不被中间过程撑爆（省 token）、可以并行、
+/// 也更容易"换个角色重做一遍"。
+///
+/// ## App 这边做了什么
+///
+/// 运行时里**本来就带着它**（`dsh-tool-subagent` / `-fork` / `-control` 挂在
+/// 这个 profile 的基础组合里），所以这里的开关不是"装一个功能"，而是
+/// **在 overlay 里按 id 改钉**（见 `data/session_capabilities.dart`）：
+///   * 关掉 → 那几行 `disabled: true`；
+///   * 指定模型 → 覆盖 `tool-subagent` 的 `config.agentOptions`。
+///
+/// ⚠️ 两点必须如实说：① 它**只在下一个会话进程**生效（overlay 在进程启动时读一次）；
+/// ② 多一层子 agent = **多一份 token 与时间**，用免费那条 20B 通道时尤其明显。
+class _SubagentBlock extends StatefulWidget {
+  const _SubagentBlock({
+    required this.runtime,
+    required this.settings,
+    required this.onModelChanged,
+  });
+
+  final DshRuntime runtime;
+  final AppSettings settings;
+  final Future<void> Function() onModelChanged;
+
+  @override
+  State<_SubagentBlock> createState() => _SubagentBlockState();
+}
+
+class _SubagentBlockState extends State<_SubagentBlock> {
+  bool _busy = false;
+  List<String> _routes = const <String>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutes();
+  }
+
+  /// 可选的"子会话用哪个模型"：就是用户已经配好的那些 route。
+  void _loadRoutes() {
+    try {
+      final cfg = ConfiguredModels.readConfig(widget.runtime.filesDir);
+      final out = <String>[
+        for (final p in cfg.providers)
+          for (final m in cfg.models)
+            if (m.provider == p.id) '${p.id}/${m.id}',
+      ];
+      if (mounted) setState(() => _routes = out);
+    } catch (e) {
+      debugPrint('[dsh-subagent] 读模型清单失败：$e');
+    }
+  }
+
+  Future<void> _toast(String msg) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _apply({bool? enabled, String? route}) async {
+    setState(() => _busy = true);
+    final msg = context.tr('已保存 —— **开一个新会话**才会带上这个设置。');
+    if (enabled != null) await widget.settings.setSubagentEnabled(enabled);
+    if (route != null) await widget.settings.setSubagentRoute(route);
+    // 重写 overlay（壳层提供），否则下一次会话还是旧组合。
+    try {
+      await widget.onModelChanged();
+    } catch (e) {
+      debugPrint('[dsh-subagent] 重写 overlay 失败：$e');
+    }
+    if (!mounted) return;
+    setState(() => _busy = false);
+    await _toast(msg);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.settings.subagentEnabled;
+    final current = widget.settings.subagentRoute ?? '';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        DshRichText(
+          context.tr('打开后，**会话里的 AI 可以"分人做事"**：把一块子任务交给另一个 '
+              'agent 实例（**它有自己的上下文窗口**），干完只把结论拿回来 —— '
+              '主会话因此不会被中间过程撑爆，也能并行推进几件事。'),
+          style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          context.tr('⚠️ 两点如实说明：\n'
+              '· 多一层子 agent = **多一份 token 与时间**（子会话也要跑模型），'
+              '用免费那条小模型通道时尤其明显。\n'
+              '· 改完**只在下一个会话生效**（会话进程启动时才读这份配置）。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.5),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(context.tr('让会话能用子智能体'),
+                  style: const TextStyle(fontSize: 13)),
+            ),
+            Switch(
+              value: enabled,
+              onChanged: _busy
+                  ? null
+                  : (v) => _apply(enabled: v),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(context.tr('子会话用哪个模型'),
+            style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 2),
+        DropdownButtonFormField<String>(
+          initialValue: current.isEmpty ? '' : current,
+          isDense: true,
+          decoration: const InputDecoration(isDense: true, border: OutlineInputBorder()),
+          style: const TextStyle(fontSize: 12),
+          items: <DropdownMenuItem<String>>[
+            DropdownMenuItem<String>(
+              value: '',
+              child: Text(context.tr('跟随当前会话（推荐）'),
+                  style: const TextStyle(fontSize: 12)),
+            ),
+            for (final r in _routes)
+              DropdownMenuItem<String>(
+                value: r,
+                child: Text(r, style: const TextStyle(fontSize: 12)),
+              ),
+          ],
+          onChanged: _busy ? null : (v) => _apply(route: v ?? ''),
+        ),
+        Text(
+          context.tr('只有需要一个"更便宜/更小的模型去干粗活"时才需要改它；'
+              '默认跟随当前会话。'),
+          style: TextStyle(color: DshColors.textFaint, fontSize: 10.5, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
 /// 「会话联网搜索」= **AnySearch**（2026-10-15，用户选定 B 方案）。
 ///
 /// 它给会话里的 agent 挂一个 **Streamable HTTP 的 MCP 服务器**

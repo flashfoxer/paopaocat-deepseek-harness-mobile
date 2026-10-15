@@ -3303,5 +3303,45 @@
     "en": "It works: {0} results ({1}).",
     "ja": "通りました：{0} 件の結果（{1}）。",
     "ko": "정상: 결과 {0}건({1})."
+  },
+  "⚠️ 两点如实说明：\n· 多一层子 agent = **多一份 token 与时间**（子会话也要跑模型），用免费那条小模型通道时尤其明显。\n· 改完**只在下一个会话生效**（会话进程启动时才读这份配置）。": {
+    "en": "⚠️ Two honest notes:\n· One extra sub-agent layer means **extra tokens and time** (the child runs the model too) — especially noticeable on the free small-model lane.\n· Changes apply to the **next session** (the session process reads this config when it starts).",
+    "ja": "⚠️ 正直に二点：\n· 子エージェントを一段挟むと **トークンと時間が余分にかかります**（子セッションもモデルを回すため）。無料の小さいモデル経路では特に目立ちます。\n· 変更は**次のセッション**から有効です（設定はセッション起動時に読まれます）。",
+    "ko": "⚠️ 솔직하게 두 가지:\n· 하위 에이전트를 한 층 더 두면 **토큰과 시간이 더 듭니다**(하위 세션도 모델을 돌립니다). 무료 소형 모델 경로에서 특히 두드러집니다.\n· 변경은 **다음 세션**부터 적용됩니다(설정은 세션 시작 시 읽힙니다)."
+  },
+  "只有需要一个\"更便宜/更小的模型去干粗活\"时才需要改它；默认跟随当前会话。": {
+    "en": "Change this only when you want a **cheaper/smaller model doing the grunt work**; the default follows the current session.",
+    "ja": "「安い／小さいモデルに雑用をやらせたい」ときだけ変えてください。既定は現在のセッションに追従します。",
+    "ko": "\"더 저렴하거나 작은 모델에게 잡일을 맡기고 싶을 때\"만 바꾸세요. 기본값은 현재 세션을 따릅니다."
+  },
+  "子会话用哪个模型": {
+    "en": "Which model the child uses",
+    "ja": "子セッションが使うモデル",
+    "ko": "하위 세션이 쓸 모델"
+  },
+  "子智能体": {
+    "en": "Sub-agents",
+    "ja": "子エージェント",
+    "ko": "하위 에이전트"
+  },
+  "已保存 —— **开一个新会话**才会带上这个设置。": {
+    "en": "Saved — it takes effect **the next time you start a session**.",
+    "ja": "保存しました —— **新しいセッションを開いたとき**から有効です。",
+    "ko": "저장했습니다 — **새 세션을 열 때**부터 적용됩니다."
+  },
+  "打开后，**会话里的 AI 可以\"分人做事\"**：把一块子任务交给另一个 agent 实例（**它有自己的上下文窗口**），干完只把结论拿回来 —— 主会话因此不会被中间过程撑爆，也能并行推进几件事。": {
+    "en": "When on, **the AI inside a session can split the work between people**: it hands a piece of the job to another agent instance (**with its own context window**) and only takes the conclusion back — so the main session does not drown in intermediate steps, and several things can proceed in parallel.",
+    "ja": "オンにすると、**セッション内の AI が仕事を分担できます**：タスクの一部を別のエージェント実体（**独自のコンテキストウィンドウ**）に渡し、結論だけを受け取ります —— メインセッションが途中経過で膨らまず、同時並行もできます。",
+    "ko": "켜면 **세션 안의 AI가 일을 나눠 맡길 수 있습니다**: 작업의 일부를 다른 에이전트 인스턴스(**자체 컨텍스트 창**)에 넘기고 결론만 받아옵니다 — 메인 세션이 중간 과정으로 부풀지 않고 병행도 가능합니다."
+  },
+  "让会话能用子智能体": {
+    "en": "Sub-agents",
+    "ja": "子エージェント",
+    "ko": "하위 에이전트"
+  },
+  "跟随当前会话（推荐）": {
+    "en": "Follow the current session (recommended)",
+    "ja": "現在のセッションに追従（推奨）",
+    "ko": "현재 세션 따르기(권장)"
   }
 }

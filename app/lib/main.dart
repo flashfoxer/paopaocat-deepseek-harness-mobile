@@ -417,6 +417,14 @@ class _LocalShellState extends State<LocalShell> {
           runtime: runtime,
           models: _models,
           secure: _secure,
+          // 联网搜索走原生后端：**只在运行时真带了那个插件、且用户开着**时才写进
+          // overlay（老运行包上引用不存在的插件会让会话起不来 —— 那时改走 MCP，
+          // 见 chat_page 的 _mcpServers）。
+          nativeWebSearch:
+              runtime.runtimeHasAnysearchPlugin && widget.appSettings.anysearchEnabled,
+          subagentEnabled: widget.appSettings.subagentEnabled,
+          subagentProvider: widget.appSettings.subagentRouteParts.$1,
+          subagentModel: widget.appSettings.subagentRouteParts.$2,
         );
         runtime = await _buildRuntime(paths);
       }
@@ -523,7 +531,16 @@ class _LocalShellState extends State<LocalShell> {
       // （可能是空的）清单 → 界面显示「未配置模型」，**只有退出重进才正常**。
       // 这正是用户实测反馈的现象（「只有退出程序再进来打开会话，才能看见模型」）。
       await _models.reloadQuiet(filesDir: filesDir);
-      await applyModelSelection(runtime: rt, models: _models, secure: _secure);
+      await applyModelSelection(
+        runtime: rt,
+        models: _models,
+        secure: _secure,
+        nativeWebSearch:
+            rt.runtimeHasAnysearchPlugin && widget.appSettings.anysearchEnabled,
+        subagentEnabled: widget.appSettings.subagentEnabled,
+        subagentProvider: widget.appSettings.subagentRouteParts.$1,
+        subagentModel: widget.appSettings.subagentRouteParts.$2,
+      );
       // ⚠️ 顺序在这里很重要（用户实测第 2 条「选一次不行，要选第二次」）：
       // **先把新清单落进 overlay，再让界面（会话页）看到新选中项**。反过来
       // （旧写法 `load()` 先 notify）会让监听者在这一瞬间按**还没重写的** overlay

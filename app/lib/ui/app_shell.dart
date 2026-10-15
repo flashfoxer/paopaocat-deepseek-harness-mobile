@@ -964,6 +964,14 @@ Future<void> applyModelSelection({
   required DshRuntime runtime,
   required ModelStore models,
   required FlutterSecureStorage secure,
+  /// 会话里要不要激活 AnySearch 的搜索后端（**只在运行时真有那个插件时才为 true**，
+  /// 见 `DshRuntime.runtimeHasAnysearchPlugin`）。默认 false = 保守：老运行包上
+  /// 引用不存在的插件会让会话起不来。
+  bool nativeWebSearch = false,
+  /// 子智能体是否提供（出厂提供）。
+  bool subagentEnabled = true,
+  String? subagentProvider,
+  String? subagentModel,
 }) async {
   final cfg = models.config.isEmpty
       ? ConfiguredModels.readConfig(runtime.filesDir)
@@ -985,6 +993,10 @@ Future<void> applyModelSelection({
     rotatePort: port,
     // 端侧模型：**只在真的跑着的时候**才写进 overlay（见 local_model_server.dart）。
     localModel: LocalModelServer.instance.spec,
+    nativeWebSearch: nativeWebSearch,
+    subagentEnabled: subagentEnabled,
+    subagentProvider: subagentProvider,
+    subagentModel: subagentModel,
   );
   debugPrint(
     '[dsh-model] overlay 已重写：默认=$route，${cfg.providers.length} 个厂家 / '
@@ -1001,6 +1013,10 @@ Future<String?> ensureModelConfig({
   required DshRuntime runtime,
   required ModelStore models,
   required FlutterSecureStorage secure,
+  bool nativeWebSearch = false,
+  bool subagentEnabled = true,
+  String? subagentProvider,
+  String? subagentModel,
 }) async {
   final baseUrl = await secure.read(key: 'dsh_model_base_url');
   final providerId = await secure.read(key: 'dsh_model_provider');
@@ -1115,6 +1131,10 @@ Future<String?> ensureModelConfig({
       activeRoute: active,
       rotatePort: rotatePort,
       localModel: localSpec,
+      nativeWebSearch: nativeWebSearch,
+      subagentEnabled: subagentEnabled,
+      subagentProvider: subagentProvider,
+      subagentModel: subagentModel,
     );
     debugPrint(
       '[dsh-model] overlay 已生成/升级：默认=$active，'

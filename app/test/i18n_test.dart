@@ -135,6 +135,8 @@ void main() {
       //    （原来会落到通用 403 文案"套餐不含 / Key 权限受限"，把用户导向错误的排查）。
       // ⚠️ 2026-10-15 1684 → 1705：新增「会话联网搜索」（AnySearch，用户选定 B 方案）
       //    的设置页板块与状态文案，+21 条。
+      // ⚠️ 2026-10-15 1705 → 1713：新增「子智能体」板块（开关 + 子会话用哪个模型 + 两条
+      //    如实说明），+8 条。
       // ⚠️ 2026-10-15 1671 → 1684：兑现「不用填 Key」的承诺 —— 新增 Pollinations
       //    免 Key 通道（`data/polli_channel.dart`）的设置页板块与状态文案，+13 条；
       //    同时把 Zen 那一节改名为「免费模型 · OpenCode Zen（第三方通道）」并加交叉指引。
@@ -143,7 +145,7 @@ void main() {
       //    「这条没能发出去：会话没能建起来，可以再试一次。」（A 的兜底文案）、
       //    「没有回答」（回放里那条失败提示的标签）、
       //    「磁盘历史会话 {0} 条（其中 {1} 条是空会话，没列出来）」（A 的第二半），+4。
-      expect(kEnTable.length, 1705);
+      expect(kEnTable.length, 1713);
       expect(kJaTable.length, kEnTable.length);
       expect(kKoTable.length, kEnTable.length);
     });

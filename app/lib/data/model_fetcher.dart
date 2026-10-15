@@ -112,7 +112,7 @@ Future<ModelListResult> fetchModelList({
       return ModelListResult(ok: false, error: error);
     }
 
-    final parsed = _parseModelList(body);
+    final parsed = parseModelList(body);
     debugPrint(
       '[dsh-models] list ok: ${parsed.length} models from ${provider.modelsUri}',
     );
@@ -139,12 +139,15 @@ Future<ModelListResult> fetchModelList({
   }
 }
 
-/// 解析模型列表。容忍几种真实存在的返回形态：
+/// 解析模型列表（**公开**是为了能直接喂各种真实响应形态做单元测试 ——
+/// 以前它是私有的，于是这段"坏了也不报错"的逻辑一直没有测试盯着）。
+///
+/// 容忍几种真实存在的返回形态：
 ///   * `{"object":"list","data":[{id,name,context_length,...}]}`  （OpenAI / Command）
 ///   * `{"data":["model-a","model-b"]}`
 ///   * `[{...}]` / `["model-a"]`
 ///   * `{"models":[{...}]}`
-List<FetchedModel> _parseModelList(String body) {
+List<FetchedModel> parseModelList(String body) {
   Object? decoded;
   try {
     decoded = jsonDecode(body);
@@ -184,7 +187,14 @@ List<FetchedModel> _parseModelList(String body) {
           break;
         }
       }
-      for (final key in <String>['display_name', 'label', 'title']) {
+      // ⚠️ **`name` 必须在这里**（真机反馈 2026-10-15：「模型名字也不对」）。
+      //
+      //    很多 OpenAI 兼容端点返回的是 `{"id":"deepseek-chat","name":"DeepSeek 对话"}`
+      //    —— `name` 就是**显示名**。以前这里只认 display_name/label/title，于是 name
+      //    被白白丢掉、`FetchedModel.label` 回落到 id：界面上看到的"模型名"其实是内部 id，
+      //    用户会觉得"名字不对"，而日志里一切正常（这正是它一直没被发现的缘故）。
+      //    顺带把 `name` 放在 label/title 前面：多数接口里它比后两个更"正式"。
+      for (final key in <String>['display_name', 'name', 'label', 'title']) {
         final v = item[key];
         if (v is String && v.trim().isNotEmpty) {
           name = v.trim();

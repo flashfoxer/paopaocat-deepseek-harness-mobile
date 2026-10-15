@@ -115,18 +115,29 @@ class _SettingsTabState extends State<SettingsTab> {
 
   Future<void> _onModelChanged() async {
     await widget.onModelChanged();
-    if (mounted) _modelTick.value++;
+    if (!mounted) return;
+    // ⚠️ 必须 setState：`_modelTick` 只是个普通计数，**没人监听它** ——
+    //    不主动重建本页的话，两个面板拿到的 `syncTick` 不会变，另一个面板就看不到
+    //    刚改的模型（"两个真相"）。重建**不影响**展开态：面板收到的只是 `syncTick`
+    //    （只重读数据），见 ModelSettingsPanel.didUpdateWidget 的两条分支。
+    setState(() => _modelTick.value++);
   }
 
-  /// 两个面板共用的刷新计数：外部（切页）+ 内部（本页改了模型）。
-  int get _tick => widget.refreshTick + _modelTick.value;
+  /// 给两个面板的两个计数 —— **必须分开传**（见 ModelSettingsPanel 里的说明）：
+  ///   * [Widget.refreshTick] 是**切页**（`app_shell._pageTicks`）→ 重读 + 收起展开态；
+  ///   * `_modelTick` 是**本页改了模型** → 只重读，**不动展开态**。
+  ///
+  /// 以前这里把它们加成一个 `_tick` 一起传，于是"在面板里点了个会落盘的东西"
+  /// 被当成切页，展开的厂家卡被收起来、勾选被清空 —— 真机反馈就是
+  /// 「设置模型的时候，怎么一点就退出，我还要再进去保存」（2026-10-15）。
 
   @override
   Widget build(BuildContext context) {
     final runtime = widget.runtime;
     final settings = widget.appSettings;
     final onModelChanged = _onModelChanged;
-    final refreshTick = _tick;
+    final refreshTick = widget.refreshTick; // 只表示「切页」
+    final syncTick = _modelTick.value; // 只表示「本页改过模型」
     return Column(
       children: [
         // 皮肤是运行时变量：这里不能 const（const 实例换肤时会被原样复用、颜色不刷新）
@@ -163,6 +174,7 @@ class _SettingsTabState extends State<SettingsTab> {
                         filesDir: runtime.filesDir,
                         onModelChanged: onModelChanged,
                         refreshTick: refreshTick,
+                        syncTick: syncTick,
                         // 轮换池单独成了一个板块（见下方「模型轮换池」），这里不画它。
                         showPool: false,
                       ),
@@ -185,6 +197,7 @@ class _SettingsTabState extends State<SettingsTab> {
                         filesDir: runtime.filesDir,
                         onModelChanged: onModelChanged,
                         refreshTick: refreshTick,
+                        syncTick: syncTick,
                         // 只画轮换池：标题与折叠交给外层 _CollapsibleSection。
                         showModels: false,
                       ),

@@ -104,7 +104,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
   }
 
-  Widget panelApp(String dir, List<int> calls) => MaterialApp(
+  Widget panelApp(
+    String dir,
+    List<int> calls, {
+    int refreshTick = 0,
+    int syncTick = 0,
+  }) =>
+      MaterialApp(
         theme: buildDshTheme(),
         home: Scaffold(
           body: SingleChildScrollView(
@@ -112,6 +118,8 @@ void main() {
               padding: const EdgeInsets.all(12),
               child: ModelSettingsPanel(
                 filesDir: dir,
+                refreshTick: refreshTick,
+                syncTick: syncTick,
                 onModelChanged: () async {
                   calls.add(1);
                 },
@@ -254,6 +262,38 @@ void main() {
       expect(find.text('充值/按量'), findsOneWidget);
       expect(find.text('套餐(token plan)'), findsOneWidget);
       expect(find.textContaining('选错会 401/404'), findsOneWidget);
+    });
+
+    // ── 真机反馈的回归测试（2026-10-15）：「设置模型的时候，怎么一点就退出，
+    //    我还要再进去保存」。
+    //
+    //    根因：面板把"别处改了模型"（syncTick）与"切页刷新"（refreshTick）当成同一个
+    //    计数，于是用户在面板里点任何会落盘的东西（获取模型 / 测试并保存 / 加删模型）
+    //    → 触发同步 → 被当成切页 → 把展开的厂家卡收回去、把勾选清空
+    //    → 界面上看就是"自己退出了"，得重新展开、重新填一遍。
+    testWidgets('改模型（syncTick）不许把展开态收回去，只有切页（refreshTick）才收', (tester) async {
+      await setSurface(tester);
+      final s = seedPanel();
+      await tester.pumpWidget(panelApp(s.dir, s.calls));
+      await settleAsync(tester);
+
+      await tester.tap(find.text('DeepSeek 官方'));
+      await tester.pump();
+      expect(find.text('获取模型'), findsOneWidget, reason: '展开后应该看得到「获取模型」');
+
+      // ① 只是"别处改了模型" → **不许收起**（这一条就是用户报的那个 bug）
+      await tester.pumpWidget(panelApp(s.dir, s.calls, syncTick: 1));
+      await settleAsync(tester);
+      expect(find.text('获取模型'), findsOneWidget,
+          reason: 'syncTick 变化把厂家卡收起来了 —— 真机上用户看到的就是"一点就退出"');
+      expect(find.text('测试并保存'), findsOneWidget,
+          reason: 'syncTick 变化把展开内容收起来了（测试并保存按钮都没了）');
+
+      // ② 真正切页刷新 → 这时才收起（"切换即刷新"那条要求不能被顺手弄丢）
+      await tester.pumpWidget(panelApp(s.dir, s.calls, refreshTick: 1));
+      await settleAsync(tester);
+      expect(find.text('获取模型'), findsNothing,
+          reason: '切页刷新应该把展开态收回去 —— 这条语义改坏了也是一样烦人');
     });
 
     testWidgets(

@@ -61,6 +61,7 @@ class ModelSettingsPanel extends StatefulWidget {
     required this.filesDir,
     required this.onModelChanged,
     this.refreshTick = 0,
+    this.syncTick = 0,
     this.showModels = true,
     this.showPool = true,
   });
@@ -71,8 +72,21 @@ class ModelSettingsPanel extends StatefulWidget {
   /// 落盘之后必须调它：重读 `models.json` + 重写 overlay + 重建 runtime。
   final Future<void> Function() onModelChanged;
 
-  /// 底部 Tab 切到本页时的刷新计数（见 app_shell 的 `_pageTicks`）。
+  /// **切页**刷新计数（底部 Tab 切到设置页时 +1，见 app_shell 的 `_pageTicks`）。
+  ///
+  /// 它一变就会**重读磁盘 + 把展开态收回去** —— 这是"切换即刷新"那条要求的完整语义。
   final int refreshTick;
+
+  /// **别处改了模型**时的同步计数（本页自己改完模型 `_modelTick++`）。
+  ///
+  /// 只让它**重读数据**，**不动展开态、不清勾选** —— 两个方向必须分开：
+  ///
+  /// ⚠️ 这里原本只有 [refreshTick] 一个数，两个方向混在一起，于是用户在模型面板里
+  /// 点任何会落盘的东西（获取模型 / 测试并保存 / 加模型 / 删模型）→ 触发同步 → 被当成
+  /// "切页" → `_openProvider` 被清空、`_addOpen` 关掉、`_picked` 清空 → 界面像**自己退出了**，
+  /// 用户得重新展开、重新勾、重新填。真机反馈原话（2026-10-15）：
+  /// 「设置模型的时候，怎么一点就退出，我还要再进去保存」。
+  final int syncTick;
 
   /// 是否渲染「我的模型 / 添加模型」这两段。
   ///
@@ -122,7 +136,15 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
   /// 为什么要有个上限：Command 是聚合端点，`/models` 动辄几百个 —— 全写进
   /// `models.json` 会让会话里的模型面板变成一堵墙，而用户并没有选它们。
   /// 想精确挑选就走「获取模型」自己勾（那条路没有上限）。
-  static const int _autoRegisterLimit = 12;
+  /// 「测试并保存」时**最多自动登记**多少个模型。
+  ///
+  /// ⚠️ 2026-10-15 从 **12 提到 40**：真机反馈「没有读取出全部模型」——
+  /// 12 对很多 OpenAI 兼容端点（动辄二三十个、甚至上百个模型）来说太小，
+  /// 用户点一下"测试并保存"就只拿到前 12 个，剩下的得自己去「获取模型」里勾。
+  /// 40 能覆盖绝大多数厂家的全部模型；**仍然保留上限**是因为聚合端点可能有几百个，
+  /// 一次全塞进会话的模型选择器会让它长到没法用（那条路仍然留着：截断时界面会
+  /// 明确写出"共 N 个，先登记前 40 个 —— 要更多就点「获取模型」自己勾选"）。
+  static const int _autoRegisterLimit = 40;
 
   ConfiguredConfig _cfg = ConfiguredConfig.empty;
   final Map<String, bool> _keyReady = <String, bool>{};
@@ -200,7 +222,9 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
   @override
   void didUpdateWidget(covariant ModelSettingsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 每切到本页一次就重读一次磁盘（用户要求「切换即刷新」），并把展开态收回去。
+    // ── ① **切页刷新**（refreshTick）：重读磁盘 + 把展开态收回去 ──
+    //
+    //    这才是"切换即刷新"的完整语义（用户要求：每次切到这一页都像重进来一次）。
     if (oldWidget.refreshTick != widget.refreshTick) {
       setState(() {
         _openProvider = null;
@@ -216,6 +240,16 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
         _fetchError = null;
         _fetchNotice = null;
       });
+      _reload();
+      return;
+    }
+
+    // ── ② **只是别处改了模型**（syncTick）：只重读数据，**不动界面状态** ──
+    //
+    //    ⚠️ 必须有这一条分支：以前两个方向共用一个计数，于是"在面板里点了个会落盘的东西"
+    //    也会被当成切页 → 把展开的厂家卡收起来、把勾选清空 → 用户看到的就是
+    //    "一点就退出，我还要再进去保存"（2026-10-15 真机反馈）。
+    if (oldWidget.syncTick != widget.syncTick) {
       _reload();
     }
   }
@@ -1045,6 +1079,11 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
         listed = r.models.length;
         final take = usable.take(_autoRegisterLimit).toList();
         truncated = usable.length > take.length;
+        if (truncated) {
+          debugPrint('[dsh-model-panel] 厂家=$pid 接口返回 ${usable.length} 个模型，'
+              '按上限 $_autoRegisterLimit 只自动登记前 ${take.length} 个'
+              '（其余用户可在「获取模型」里自己勾选）');
+        }
         mine = <ModelSpec>[
           for (final m in take)
             ModelSpec(

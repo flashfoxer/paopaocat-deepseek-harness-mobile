@@ -115,7 +115,7 @@ class _DshMobileAppState extends State<DshMobileApp> {
   void initState() {
     super.initState();
     _appSettings.load();
-    // 彩蛋状态（连点首页那只猫 6 下解锁的那条实验通道）。**必须在这里读**：
+    // 彩蛋状态（连点首页那只猫 7 下解锁的那条实验通道）。**必须在这里读**：
     // 设置页是按需构建的，等它被打开再读就来不及"多出一块设置"了。
     EasterEggStore.instance.load();
   }

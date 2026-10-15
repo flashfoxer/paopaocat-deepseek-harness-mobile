@@ -16,6 +16,11 @@
     <!-- Android 13+ 不授权则常驻通知不可见（服务仍会运行） -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- 首页那只猫：点一下短振、连点到第 7 下长振（用户 2026-10-15 要求）。
+         VIBRATE 是**普通权限**：安装即授予，不会弹窗、也不需要用户在「手机权限」里点
+         （那一页列的是需要运行时申请的权限，这里刻意不把 VIBRATE 塞进去，免得让人以为要手动开）。
+         实现见 MainActivity.vibrate —— 它会**尊重系统振动总开关**，关了就不振、只弹泡泡。 -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- 语音输入：Android 的 SpeechRecognizer（含 12+ 的设备端离线识别）**要求调用方自己
          持有 RECORD_AUDIO**，否则会直接回调 error=9（ERROR_INSUFFICIENT_PERMISSIONS）。
          用户实测反馈「语音依然不能使用」的真因就是这个：0.10 改成直接调设备端识别后，

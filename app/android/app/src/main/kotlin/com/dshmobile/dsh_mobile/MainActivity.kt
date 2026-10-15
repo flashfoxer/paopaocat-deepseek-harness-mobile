@@ -11,6 +11,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
@@ -426,6 +429,12 @@ class MainActivity : FlutterActivity() {
                     )
                     "installApk" -> installApk(
                         call.argument<String>("path"),
+                        result
+                    )
+                    // 首页那只猫的振动（用户 2026-10-15：点一下短振、连点到第 7 下长振）
+                    //   vibrate(ms) → ok / off（系统关了振动）/ no_vibrator / failed:…
+                    "vibrate" -> vibrate(
+                        (call.argument<Number>("ms"))?.toLong(),
                         result
                     )
                     "deviceInfo" -> result.success(deviceInfo())
@@ -1880,6 +1889,59 @@ class MainActivity : FlutterActivity() {
             pendingExportResult = null
             pendingExportSource = null
             result.error("EXPORT_FAILED", "打开保存界面失败：${e.message}", null)
+        }
+    }
+
+    /**
+     * 首页那只猫的振动（用户 2026-10-15 要求：点一下短振、连点到第 7 下长振）。
+     *
+     * 返回（机器可读，Dart 侧照实说）：
+     *   * `ok`          —— 已经振了；
+     *   * `off`         —— **系统把振动关了**（设置 → 声音与振动）。这时**不振动才是对的**：
+     *                      照实返回 off，界面照常弹泡泡，**不要试图绕过用户自己的开关**；
+     *   * `no_vibrator` —— 这台设备没有振动器（模拟器 / 部分平板）；
+     *   * `failed:…`    —— 其它异常（如实报，不吞）。
+     *
+     * ⚠️ 两个刻意的决定：
+     *   * **不看 RINGER_MODE（静音）**：静音时该不该振属于 [Settings.System.VIBRATE_ON] 的语义，
+     *     那个开关已经包含用户意图，再加一层判断只会误伤；
+     *   * **不加运行时权限**：`VIBRATE` 是普通权限（安装即授予），所以它**不出现在**
+     *     设置页「手机权限」那一栏（那页列的是要用户手动点的），免得让人以为要手动开。
+     */
+    private fun vibrate(msArg: Long?, result: MethodChannel.Result) {
+        // 夹住区间：1ms~1s。太长会让人以为手机坏了，太短则根本感觉不到。
+        val ms = (msArg ?: 30L).coerceIn(1L, 1000L)
+        try {
+            val on = Settings.System.getInt(contentResolver, Settings.System.VIBRATE_ON, 1)
+            if (on == 0) {
+                Log.i(TAG, "vibrate: 系统振动已关闭，跳过（${ms}ms）")
+                result.success("off")
+                return
+            }
+            val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                (getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator)
+            }
+            if (vibrator == null || !vibrator.hasVibrator()) {
+                Log.i(TAG, "vibrate: 这台设备没有振动器")
+                result.success("no_vibrator")
+                return
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(
+                    VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE),
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(ms)
+            }
+            Log.i(TAG, "vibrate: ${ms}ms")
+            result.success("ok")
+        } catch (e: Throwable) {
+            Log.w(TAG, "vibrate failed: ${e.message}")
+            result.success("failed:${e.message}")
         }
     }
 

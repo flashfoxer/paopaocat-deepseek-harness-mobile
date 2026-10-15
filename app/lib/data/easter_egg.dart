@@ -5,11 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 ///
 /// ## 是什么彩蛋（用户 2026-10-15 亲口定的）
 ///
-/// 用户原话：「**zen 这个设置还是你说的，作为一个彩蛋吧**」+
-/// 「**菜单是连点 6 下猫咪就会出现**」。
+/// 用户原话：「**zen 这个设置还是你说的，作为一个彩蛋吧**」+「**菜单是连点 6 下
+/// 猫咪就会出现**」；同一天晚上用户又把它定了细节：「**点击第 7 下，会有一个长震动，
+/// 猫咪的左上右都会弹出泡泡，泡泡显示「有彩蛋，在设置里」**」。
 ///
-/// 所以「实验通道 · OpenCode Zen（第三方通道）」这块设置**默认不在设置页里**：
-/// 在首页连点那只猫 [tapsToUnlock] 下，它才会出现在「设置 → 模型」组里。
+/// 所以最终口径是：**第 [tapsToUnlock] 下（7 下）**既**解锁**、又**当场表演**
+/// （长震 + 左/上/右三个泡泡一起弹「有彩蛋，在设置里」）—— 设置页「模型」组里
+/// 会同时多出「实验通道 · OpenCode Zen（第三方通道）」。
+///
+/// 表演见 `ui/widgets/mascot_speech.dart` 的 `_onTapCat`（第 8 下起回到普通泡泡）。
 ///
 /// ## 为什么用"连点"而不是藏在一个子菜单里
 ///
@@ -18,7 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 万一上游哪天又放开，一个开关就能用回来。彩蛋正好是"不碍事、但还在"的形态。
 ///
 /// 连点那只猫是最自然的位置：猫本来就是首页可点的东西（点一下会说一句话，
-/// 见 `ui/widgets/mascot_speech.dart`），连点 6 下不会误触发、也不用教。
+/// 见 `ui/widgets/mascot_speech.dart`），连点到第 7 下不会误触发、也不用教。
 ///
 /// ## 状态存哪
 ///
@@ -34,8 +38,10 @@ class EasterEggStore extends ChangeNotifier {
 
   static const String _kZenUnlocked = 'dsh_easter_zen_unlocked';
 
-  /// 连点多少下解锁（用户指定：6 下）。
-  static const int tapsToUnlock = 6;
+  /// 连点多少下解锁（用户指定：**7 下**）。
+  ///
+  /// ⚠️ 这个数字与 `MascotSpeech` 的"表演"共用：改这里就等于改"第几下长震 + 三泡泡"。
+  static const int tapsToUnlock = 7;
 
   /// 连点的间隔上限：超过这个时间就从头数。
   ///

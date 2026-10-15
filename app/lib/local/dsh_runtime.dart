@@ -436,6 +436,29 @@ class DshHost {
   ///
   /// ⚠️ 调用方**必须**按这三个返回码如实提示：存没存进去是用户看得见的事实，
   /// 不许统一说"好了"。
+  /// 让手机振一下（首页那只猫：点一下短振、连点到第 7 下长振）。
+  ///
+  /// 返回（机器可读，界面**不弹提示**、只在日志里留痕）：
+  ///   * `'ok'`          —— 已经振了；
+  ///   * `'off'`         —— **系统把振动关了**（设置 → 声音与振动）。这时不振动才是对的：
+  ///                        界面照常弹泡泡即可，**不要试图绕过用户自己的开关**；
+  ///   * `'no_vibrator'` —— 这台设备没有振动器（模拟器 / 部分平板）；
+  ///   * `'failed:…'`    —— 其它异常（如实返回，不假装振过）。
+  ///
+  /// ⚠️ `VIBRATE` 是**普通权限**（安装即授予、不弹窗），所以它**不在**设置页
+  /// 「手机权限」那一栏里 —— 那一页列的是要用户手动点的权限。
+  static Future<String> vibrate(int ms) async {
+    try {
+      final r = await channel
+          .invokeMethod<String>('vibrate', <String, dynamic>{'ms': ms});
+      return r ?? 'ok';
+    } catch (e) {
+      // 测试环境没有原生实现时会走到这里（MissingPluginException 等）：
+      // 振动失败**不该**影响交互，所以照实返回、由调用方忽略。
+      return 'failed:$e';
+    }
+  }
+
   static Future<String> saveImageToGallery(String path) async {
     try {
       final r = await channel.invokeMethod<String>(

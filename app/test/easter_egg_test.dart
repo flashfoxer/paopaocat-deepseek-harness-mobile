@@ -1,7 +1,7 @@
-/// 彩蛋的回归测试（用户 2026-10-15 指定：**连点首页那只猫 6 下**）。
+/// 彩蛋的回归测试（用户 2026-10-15 指定：**连点首页那只猫 7 下**）。
 ///
 /// 为什么值得单独钉住：这个彩蛋的表现是"设置页里**多出一块**设置"。如果触发次数、
-/// 连点窗口或落盘哪个细节坏了，界面上**不会报错**，只是"点了 6 下什么都没发生" ——
+/// 连点窗口或落盘哪个细节坏了，界面上**不会报错**，只是"点了 7 下什么都没发生" ——
 /// 那正是最难查的一类问题。
 library;
 
@@ -33,9 +33,10 @@ void main() {
     await EasterEggStore.instance.resetForTest();
   });
 
-  test('触发次数是用户指定的 6 下（不是"大概几下"）', () {
-    expect(EasterEggStore.tapsToUnlock, 6);
-    // 连点窗口必须存在：没有它，"今天 3 下 + 明天 3 下"也会解锁。
+  test('触发次数是用户指定的 7 下（不是"大概几下"）', () {
+    expect(EasterEggStore.tapsToUnlock, 7,
+        reason: '用户 2026-10-15 晚明确：第 7 下长震 + 左/上/右三个泡泡「有彩蛋，在设置里」');
+    // 连点窗口必须存在：没有它，"今天 3 下 + 明天 4 下"也会解锁。
     expect(EasterEggStore.tapWindow.inMilliseconds, greaterThan(0));
   });
 
@@ -48,24 +49,52 @@ void main() {
         reason: '彩蛋状态没落盘 —— 用户下次启动会发现"设置又没了"');
   });
 
-  testWidgets('点 5 下不解锁，第 6 下解锁', (tester) async {
+  testWidgets('前 6 下不解锁，第 7 下解锁（数字从常量取，别在测试里写死）', (tester) async {
     await tester.pumpWidget(_host(const MascotSpeech()));
     await tester.pump();
 
-    for (var i = 0; i < 5; i++) {
+    const need = EasterEggStore.tapsToUnlock; // = 7
+    for (var i = 0; i < need - 1; i++) {
       await tester.tap(find.byType(MascotSpeech));
       // 间隔远小于 1.2s 的连点窗口 → 会一直累加
       await tester.pump(const Duration(milliseconds: 80));
     }
     expect(EasterEggStore.instance.zenUnlocked, isFalse,
-        reason: '第 5 下就解锁了 —— 触发次数错了');
+        reason: '第 ${need - 1} 下就解锁了 —— 触发次数错了');
 
     await tester.tap(find.byType(MascotSpeech));
     await tester.pump(const Duration(milliseconds: 80));
     expect(EasterEggStore.instance.zenUnlocked, isTrue,
-        reason: '连点 6 下没有解锁彩蛋');
+        reason: '连点 $need 下没有解锁彩蛋');
 
     // 收尾：卸树让 dispose 跑完（气泡是个 5 秒的 Timer，不卸树测试会报 pending timer）。
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('第 7 下：左/上/右三个泡泡同时弹，文字都是「有彩蛋，在设置里」', (tester) async {
+    await tester.pumpWidget(_host(const MascotSpeech()));
+    await tester.pump();
+
+    for (var i = 0; i < EasterEggStore.tapsToUnlock; i++) {
+      await tester.tap(find.byType(MascotSpeech));
+      await tester.pump(const Duration(milliseconds: 80));
+    }
+    expect(find.text('有彩蛋，在设置里'), findsNWidgets(3),
+        reason: '用户要的是"猫咪的左上右都会弹出泡泡" —— 必须是 3 个，不是 1 个');
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('普通点击只弹一个泡泡（别一上来就三个）', (tester) async {
+    await tester.pumpWidget(_host(const MascotSpeech()));
+    await tester.pump();
+
+    await tester.tap(find.byType(MascotSpeech));
+    await tester.pump(const Duration(milliseconds: 80));
+    // 第 1 下说的是台词表里的第 1 句
+    expect(find.text('喵～今天想聊点什么？'), findsOneWidget);
+    expect(find.text('有彩蛋，在设置里'), findsNothing);
+
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

@@ -3118,5 +3118,15 @@
     "en": "This run · {0}",
     "ja": "今回の実行 · {0}",
     "ko": "이번 실행 · {0}"
+  },
+  "「免费模型（无需 Key）」这条通道被上游关掉了（不是你没配 Key —— 它本来就不用 Key）。\n下一步：去「设置 → 模型」换一个自己配了 Key 的模型；这条通道以后再恢复就能继续用。": {
+    "en": "The \"Free models (no Key needed)\" lane has been shut off by the upstream (it is not that your Key is missing — this lane never needed one).\nNext: go to Settings → Models and switch to a model you have configured a Key for; the lane will keep working again if it comes back.",
+    "ja": "「無料モデル（Key 不要）」の経路は上流側で閉じられました（Key を設定していないからではありません —— この経路はもともと Key が不要です）。\n次の一手：「設定 → モデル」で、ご自身で Key を設定したモデルに切り替えてください。この経路が復活すればまた使えます。",
+    "ko": "「무료 모델(Key 불필요)」경로가 상류에서 차단되었습니다(Key를 설정하지 않아서가 아닙니다 — 이 경로는 원래 Key가 필요 없습니다).\n다음 단계: 「설정 → 모델」에서 직접 Key를 설정한 모델로 바꾸세요. 이 경로가 복구되면 다시 쓸 수 있습니다."
+  },
+  "⚠️ 请先看清楚：\n· 上游的免费额度**只给它自家客户端用**，这条通道是把请求**伪装成官方 CLI** 去通过它的限制 —— 属于灰色用法，**随时可能失效**（2026-10-13/14 就已经收紧过第三次：换了端点、加了会话头与工具校验）。\n· **它不需要任何 Key**：那条通道本来就是匿名的（上游凭据就是公开的 `public`），所以你不用在这里填任何东西；失效时它会如实报错，不会假装成功。\n· 它按出口 IP 限流，被限流时等一会儿再试。\n· 本 App **不做** IP 轮换、也不做反复重试（不拿它去刷额度）。\n· 用不到时请把它关掉。": {
+    "en": "⚠️ Read this first:\n· The upstream free quota is **meant for its own client only**; this lane disguises requests as the official CLI to get past that limit — a grey-area usage that can **stop working at any time** (it was tightened a third time on 2026-10-13/14: new endpoint, extra session header and tool checks).\n· **It needs no Key at all**: that lane is anonymous (the upstream credential is the literal `public`), so there is nothing to fill in here; when it fails it says so honestly instead of pretending to work.\n· It is rate-limited by egress IP; if you get throttled, wait a bit and retry.\n· This app does **not** rotate IPs or hammer retries (it will not be used to farm quota).\n· Turn it off when you do not need it.",
+    "ja": "⚠️ 先にお読みください：\n· 上流の無料枠は**自社クライアント専用**で、この経路はリクエストを**公式 CLI に偽装**して制限を通過するものです —— グレーな使い方で、**いつ止まってもおかしくありません**（2026-10-13/14 に三度目の締め付けがありました：エンドポイント変更、セッションヘッダーとツール検証の追加）。\n· **Key は一切不要**です。この経路はもともと匿名で（上流の資格情報は公開の `public`）、ここに入力するものはありません。失敗したときは正直にエラーを出し、成功したふりはしません。\n· 出口 IP 単位でレート制限されます。制限されたら少し待って再試行してください。\n· 本アプリは IP ローテーションやしつこい再試行を**行いません**（枠を稼ぐ使い方はしません）。\n· 使わないときはオフにしてください。",
+    "ko": "⚠️ 먼저 읽어 주세요:\n· 상류의 무료 할당량은 **자사 클라이언트 전용**이며, 이 경로는 요청을 **공식 CLI로 위장**해 그 제한을 통과하는 방식입니다 — 회색 지대 사용이라 **언제든 중단될 수 있습니다**(2026-10-13/14에 세 번째로 조여졌습니다: 엔드포인트 변경, 세션 헤더와 도구 검증 추가).\n· **Key는 전혀 필요하지 않습니다**: 이 경로는 원래 익명이고(상류 자격 증명은 공개된 `public`), 여기에 입력할 것은 없습니다. 실패하면 솔직하게 오류를 알리며 성공한 척하지 않습니다.\n· 출구 IP 기준으로 속도 제한이 걸립니다. 제한되면 잠시 후 다시 시도하세요.\n· 이 앱은 IP 로테이션이나 반복 재시도를 **하지 않습니다**(할당량을 긁는 데 쓰지 않습니다).\n· 필요 없을 때는 꺼 두세요."
   }
 }

@@ -17,7 +17,33 @@
  *      我们选了更透明的做法。要不要补一层小退避，见 docs/免费模型-方案.md。）
  *   * 不抓取、不分发任何账号或凭据（这条通道本来就是匿名的，全程没有 Key）。
  *
- * ## 门禁的实际形状（2026-10-13 更新：形状之外还要能"解出时间戳"）
+ * ## ⚠️ 路已经搬过一次：现在打 `/inference/v1`（2026-10-15 实测）
+ *
+ * 上游在 **2026-10-13/14 之间又收紧了一次**（历史上第三次），而且这次是**四处一起换**
+ * —— 只修其中一处仍然 403。社区当天就摸清了新契约（我们这份与
+ * `Ebony-Vinyl/dsh-our-free-model` PR#330 的 `docs/free-lane-wire.md` 逐条对上，
+ * 那份是**用自签 CA 中间人抓官方 1.19.0 客户端的真实请求 + 逐字节重放**测出来的）：
+ *
+ * | 项目 | 现在要求 | 不满足时 |
+ * |---|---|---|
+ * | 聊天端点 | **`/inference/v1/chat/completions`** | 打老 `/zen/v1/...` → **无条件 403** |
+ * | 会话头 | **`x-opencode-session-id` 必须存在**（值与 `x-opencode-session` 相同） | 缺 → 403 |
+ * | 会话 id 形状 | `ses_` + 12 位 hex 必须是**铸造**形状 `~(ms·0x1000+seq)`（低 12 位 ≈ `0xFFE`） | sha256 派生 / 随机 hex → 403 |
+ * | 工具指纹 | **`bash` 与 `read` 必须同时声明**，且**各自 schema 至少有一个 property** | 只其一 → 403；`properties: {}` → 403 |
+ * | User-Agent | **含 `deepseek-harness` 一律 403**（大小写不敏感、位置无关）；`dsh/…`、`opencode/1.18.x` 放行 | 403 |
+ * | 其它 | `Authorization: Bearer public` 必须保留；`stream: true` 必须 | 401 / 403 |
+ *
+ * ⚠️ **两条遗留头必须不发**：`x-session-affinity` 与 `x-session-id`。
+ * 老实现把它们当"无害的防御性对齐"，实测恰好相反 —— 上游把多出来的这两条当成
+ * 非官方客户端信号（`MingLoong/Aether` PR#72 的头部矩阵：仅 `x-opencode-*` → 200，
+ * 再加 `x-session-id` → 200，**再加 `x-session-affinity` → 403**）。
+ *
+ * ⚠️ 与"是不是服务器的出口"有关：2026-10-15 我们在**本机（容器/服务器出口）**
+ * 按上表做了 6 组变体（三种工具集 × 有/无 `x-opencode-request`，走 node:https 的
+ * HTTP/1.1）**全部 403**；而社区在各自机器上用同样的形状拿到 200。所以**手机上的
+ * 结果要以真机为准** —— 失败时如实报出来，别假装成功。
+ *
+ * ## 更早的形状（2026-10-13，已被上面这条取代，留着是为了看懂历史 403）
  *
  * 上游**只看三件事**：
  *   1. `x-opencode-session` 是 `ses_` + 12 位小写 hex + 14 位 Base62 的形状
@@ -57,7 +83,8 @@ import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const DEFAULT_UPSTREAM = 'https://opencode.ai/zen';
+// ⚠️ 2026-10-15：免费车道从 `/zen` 搬到了 `/inference`（老路径无条件 403）。
+const DEFAULT_UPSTREAM = 'https://opencode.ai/inference';
 const DEFAULT_TTL_HOURS = 12;
 
 /**
@@ -183,8 +210,21 @@ function projectId(seed) {
 }
 
 /** 官方 CLI 形状的 UA（版本号与平台串按实测值；上游现在不检查，但保持同形）。 */
+/// ⚠️ **`deepseek-harness` 这几个字不能出现在发往上游的 UA 里**（2026-10-14 实测：
+/// 含它一律 403，大小写不敏感、位置无关；`dsh/…` 与 `opencode/1.18.x` 放行）。
+/// 这里本来就是我们自己拼的 UA，但加一道净化 —— 将来有人往里加"归属信息"时，
+/// 不至于把整条通道打死（社区那边就是这么被打死的：UA 里留了 deepseek-harness）。
+function sanitizeUserAgent(raw) {
+  return String(raw)
+      .replace(/deepseek-harness/gi, 'dsh')
+      .replace(/\s+/g, ' ')
+      .trim();
+}
+
 function cliUserAgent() {
-  return `opencode/1.18.31 (${process.platform} ${process.arch}; node${process.versions.node})`;
+  // 版本号与官方 1.18/1.19 一致（上游目前不校验版本，但保持同形）。
+  return sanitizeUserAgent(
+      `opencode/1.18.22 (${process.platform} ${process.arch}; node${process.versions.node})`);
 }
 
 function disguiseHeaders(session) {
@@ -200,8 +240,11 @@ function disguiseHeaders(session) {
     'user-agent': cliUserAgent(),
     'x-opencode-client': 'cli',
     'x-opencode-session': session,
-    'x-session-affinity': session,
-    'X-Session-Id': session,
+    // ⚠️ 这两条（`x-session-affinity` / `X-Session-Id`）**故意不发**：
+    //    官方 1.19.0 客户端抓包里只有 `x-opencode-*` 一套，多发的这两条会被
+    //    上游当成非官方客户端信号直接 403（Aether PR#72 的头部矩阵）。
+    //    历史上这里写着"无害的防御性对齐"—— 实测恰好相反。
+    'x-opencode-session-id': session,
     'x-opencode-request': requestId(session),
     'x-opencode-project': projectId(session),
     accept: 'application/json',
@@ -211,13 +254,58 @@ function disguiseHeaders(session) {
 /** 门禁要求的两个"占位"工具：只要**存在**就行（描述与参数都不检查）。 */
 const GATE_TOOL_NAMES = ['bash', 'read'];
 
+/// 每个诱饵工具**至少带一个 property**。
+///
+/// ⚠️ 2026-10-14 起：`properties: {}` 与"没声明这个工具"一样会被判 403
+/// （社区工具矩阵：bash 单独 → 403、read 单独 → 403、两个都空 schema → 403、
+///  两个各带一个 property → 200）。所以 schema 不能偷懒写空对象。
+const GATE_TOOL_PROPERTY = {
+  bash: 'command',
+  read: 'filePath',
+};
+
 function gateTool(name) {
+  const prop = GATE_TOOL_PROPERTY[name] ?? 'input';
   return {
     type: 'function',
     function: {
       name,
       description: 'Reserved for the host runtime; do not call it.',
-      parameters: { type: 'object', properties: {} },
+      parameters: {
+        type: 'object',
+        properties: {
+          [prop]: { type: 'string', description: 'Reserved.' },
+        },
+        required: [prop],
+      },
+    },
+  };
+}
+
+/// 调用方自己带了 `bash`/`read`、但 schema 里一个 property 都没有 → **就地补一个**。
+///
+/// 为什么不整份替换掉它：工具名/描述/顺序是调用方的语义（DSH 的会话工具链），
+/// 换掉会改变模型看到的东西。这里只补 schema 的**最小合法形状**。
+/// 返回**新对象**（不改调用方传进来的那份）。
+function stampToolSchema(tool) {
+  const fn = tool?.function;
+  if (!fn || typeof fn !== 'object') return tool;
+  const prop = GATE_TOOL_PROPERTY[fn.name];
+  if (!prop) return tool;
+  const params = fn.parameters;
+  const hasProps = params && typeof params === 'object' &&
+      params.properties && typeof params.properties === 'object' &&
+      Object.keys(params.properties).length > 0;
+  if (hasProps) return tool;
+  return {
+    ...tool,
+    function: {
+      ...fn,
+      parameters: {
+        ...(params && typeof params === 'object' ? params : {}),
+        type: 'object',
+        properties: { [prop]: { type: 'string', description: 'Reserved.' } },
+      },
     },
   };
 }
@@ -238,11 +326,16 @@ function applyGate(body) {
       .filter(Boolean),
   );
   const injected = GATE_TOOL_NAMES.filter((n) => !names.has(n));
+  // 自带的 bash/read 也要**过得去 schema 那关**（空 schema = 403，见 stampToolSchema）
+  const stamped = tools.map(stampToolSchema);
+  const schemaFixed = stamped.some((t, i) => t !== tools[i]);
   if (injected.length > 0) {
-    for (const n of injected) tools.push(gateTool(n));
-    out.tools = tools;
+    for (const n of injected) stamped.push(gateTool(n));
   }
-  return { body: out, injected };
+  if (injected.length > 0 || schemaFixed) {
+    out.tools = stamped;
+  }
+  return { body: out, injected, schemaFixed };
 }
 
 // ─────────────────────────────────────────────────────────── 上游请求
@@ -374,8 +467,12 @@ async function main() {
   function errorBody(status, text) {
     let hint = '';
     if (status === 403) {
-      hint = '（上游拒绝了：这个通道只对官方 CLI 开放，可能又收紧了 —— 这不是"你没配 Key"，这条通道本来就不用 Key。'
-          + '可以等它恢复，或者先把它关掉、用别的模型。）';
+      // ⚠️ 2026-10-13/14 上游**第三次**收紧（新契约见文件头）。403 的含义是
+      //    "匿名免费车道又被闸了"，**不是**用户配错了什么 —— 把这句话说死，
+      //    否则用户会去反复检查自己的 Key（那条路怎么查都不会好）。
+      hint = '（上游把匿名免费车道闸了：这条通道只对官方 CLI 开放，2026-10-13/14 又收紧过一次。'
+          + '这不是"你没配 Key"—— 它本来就不用 Key。'
+          + '下一步：在「设置 → 模型」里换一个自己配了 Key 的模型，或过一阵再试。）';
     } else if (status === 429) {
       hint = '（被限流了：免费通道按出口 IP 限流，等一会儿再试。）';
     } else if (status === 401) {

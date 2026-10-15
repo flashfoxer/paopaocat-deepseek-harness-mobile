@@ -10,7 +10,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const REPO = join(HERE, '..');
 const SCRIPT = join(REPO, 'app', 'assets', 'toolbox', 'zen-proxy.mjs');
+const SCRIPT_SRC = readFileSync(SCRIPT, 'utf8');
 
 let passed = 0;
 const failures = [];
@@ -129,7 +130,24 @@ section('门禁形状：会话 id / stream / bash+read 工具');
           `会话 id 形状不对：${h['x-opencode-session']}`);
         assert.equal(h['x-opencode-client'], 'cli');
         assert.match(h['user-agent'], /^opencode\//);
-        assert.equal(h['x-opencode-session'], h['x-session-affinity']);
+        // 2026-10-15 的新门禁：`x-opencode-session-id` 必须存在、且与 session 同值
+        assert.equal(h['x-opencode-session-id'], h['x-opencode-session'],
+          'x-opencode-session-id 必须与 x-opencode-session 同值（缺了 → 403）');
+        // ⚠️ 两条**遗留头必须不发**：多发的 `x-session-affinity` 会被上游当成
+        //    非官方客户端信号直接 403（Aether PR#72 的头部矩阵）。负向钉住防"顺手加回来"。
+        assert.equal(h['x-session-affinity'], undefined,
+          'x-session-affinity 不能再发（会被判成非官方客户端）');
+        assert.equal(h['x-session-id'], undefined,
+          'x-session-id 不能再发（只有 x-opencode-session-id 是对的）');
+        // 上游路径也跟着搬家了：老 `/zen/v1/...` 现在**无条件 403**。
+        // 假上游只能验后半段（它自己就是 base），车道前缀在 DEFAULT_UPSTREAM 里 ——
+        // 所以这里一并钉住那个常量（改了它等于把整条通道打回 403，必须有测试拦）。
+        assert.equal(chat[0].url, '/v1/chat/completions',
+          `假上游收到的路径不对：${chat[0].url}`);
+        assert.match(SCRIPT_SRC, /DEFAULT_UPSTREAM = 'https:\/\/opencode\.ai\/inference'/,
+          'DEFAULT_UPSTREAM 必须是 https://opencode.ai/inference（老 /zen 已无条件 403）');
+        assert.ok(!/deepseek-harness/i.test(h['user-agent']),
+          `UA 里不能出现 deepseek-harness（上游点名拒）：${h['user-agent']}`);
         // 「不用写 Key」的凭据就是字面量 `public`（官方实现的形状），且**必须覆盖**
         // 调用方自带的头 —— 透传 `local-zen` 会让上游认不出这条匿名通道。
         assert.equal(h['authorization'], 'Bearer public',
@@ -154,6 +172,14 @@ section('门禁形状：会话 id / stream / bash+read 工具');
         const names = (body.tools || []).map((t) => t.function && t.function.name);
         assert.ok(names.includes('bash'), `缺 bash 工具：${JSON.stringify(names)}`);
         assert.ok(names.includes('read'), `缺 read 工具：${JSON.stringify(names)}`);
+        // 2026-10-14 起：`properties: {}` 与"没声明"一样会被 403，每个诱饵工具
+        // 都必须至少有一个 property（社区工具矩阵实测）。
+        for (const name of ['bash', 'read']) {
+          const t = (body.tools || []).find((x) => x.function?.name === name);
+          const props = Object.keys(t?.function?.parameters?.properties ?? {});
+          assert.ok(props.length > 0,
+            `${name} 的 schema 至少要有一个 property，实际 ${JSON.stringify(t?.function?.parameters)}`);
+        }
       } finally { await p.stop(); }
     });
   });
@@ -182,6 +208,10 @@ section('门禁形状：会话 id / stream / bash+read 工具');
         assert.equal(bashTools.length, 1, '不该重复注入 bash');
         assert.equal(bashTools[0].function.description, 'DSH 自己的 bash',
           '客户端自己的工具必须被保留，不能被我们的占位工具覆盖');
+        // 但 schema 空着过不了门禁 → 就地补一个 property（名字/描述/数量都不动）
+        const bashProps = Object.keys(bashTools[0].function.parameters?.properties ?? {});
+        assert.ok(bashProps.length > 0,
+          `自带的空 schema 必须被补上 property，实际 ${JSON.stringify(bashTools[0].function.parameters)}`);
       } finally { await p.stop(); }
     });
   });

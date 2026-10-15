@@ -197,6 +197,23 @@ ApiErrorText translateHttpError({required int statusCode, String? body}) {
 ApiErrorText? translateDshError(String raw) {
   final s = raw.toLowerCase();
 
+  // ⓪' 「免费模型（无需 Key）」那条匿名通道被上游闸住了（2026-10-15 实测）。
+  //
+  // 为什么单列一条：上游 2026-10-13/14 第三次收紧后，这条通道会返回
+  // `403 FreeTierError`；本地代理 `zen-proxy.mjs` 已经把解释写进了错误体
+  // （含"这不是你没配 Key"）—— 但**下面 403 那条通用文案会把它盖成
+  // "没有访问该模型的权限（套餐不含 / Key 权限受限）"**，用户照着去查自己的
+  // Key 只会白折腾。所以这里按代理的标记先认出来，直接给能行动的那句话。
+  if (s.contains('社区免费通道') ||
+      s.contains('freetiererror') ||
+      s.contains('free tier can only be used from within opencode')) {
+    return ApiErrorText(
+      zh: tr(
+          '「免费模型（无需 Key）」这条通道被上游关掉了（不是你没配 Key —— 它本来就不用 Key）。\n下一步：去「设置 → 模型」换一个自己配了 Key 的模型；这条通道以后再恢复就能继续用。'),
+      detail: raw,
+    );
+  }
+
   // ⓪ 本地模型"上下文不够"（真机实测最常见的一种失败）。
   //
   // 引擎原文：`request (6959 tokens) exceeds the available context size (2048 tokens),

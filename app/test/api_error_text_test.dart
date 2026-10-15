@@ -21,6 +21,29 @@ const String kRealUserError =
     'environment discovery';
 
 void main() {
+  group('免费通道被上游闸住（2026-10-13/14 第三次收紧）', () {
+    test('代理的 403 文案 → 说清"不是你没配 Key"，并给下一步', () {
+      // 本地代理 zen-proxy.mjs 会把解释写进错误体（这是它的真实形状）
+      const raw = 'Bad state: 社区免费通道返回 HTTP 403（上游把匿名免费车道闸了…）'
+          ' 上游原话：{"type":"error","error":{"type":"FreeTierError",'
+          '"message":"OpenCode\'s free tier can only be used from within OpenCode."}}';
+      final t = translateDshError(raw);
+      expect(t, isNotNull);
+      expect(t!.zh, contains('免费模型（无需 Key）'));
+      expect(t.zh, contains('被上游关掉了'));
+      expect(t.zh, contains('不是你没配 Key'),
+          reason: '这句必须留着：不然用户会去反复检查自己的 Key，那条路怎么查都不会好');
+      expect(t.zh, contains('设置 → 模型'), reason: '要给得出下一步');
+      expect(t.detail, raw, reason: '原始报错留在技术细节里，不丢证据');
+    });
+
+    test('只有 FreeTierError 原文（没走代理中文）也能认出来', () {
+      final t = translateDshError(
+          'HTTP 403: free tier can only be used from within OpenCode');
+      expect(t?.zh, contains('免费模型（无需 Key）'));
+    });
+  });
+
   test('真机上那条缺 Key 的报错必须被翻译成中文，并带上厂家名与下一步', () {
     final t = translateDshError(kRealUserError);
     expect(t, isNotNull, reason: '这条真实报错必须命中翻译规则');

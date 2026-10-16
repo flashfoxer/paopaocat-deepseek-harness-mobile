@@ -4008,5 +4008,20 @@
     "en": "Preparing the App UI design studio (it unpacks once the first time, then opens straight away)…",
     "ja": "アプリUIデザインスタジオを準備しています（初回のみ展開し、次回からはすぐ開きます）…",
     "ko": "앱 UI 디자인 스튜디오를 준비하는 중입니다(처음 한 번만 풀면 다음부터는 바로 열립니다)…"
+  },
+  "厂家和 Key 都有了，但还没有模型：去「设置 → 模型」点「获取模型」，勾好模型再保存，会话里才会出现可选模型。（想省事也可以先打开「免费模型（无需 Key）」。）": {
+    "en": "The provider and its key are set, but there are no models yet: in Settings → Models tap “Fetch models”, tick the ones you want and save — only then do they show up in a session. (For a shortcut you can just turn on “Free model (no key)”.)",
+    "ja": "プロバイダーと Key はあるのにモデルがありません：「設定 → モデル」で「モデルを取得」を押し、使うモデルにチェックして保存すると、セッションで選べるようになります。（手っ取り早くなら「無料モデル（Key 不要）」をオンにしても構いません。）",
+    "ko": "제공자와 Key는 있는데 모델이 없습니다: '설정 → 모델'에서 '모델 가져오기'를 눌러 원하는 모델을 체크하고 저장해야 세션에서 선택할 수 있습니다. (간단히 하려면 '무료 모델(Key 불필요)'을 켜도 됩니다.)"
+  },
+  "还差模型。最快的一条路：去「设置 → 模型」打开「免费模型（无需 Key）」——不用填任何 Key，打开就能用；想用自己的模型，再填地址和 API Key。": {
+    "en": "Models are missing. Fastest path: in Settings → Models turn on “Free model (no key)” — no key needed, it works right away. To use your own model instead, fill in the address and API key.",
+    "ja": "モデルがありません。一番早いのは「設定 → モデル」で「無料モデル（Key 不要）」をオンにすることです — Key は不要で、そのまま使えます。自分のモデルを使うなら、アドレスと API Key を入力してください。",
+    "ko": "모델이 없습니다. 가장 빠른 방법: '설정 → 모델'에서 '무료 모델(Key 불필요)'을 켜세요 — Key 없이 바로 쓸 수 있습니다. 직접 쓰는 모델이 있다면 주소와 API Key를 입력하세요."
+  },
+  "还没有可用模型。想马上就用：去「设置 → 模型」打开「免费模型（无需 Key）」，不用填 Key 也不花钱；想用自己的模型（DeepSeek / Agnes 等），再填地址和 API Key 点「测试并保存」。": {
+    "en": "No usable model yet. To start right now: in Settings → Models turn on “Free model (no key)” — no key, no cost. To use your own model (DeepSeek / Agnes …), fill in the address and API key and tap “Test and save”.",
+    "ja": "使えるモデルがまだありません。すぐ使うなら：「設定 → モデル」で「無料モデル（Key 不要）」をオンに — Key も費用も不要です。自分のモデル（DeepSeek / Agnes など）を使うなら、アドレスと API Key を入力して「テストして保存」を押します。",
+    "ko": "사용할 수 있는 모델이 아직 없습니다. 바로 쓰려면: '설정 → 모델'에서 '무료 모델(Key 불필요)'을 켜세요 — Key도 비용도 없습니다. 직접 쓰는 모델(DeepSeek / Agnes 등)을 쓰려면 주소와 API Key를 입력하고 '테스트 후 저장'을 누르세요."
   }
 }

@@ -2243,10 +2243,9 @@ class _ChatPageState extends State<ChatPage> {
     final text = noModels
         ? (widget.models.hasAnyProviderKey
             ? context
-                .tr('厂家和 Key 都有了，但还没有模型：去「设置 → 模型」点「获取模型」，勾好模型再保存，会话里才会出现可选模型。')
-            : context.tr('还差模型：去「设置 → 模型」填好地址和 API Key，点「获取模型」勾模型再保存。'))
-        : context
-            .tr('还没有可用模型：现在发消息调不到模型。去「设置 → 模型」选一家服务商，填上地址和 API Key，点「测试并保存」。');
+                .tr('厂家和 Key 都有了，但还没有模型：去「设置 → 模型」点「获取模型」，勾好模型再保存，会话里才会出现可选模型。（想省事也可以先打开「免费模型（无需 Key）」。）')
+            : context.tr('还差模型。最快的一条路：去「设置 → 模型」打开「免费模型（无需 Key）」——不用填任何 Key，打开就能用；想用自己的模型，再填地址和 API Key。'))
+        : context.tr('还没有可用模型。想马上就用：去「设置 → 模型」打开「免费模型（无需 Key）」，不用填 Key 也不花钱；想用自己的模型（DeepSeek / Agnes 等），再填地址和 API Key 点「测试并保存」。');
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(

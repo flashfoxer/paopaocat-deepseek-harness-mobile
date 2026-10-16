@@ -86,7 +86,15 @@ Future<void> main() async {
   try {
     final paths = await DshHost.getPaths().timeout(const Duration(seconds: 3));
     final filesDir = paths['filesDir'] as String? ?? '';
-    if (filesDir.isNotEmpty) await DiagnosticsLog.init(filesDir: filesDir);
+    if (filesDir.isNotEmpty) {
+      await DiagnosticsLog.init(filesDir: filesDir);
+      // 全新安装就把「免费模型（无需 Key）」登记好（用户 2026-10-16 反馈：
+      // 「首次安装后让配置模型，实际免费大模型是可以直接用的」—— 以前它只在用户
+      // 手动打开那个开关时才写进 `models.json`，所以首启打开会话看到的是
+      // "还没有可用模型，去填 API Key"，而免 Key 的那条路就在旁边）。
+      // 失败不影响启动；只在配置完全空白时生效（见那个方法的说明）。
+      unawaited(PolliChannel.ensureRegisteredOnFirstRun(filesDir: filesDir));
+    }
   } catch (e) {
     debugPrint('[dsh-log] 初始化落盘失败（改为只在内存里保留）：$e');
   }

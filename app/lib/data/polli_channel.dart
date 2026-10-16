@@ -116,6 +116,45 @@ class PolliChannel {
   /// 打开（或启动时刷新）：把 provider 与模型写进本机模型配置。
   ///
   /// 返回 `models` = 写进去的模型数；失败时 [error] 是给用户看的中文。
+  /// 匿名层**已知**的那几个模型 id。
+  ///
+  /// 为什么要写死一份：`enable()` 要**联网**拉 `/openai/models` 才写配置，而
+  /// **首次安装时不一定有网**（或那次请求刚好失败）—— 于是"免费模型默认开"这个
+  /// 承诺就落空了，用户打开会话看到的是"还没有可用模型，去填 API Key"。
+  /// 有这份兜底，首启哪怕离线也能把免费通道登记上（上游匿名层目前就 `openai-fast`）。
+  static const List<String> builtinModelIds = <String>['openai-fast'];
+
+  /// **首启登记**：全新安装时把免费通道写好，让"直接就能用"成立。
+  ///
+  /// ⚠️ 只在 `models.json` **完全空白**时做（用户主动关掉免费通道之后，
+  /// 配置里会留下别的厂家/模型，或者 `_withPolli` 的痕迹 —— 这里一律不再插手，
+  /// 免得把人家关掉的东西又加回来）。
+  ///
+  /// 返回是否真的写过配置；失败**不抛**（启动路径上不能因为它起不来）。
+  static Future<bool> ensureRegisteredOnFirstRun({required String filesDir}) async {
+    if (filesDir.trim().isEmpty) return false;
+    try {
+      final cfg = ConfiguredModels.readConfig(filesDir);
+      if (cfg.models.isNotEmpty || cfg.providers.isNotEmpty) return false;
+      var models = <String>[];
+      try {
+        models = await fetchModels();
+      } catch (e) {
+        debugPrint('[dsh-polli] 首启拉免费模型失败（改用内置兜底）：$e');
+      }
+      if (models.isEmpty) models = builtinModelIds;
+      await ConfiguredModels.saveConfig(
+        filesDir: filesDir,
+        config: _withPolli(cfg, models: models),
+      );
+      debugPrint('[dsh-polli] 首启已登记 ${models.length} 个免费模型（免 Key，直接能用）');
+      return true;
+    } catch (e) {
+      debugPrint('[dsh-polli] 首启登记失败（不影响启动）：$e');
+      return false;
+    }
+  }
+
   static Future<({bool ok, String? error, int models})> enable({
     required DshRuntime runtime,
     HttpClient Function()? clientFactory,

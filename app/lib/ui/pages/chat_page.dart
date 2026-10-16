@@ -936,6 +936,9 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   void _autoScroll() {
+    // 顺手看看上下文是不是快满了（跨过 70%/90% 各提示一次，见 _maybePromptRollover）。
+    // 放在这里是因为 `_autoScroll` 每次"消息有变化"都会被调一次，而它**总在 build 之外**。
+    _maybePromptRollover();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
@@ -2206,6 +2209,7 @@ class _ChatPageState extends State<ChatPage> {
         // 用户只能自己猜。原来这里只有输入区旁边那个「未配置模型」小块，
         // 发送失败后拿到的是一串协议错误，看不出该去设置里做什么。
         if (!widget.models.hasModels) _noModelNotice(),
+        if (_rolloverNoticeLevel > 0) _rolloverNotice(),
         // 恢复来的会话：把**历史记录回放出来**（本轮新增）。
         //
         // 以前这里只有一句"历史消息不在界面上回放"的说明 —— 因为 ACP 的
@@ -2225,6 +2229,98 @@ class _ChatPageState extends State<ChatPage> {
           ),
         ),
       ],
+    );
+  }
+
+  /// 上下文用掉多少的**主动提示**档位（0=还没提示过，1=提示过 70%，2=提示过 90%）。
+  ///
+  /// 用户 2026-10-16：「是不是用户使用的会话时间长了，可以提示用户使用长会话助手」
+  /// —— 可以实现，而且**判据早就有了**（`ContextBudget.shouldRollover` = 用掉 ≥70%），
+  /// 以前只用在面板内部、从来不主动提醒。
+  ///
+  /// 刻意克制：**跨过 70% / 90% 各提示一次**；用户点开助手或直接关掉就不再纠缠
+  /// （`99` = 用户已经处理过这件事）。
+  int _rolloverNoticeLevel = 0;
+
+  /// 预算缓存：按**消息条数**失效（估算要遍历全部消息，不能每帧都算）。
+  ContextBudget? _budgetCache;
+  int _budgetCacheFor = -1;
+
+  /// 当前上下文预算（**按消息长度估算**：不调模型、不花钱、不上传）。
+  ContextBudget? get _budget {
+    final n = _messages.length;
+    if (_budgetCacheFor == n) return _budgetCache;
+    final msgs = <BudgetMessage>[
+      for (final m in _mergedMessages)
+        if (m.text.trim().isNotEmpty)
+          BudgetMessage(role: m.role.name, text: m.text),
+    ];
+    _budgetCache = msgs.isEmpty ? null : estimateContextBudget(msgs);
+    _budgetCacheFor = n;
+    return _budgetCache;
+  }
+
+  /// 消息有变化时调一次：跨过新档位就把提示升起来（各档只提示一次）。
+  void _maybePromptRollover() {
+    if (!mounted || _rolloverNoticeLevel >= 99) return;
+    final b = _budget;
+    if (b == null) return;
+    final level = b.ratio >= 0.9 ? 2 : (b.ratio >= 0.7 ? 1 : 0);
+    if (level > _rolloverNoticeLevel) {
+      setState(() => _rolloverNoticeLevel = level);
+    }
+  }
+
+  /// 上下文用得差不多了 —— 提示用户去用「长会话助手」。
+  ///
+  /// ⚠️ 文案必须写**"估算"**：这个百分比是按消息长度算的，不是服务商给的真实用量。
+  Widget _rolloverNotice() {
+    final pct = _budget?.percentLabel ?? '';
+    final urgent = _rolloverNoticeLevel >= 2;
+    final tone = urgent ? DshColors.err : DshColors.accent;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(
+          DshMetrics.pagePad, 6, DshMetrics.pagePad, 0),
+      padding: const EdgeInsets.fromLTRB(11, 6, 4, 6),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(DshMetrics.radius(10)),
+        border: Border.all(color: tone.withValues(alpha: 0.45), width: 0.8),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(Icons.auto_awesome_motion_outlined, size: 15, color: tone),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              context.tr(
+                  '这段会话的上下文已经用掉约 {0}（估算）。用「长会话助手」可以把关键信息跟着带到新窗口，接着聊不会断。',
+                  <Object?>[pct]),
+              style: TextStyle(color: tone, fontSize: 11, height: 1.5),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() => _rolloverNoticeLevel = 99);
+              unawaited(_openContextHelper());
+            },
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(context.tr('去处理'),
+                style: TextStyle(fontSize: 12, color: tone)),
+          ),
+          IconButton(
+            onPressed: () => setState(() => _rolloverNoticeLevel = 99),
+            icon: Icon(Icons.close, size: 15, color: tone),
+            visualDensity: VisualDensity.compact,
+            tooltip: context.tr('这次不提示'),
+          ),
+        ],
+      ),
     );
   }
 

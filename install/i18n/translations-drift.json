@@ -4038,5 +4038,20 @@
     "en": "Images & video",
     "ja": "画像と動画",
     "ko": "이미지와 동영상"
+  },
+  "去处理": {
+    "en": "Handle it",
+    "ja": "対処する",
+    "ko": "처리하기"
+  },
+  "这次不提示": {
+    "en": "Don't remind me",
+    "ja": "今回は表示しない",
+    "ko": "이번엔 표시 안 함"
+  },
+  "这段会话的上下文已经用掉约 {0}（估算）。用「长会话助手」可以把关键信息跟着带到新窗口，接着聊不会断。": {
+    "en": "This session has used about {0} of its context (estimate). The long-session assistant can carry the key points into a new window so the conversation continues without a break.",
+    "ja": "このセッションはコンテキストを約 {0} 使っています（推定）。「長いセッションの助手」を使うと、要点を新しいウィンドウに引き継いで会話を続けられます。",
+    "ko": "이 세션은 컨텍스트를 약 {0} 사용했습니다(추정). '긴 세션 도우미'를 쓰면 핵심 내용을 새 창으로 가져가 대화를 끊김 없이 이어갈 수 있습니다."
   }
 }

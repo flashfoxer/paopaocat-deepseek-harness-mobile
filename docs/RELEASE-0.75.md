@@ -15,7 +15,7 @@
 
 | 你的情况 | 下载哪个 |
 |---|---|
-| **全新安装**（没装过，或清过应用数据） | **`paopaocat-preview-0.75-20261016-full-arm64-v8a.apk`（完整包，98.2 MiB / 103.0 MB）** —— 装完即用，**手机没网也能打开** |
+| **全新安装**（没装过，或清过应用数据） | **`paopaocat-preview-0.75-20261016b-full-arm64-v8a.apk`（完整包，98.2 MiB / 103.0 MB）** —— 装完即用，**手机没网也能打开** |
 | **已经装过旧版** | 不用手动下：App → 设置 →「检查更新」，它会自动下 **`…-lite-arm64-v8a.apk`（精简包，68.1 MiB / 71.4 MB，省 32 MB）** |
 
 两个包的 **versionCode 与签名完全相同**（`75` / `7aaf4448…d3cc17`），可以互相覆盖安装。
@@ -110,8 +110,8 @@ ffmpeg（10.5 MB，剪辑/修图）与 ONNX/sherpa（9.4 MB，离线配音）都
 | ② | ABI | **仅 `arm64-v8a`** |
 | ③ | `assets/dsh-runtime.zip` | 完整包**有**（1 条）、精简包**没有**（0 条）✓ |
 | ④ | 签名 | `7aaf4448…d3cc17` · **与 0.14 起同一把** → 可直接覆盖安装（本次用 APK 签名块里的证书字节核对过） |
-| ⑤ | 完整包 | **102,975,234** 字节 · `04e2466f173e888f077060695aa358fbfa54d907dc0a613417297c8b3f056c9b` |
-| ⑥ | 精简包 | **71,411,878** 字节 · `37b5fb2b2bad37ae001f34242dba8ab3909ca6e8bcc8c7c6e3b68cb1d35b3561` |
+| ⑤ | 完整包 | **102,980,010** 字节 · `7259700a171ca0e6296da98b5610498f4421577ee60c786842c1849bcc622d78` |
+| ⑥ | 精简包 | **71,416,654** 字节 · `f068b6f74d14e9f8117d373547bd657f7444fc20fbe7823e28056c624835f641` |
 | ⑦ | 包内运行环境 | `dsh-runtime.zip` · 33,705,871 字节 · `a0530f5b647a3874e101d254b4f5fbb38258980d9ebc3c56fe38e309fd630ba4`（**带 AnySearch 搜索后端的那份**） |
 | ⑧ | 出包核对 `install/check-release.py` | **全部通过**（版本同一 / 26 个脚本在 `libapp.so` 里 / 199 个资产逐名 size+sha256 一致 / ffmpeg 那 10 个 `.so` 都在且是 AArch64 ELF） |
 
@@ -130,6 +130,9 @@ ffmpeg（10.5 MB，剪辑/修图）与 ONNX/sherpa（9.4 MB，离线配音）都
    （`build.gradle.kts` 里明确排除了那 4 个 `.so`），但 `check-release.py` 的
    `MUST_SHIP_LIBS` 还要求它们在包里 → 每次出包都 FAIL。**修法**：把那 4 项移进
    `PARKED_ENGINE_LIBS`（只报信息、不算失败）并写清恢复方法。假红和假绿一样会让真问题被忽略。
+
+> ⚠️ **以 `…-20261016b-…` 这两个文件为准**（同日先出过一版没带字母的 `20261016`，
+> 那版**没有创作台里的「做 PPT / 幻灯片」入口**，已作废删除）。
 
 ## 怎么升级
 
@@ -177,8 +180,8 @@ ffmpeg（10.5 MB，剪辑/修图）与 ONNX/sherpa（9.4 MB，离线配音）都
    ```
 
 2. **建 `v0.75` Release 并上传三个资产**（附件名必须是这三个，App 按名字拼 URL）：
-   * `paopaocat-preview-0.75-20261016-full-arm64-v8a.apk`
-   * `paopaocat-preview-0.75-20261016-lite-arm64-v8a.apk`
+   * `paopaocat-preview-0.75-20261016b-full-arm64-v8a.apk`
+   * `paopaocat-preview-0.75-20261016b-lite-arm64-v8a.apk`
    * `dsh-runtime.zip`（= `/root/办公/dsh-runtime-0.57-slim-anysearch.zip`，33,705,871 字节）
 3. **`update.json` 改成上面的体积与 sha256**（`size`/`sha256` = 精简包，`sizeFull`/`sha256Full` = 完整包），
    `version` 保持 `0.75`、`versionCode` 保持 `75`；`notes` 换成这一版的条目。

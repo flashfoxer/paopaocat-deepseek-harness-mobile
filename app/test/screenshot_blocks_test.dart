@@ -148,6 +148,30 @@ Widget _wrap(Widget child, AppLanguage lang) {
   );
 }
 
+/// 与 [`_wrap`] 相同，但把 `RepaintBoundary` 放在 **MaterialApp 外面** ——
+/// 这样连 Navigator 的 Overlay（底部弹层 / 对话框 / SnackBar）一起截进去。
+///
+/// ⚠️ 2026-10-16 实测**必须这样**：`_wrap` 那层 boundary 在 MaterialApp **里面**，
+///    而 `showModalBottomSheet` 是挂在 Overlay 上的、是它的**兄弟节点** ⇒
+///    用 `_wrap` 截弹层只会得到底下的页面（`块-画图表（弹层）` 那张一直是这样，
+///    肉眼看是"弹层没打开"，其实是没被截进去）。
+Widget _wrapOuter(Widget child, AppLanguage lang) {
+  return DshI18n(
+    language: lang,
+    child: RepaintBoundary(
+      key: _shotKey,
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: _shotTheme(buildDshTheme(), _fontFamily),
+        home: Scaffold(
+          backgroundColor: DshColors.bg,
+          body: child,
+        ),
+      ),
+    ),
+  );
+}
+
 /// 把 `_shotKey` 那棵子树按 3 倍像素导出成 PNG。
 Future<void> _save(WidgetTester tester, String name) async {
   final boundary =
@@ -348,7 +372,10 @@ void main() {
     tester.view.physicalSize = _logical * _pixelRatio;
     tester.view.devicePixelRatio = _pixelRatio;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(_wrap(workbench(), AppLanguage.zh));
+    // 同样是弹层 ⇒ 用 _wrapOuter（否则截不到弹层）；入口在「工具」组里，要先展开
+    await tester.pumpWidget(_wrapOuter(workbench(), AppLanguage.zh));
+    await tester.pump();
+    await tester.tap(find.text('工具'));
     await tester.pump();
     await tester.tap(find.text('画图表'));
     await tester.pump();
@@ -398,6 +425,48 @@ void main() {
   testWidgets('块-更新说明', (tester) async {
     await shotOf(tester, 'block-19-release-notes.png', const ReleaseNotesPage());
   });
+  // ───────────── 0.76 公众号用：创作台的「做 PPT / 幻灯片」入口与弹层
+  //
+  // 用户 2026-10-16 要写 0.76 的公众号，明确要求「工作台和 ppt 功能要有截图」。
+  // 三个块各出一张图，机器验图方式见 README 里那条：本机模型读不了图，
+  // 但免 Key 的 VL 模型能逐行抄字 ⇒ 用「抄回来的文字」核对图里到底有什么。
+
+  /// 展开「工具」组（入口屏默认 4 组全收起 —— 不展开的话入口文字**不在树里**）。
+  Future<void> openToolsGroup(WidgetTester tester) async {
+    tester.view.physicalSize = _logical * _pixelRatio;
+    tester.view.devicePixelRatio = _pixelRatio;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_wrap(workbench(), AppLanguage.zh));
+    await tester.pump();
+    await tester.tap(find.text('工具'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+  }
+
+  testWidgets('块-创作台·工具组展开（含新入口「做 PPT / 幻灯片」）', (tester) async {
+    await openToolsGroup(tester);
+    await _save(tester, 'block-21-workbench-tools.png');
+  });
+
+  testWidgets('块-做 PPT 弹层（四个可直接用的例子）', (tester) async {
+    // ⚠️ 弹层要截进来的话，boundary 必须在 MaterialApp **外面**（见 `_wrapOuter`）。
+    tester.view.physicalSize = _logical * _pixelRatio;
+    tester.view.devicePixelRatio = _pixelRatio;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(_wrapOuter(workbench(), AppLanguage.zh));
+    await tester.pump();
+    await tester.tap(find.text('工具'));
+    await tester.pump();
+    await tester.tap(find.text('做 PPT / 幻灯片'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _save(tester, 'block-22-slides-sheet.png');
+  });
+
+  testWidgets('块-更新说明 v0.76（修好 20 / 新增 17 那条）', (tester) async {
+    await shotOf(tester, 'block-23-release-notes-076.png', const ReleaseNotesPage());
+  });
+
   testWidgets('块-工作区页', (tester) async {
     final tmp = Directory.systemTemp.createTempSync('shot-ws-');
     final store = WorkspaceStore(tmp.path);

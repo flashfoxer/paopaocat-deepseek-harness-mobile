@@ -60,10 +60,23 @@
  * 本实现严格按上面的最小合法集生成，不做任何"想当然的省略"。
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, extname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
+
+import {
+  buildSlideShapes,
+  bodyBox,
+  fitBullets,
+  inferLayout,
+  resolveTheme,
+  splitBullets,
+  GRID,
+  BULLET_MIN_PT,
+  LAYOUT_NAMES,
+} from './pptx-design.mjs';
 
 // ─────────────────────────────────────────────────────────── 常量
 
@@ -100,6 +113,7 @@ const RT = {
   theme: NS_R + '/theme',
   notesMaster: NS_R + '/notesMaster',
   notesSlide: NS_R + '/notesSlide',
+  image: NS_R + '/image',
 };
 
 const CT = {
@@ -113,30 +127,54 @@ const CT = {
   coreProps: 'application/vnd.openxmlformats-package.core-properties+xml',
 };
 
+/** 版式数量：1=标题（封面）· 2=标题和内容 · 3=**空白**（设计版式用它，形状自带坐标） */
+const LAYOUT_COUNT = 3;
+/** 设计版式的幻灯片一律挂在"空白"版式上（见 buildParts） */
+const BLANK_LAYOUT_INDEX = 3;
+
 const HELP = `make-pptx.mjs —— 纯 Node 内置模块生成真正的 .pptx（离线可用，无 npm 依赖）
 
 用法:
   node make-pptx.mjs <outline.json> <out.pptx>
   node make-pptx.mjs --help
 
-outline.json 结构（字段缺省都有默认值）:
+一句话：**你只写内容 + 选版式，排版（坐标、字号、分页）由引擎算**。
+
+整份（都可以不写）:
   {
-    "title": "封面标题",          // 缺省 "演示文稿"
-    "subtitle": "副标题",         // 可选
-    "author": "作者",             // 可选，写进文档属性
-    "slides": [
-      {
-        "title": "小节标题",
-        "bullets": ["要点1", "要点2"],
-        "notes": "演讲者备注（可选）"
-      }
-    ]
+    "title": "封面标题",             // 缺省 "演示文稿"
+    "subtitle": "副标题",
+    "author": "作者",
+    "date": "2026-10-16",
+    "theme": "ink",                 // ink|ocean|forest|sunrise|berry|mono
+    "footer": "页脚文字（可选）",
+    "pageNumbers": true,            // 缺省 true
+    "transition": "fade",           // fade|push|wipe|cover|zoom（缺省：不加转场）
+    "hints": { "empty": "…", "overflow": "…", "imageMissing": "…" },
+    "slides": [ … ]
   }
 
-  * bullets 也可以是字符串（单条），或 [{ "text": "要点", "level": 0 }]，
-    level 0/1/2 对应三级缩进。
-  * slides 为空时只生成封面页。
-  * 尺寸固定 16:9（12192000 x 6858000 EMU）。
+一页（layout 不写就按内容字段猜）:
+  { "layout": "cover",   "title": "标题", "subtitle": "副标题" }
+  { "layout": "section", "number": "01", "title": "第一章", "subtitle": "这章讲什么" }
+  { "layout": "toc",     "title": "目录", "items": ["第一部分", "第二部分"] }
+  { "layout": "bullets", "title": "要点", "bullets": ["…", {"text":"子项","level":1}] }
+  { "layout": "cards",   "title": "三件事", "items": [{"title":"…","text":"…"}] }
+  { "layout": "timeline","title": "节奏", "steps": [{"title":"…","text":"…","date":"Q1"}] }
+  { "layout": "compare", "title": "对比", "left": {"title":"A","bullets":[…]},
+                                            "right": {"title":"B","bullets":[…]} }
+  { "layout": "metrics", "title": "数字", "metrics": [{"value":"92%","label":"…","note":"…"}] }
+  { "layout": "chart",   "title": "增长", "chart": {"kind":"bar|hbar|stacked","unit":"万",
+                                                    "data":[{"label":"Q1","value":12}]} }
+  { "layout": "quote",   "text": "…", "cite": "出处" }
+  { "layout": "image",   "title": "…", "image": "pic.png", "caption": "…", "bullets":[…] }
+  { "layout": "end",     "title": "谢谢" }
+
+自动做的事:
+  * 字号按内容**逐档收缩**（18→9.5pt），放不下时**要点页自动拆续页**（带"（续）"）；
+  * 卡片/时间线/对比会按条数自动分栏、按格子高度收缩；
+  * 图片按原比例等比放进框（不拉伸），找不到图就画占位并给警告；
+  * 页脚/页码只画在内容页上（封面、章节页、引用页、结尾页不画）。
 
 退出码: 0 成功；1 生成失败（文件不存在 / JSON 不合法 / 写不进去）；2 参数用法错误。
 `;
@@ -199,17 +237,6 @@ function plainPara(text, opts) {
 }
 
 /** 带项目符号的段落，level 0/1/2 依次缩进 */
-function bulletPara(text, level, size) {
-  const lv = Math.max(0, Math.min(4, Number(level) || 0));
-  const marL = 342900 * (lv + 1);
-  const chars = ['•', '–', '·', '•', '–'];
-  const pPr =
-    `<a:pPr marL="${marL}" indent="-342900">` +
-    `<a:buFont typeface="Arial"/><a:buChar char="${chars[lv]}"/>` +
-    '</a:pPr>';
-  return `<a:p>${pPr}${runsXml(text, { size })}</a:p>`;
-}
-
 /** 空段落（占位符里必须至少有一个 a:p） */
 function emptyPara() {
   return '<a:p><a:endParaRPr lang="zh-CN" dirty="0"/></a:p>';
@@ -267,15 +294,15 @@ const CLR_MAP =
 
 // ─────────────────────────────────────────────────────────── 固定部件
 
-function contentTypesXml(slideCount, hasNotes) {
+function contentTypesXml(slideCount, hasNotes, mediaExts, layoutCount) {
   const overrides = [
     ['/ppt/presentation.xml', CT.presentation],
     ['/ppt/slideMasters/slideMaster1.xml', CT.slideMaster],
-    ['/ppt/slideLayouts/slideLayout1.xml', CT.slideLayout],
-    ['/ppt/slideLayouts/slideLayout2.xml', CT.slideLayout],
-    ['/ppt/theme/theme1.xml', CT.theme],
-    ['/docProps/core.xml', CT.coreProps],
   ];
+  for (let i = 1; i <= layoutCount; i += 1) {
+    overrides.push([`/ppt/slideLayouts/slideLayout${i}.xml`, CT.slideLayout]);
+  }
+  overrides.push(['/ppt/theme/theme1.xml', CT.theme], ['/docProps/core.xml', CT.coreProps]);
   for (let i = 1; i <= slideCount; i += 1) overrides.push([`/ppt/slides/slide${i}.xml`, CT.slide]);
   if (hasNotes && hasNotes.size > 0) {
     overrides.push(['/ppt/notesMasters/notesMaster1.xml', CT.notesMaster]);
@@ -284,10 +311,16 @@ function contentTypesXml(slideCount, hasNotes) {
       if (hasNotes.has(i)) overrides.push([`/ppt/notesSlides/notesSlide${i}.xml`, CT.notesSlide]);
     }
   }
-  const body =
-    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
-    '<Default Extension="xml" ContentType="application/xml"/>' +
-    overrides.map(([part, ct]) => `<Override PartName="${part}" ContentType="${ct}"/>`).join('');
+  const defaults = [
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>',
+    '<Default Extension="xml" ContentType="application/xml"/>',
+  ];
+  // 图片：**每种扩展名一条 Default**（漏了 PowerPoint 会说"文件已损坏"）
+  for (const [ext, ct] of mediaExts) {
+    defaults.push(`<Default Extension="${ext}" ContentType="${ct}"/>`);
+  }
+  const body = defaults.join('')
+    + overrides.map(([part, ct]) => `<Override PartName="${part}" ContentType="${ct}"/>`).join('');
   return `${XML_DECL}<Types xmlns="${NS_CT}">${body}</Types>`;
 }
 
@@ -375,6 +408,11 @@ function slideMasterXml() {
     xfrmXml(MARGIN_X, BODY_Y, CONTENT_W, BODY_H),
     txBodyXml([plainPara('单击此处编辑母版文本样式', { size: 1800 })]),
   );
+  const layoutIds = LAYOUT_COUNT === 0 ? 2 : LAYOUT_COUNT;
+  const layoutRefs = [];
+  for (let i = 1; i <= layoutIds; i += 1) {
+    layoutRefs.push(`<p:sldLayoutId id="${2147483648 + i}" r:id="rId${i}"/>`);
+  }
   return (
     XML_DECL +
     `<p:sldMaster xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}">` +
@@ -383,10 +421,7 @@ function slideMasterXml() {
     `<p:spTree>${GROUP_SHAPE}${title}${body}</p:spTree>` +
     '</p:cSld>' +
     CLR_MAP +
-    '<p:sldLayoutIdLst>' +
-    '<p:sldLayoutId id="2147483649" r:id="rId1"/>' +
-    '<p:sldLayoutId id="2147483650" r:id="rId2"/>' +
-    '</p:sldLayoutIdLst>' +
+    `<p:sldLayoutIdLst>${layoutRefs.join('')}</p:sldLayoutIdLst>` +
     '<p:txStyles>' +
     '<p:titleStyle>' +
     '<a:lvl1pPr algn="l" defTabSz="914400" rtl="0" eaLnBrk="1" latinLnBrk="0" hangingPunct="1">' +
@@ -415,11 +450,12 @@ function slideMasterXml() {
 }
 
 function slideMasterRelsXml() {
-  return relsXml([
-    { id: 'rId1', type: RT.slideLayout, target: '../slideLayouts/slideLayout1.xml' },
-    { id: 'rId2', type: RT.slideLayout, target: '../slideLayouts/slideLayout2.xml' },
-    { id: 'rId3', type: RT.theme, target: '../theme/theme1.xml' },
-  ]);
+  const items = [];
+  for (let i = 1; i <= LAYOUT_COUNT; i += 1) {
+    items.push({ id: `rId${i}`, type: RT.slideLayout, target: `../slideLayouts/slideLayout${i}.xml` });
+  }
+  items.push({ id: `rId${LAYOUT_COUNT + 1}`, type: RT.theme, target: '../theme/theme1.xml' });
+  return relsXml(items);
 }
 
 /** 版式 1：标题幻灯片（ctrTitle + subTitle） */
@@ -477,6 +513,23 @@ function slideLayout2Xml() {
 
 function slideLayoutRelsXml() {
   return relsXml([{ id: 'rId1', type: RT.slideMaster, target: '../slideMasters/slideMaster1.xml' }]);
+}
+
+/**
+ * 版式 3：**空白**。
+ *
+ * 设计版式（`pptx-design.mjs` 那一套）的幻灯片**不使用占位符**：每个色块/文字框
+ * 都带自己的 `a:xfrm` 坐标。挂在空白版式上，PPT 里不会出现"没填的占位符提示"。
+ * （保留上面两个版式是为了向后兼容：老文件/老调用方仍能用占位符那条路。）
+ */
+function slideLayout3Xml() {
+  return (
+    XML_DECL +
+    `<p:sldLayout xmlns:a="${NS_A}" xmlns:r="${NS_R}" xmlns:p="${NS_P}" type="blank" preserve="1">` +
+    `<p:cSld name="空白"><p:spTree>${GROUP_SHAPE}</p:spTree></p:cSld>` +
+    '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>' +
+    '</p:sldLayout>'
+  );
 }
 
 /**
@@ -623,51 +676,116 @@ function notesSlideRelsXml(slideIndex) {
   ]);
 }
 
-/** 幻灯片。isCover=true 时用 ctrTitle/subTitle 占位符（对应版式 1） */
-function slideXml(slide, isCover) {
-  const shapes = [];
-  if (isCover) {
-    shapes.push(
-      spXml(2, '标题 1', '<p:ph type="ctrTitle"/>', '', txBodyXml([plainPara(slide.title, { size: 4000, bold: true })], ' wrap="square" anchor="ctr"')),
-    );
-    if (slide.subtitle) {
-      shapes.push(
-        spXml(3, '副标题 2', '<p:ph type="subTitle" idx="1"/>', '', txBodyXml([plainPara(slide.subtitle, { size: 2000 })], ' wrap="square" anchor="t"')),
-      );
-    }
-  } else {
-    shapes.push(spXml(2, '标题 1', '<p:ph type="title"/>', '', txBodyXml([plainPara(slide.title, { size: 3200, bold: true })])));
-    if (slide.bullets.length > 0) {
-      const size = bulletSize(slide.bullets.length);
-      const paras = slide.bullets.map((b) => bulletPara(b.text, b.level, size));
-      shapes.push(spXml(3, '正文占位符 2', '<p:ph idx="1"/>', '', txBodyXml(paras)));
-    }
-  }
+// ─────────────────────────────────────────────────────────── 设计版式幻灯片
+
+/** 转场（可选）。少写一个属性不会被拒，写错了才会 —— 所以只认这张表里的名字。 */
+const TRANSITIONS = Object.freeze({
+  fade: '<p:fade/>',
+  push: '<p:push dir="l"/>',
+  wipe: '<p:wipe dir="l"/>',
+  cover: '<p:cover dir="l"/>',
+  zoom: '<p:zoom dir="in"/>',
+});
+
+function transitionXml(name) {
+  const key = String(name || '').trim().toLowerCase();
+  if (!TRANSITIONS[key]) return '';
+  return `<p:transition spd="med" advClick="1">${TRANSITIONS[key]}</p:transition>`;
+}
+
+/**
+ * 幻灯片 XML。形状树由 `pptx-design.mjs` 算好（自带 `a:xfrm` 坐标），
+ * 这里只负责套外壳 + 挂"空白"版式 +（可选）转场。
+ *
+ * ⚠️ 不用占位符：设计版式的每一页都要能独立摆位置 —— 也正是"自动排版"的前提。
+ */
+function slideXmlDesigned(shapes, transition) {
   return (
     XML_DECL +
     `<p:sld xmlns:a="${NS_A}" xmlns:p="${NS_P}" xmlns:r="${NS_R}">` +
     `<p:cSld><p:spTree>${GROUP_SHAPE}${shapes.join('')}</p:spTree></p:cSld>` +
     '<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>' +
+    transitionXml(transition) +
     '</p:sld>'
   );
 }
 
-function slideRelsXml(isCover, notesIndex) {
-  const items = [
-    { id: 'rId1', type: RT.slideLayout, target: isCover ? '../slideLayouts/slideLayout1.xml' : '../slideLayouts/slideLayout2.xml' },
-  ];
+/**
+ * 幻灯片的关系：`rId1` 固定是版式，图片依次挂上，备注最后。
+ * ⚠️ 图片的 id 必须与生成 `a:blip r:embed` 时用的一致 —— 所以两边都走
+ *    `imageRelsOf(slide)` 的同一个顺序（见 buildParts）。
+ */
+function slideRelsXml({ layoutIndex, notesIndex, images }) {
+  const items = [{
+    id: 'rId1',
+    type: RT.slideLayout,
+    target: `../slideLayouts/slideLayout${layoutIndex}.xml`,
+  }];
+  let n = 1;
+  for (const img of images) {
+    n += 1;
+    items.push({
+      id: `rId${n}`,
+      type: RT.image,
+      target: `../media/${img.partName.split('/').pop()}`,
+    });
+  }
   if (notesIndex) {
-    items.push({ id: 'rId2', type: RT.notesSlide, target: `../notesSlides/notesSlide${notesIndex}.xml` });
+    n += 1;
+    items.push({ id: `rId${n}`, type: RT.notesSlide, target: `../notesSlides/notesSlide${notesIndex}.xml` });
   }
   return relsXml(items);
 }
 
-/** 条目多的时候把正文字号收小，避免溢出方框（PowerPoint 打开时不重排） */
-function bulletSize(count) {
-  if (count <= 6) return 1800;
-  if (count <= 8) return 1600;
-  if (count <= 11) return 1400;
-  return 1200;
+// ─────────────────────────────────────────────────────────── 图片
+
+/** 图片类型 → OPC 内容类型（只认这几种；别的如实警告后当作没有）。 */
+const IMAGE_TYPES = Object.freeze({
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  bmp: 'image/bmp',
+});
+
+/** 单张图片上限：太大就别塞进 PPT 了（手机上内存/包体都吃不住）。 */
+const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
+
+/** 读图片像素尺寸（只解析头，不解码）—— 用来等比缩放，不拉伸变形。 */
+function imageSizeOf(buf, ext) {
+  try {
+    if (ext === 'png' && buf.length > 24) {
+      return { cx: buf.readUInt32BE(16), cy: buf.readUInt32BE(20) };
+    }
+    if (ext === 'gif' && buf.length > 10) {
+      return { cx: buf.readUInt16LE(6), cy: buf.readUInt16LE(8) };
+    }
+    if (ext === 'bmp' && buf.length > 26) {
+      return { cx: Math.abs(buf.readInt32LE(18)), cy: Math.abs(buf.readInt32LE(22)) };
+    }
+    if (ext === 'jpg' || ext === 'jpeg') {
+      let i = 2;
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xff) { i += 1; continue; }
+        const marker = buf[i + 1];
+        const len = buf.readUInt16BE(i + 2);
+        // SOF0..SOF3 / SOF5..SOF7 / SOF9..SOF11 / SOF13..SOF15 里都带尺寸
+        if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+          return { cy: buf.readUInt16BE(i + 5), cx: buf.readUInt16BE(i + 7) };
+        }
+        i += 2 + len;
+      }
+    }
+  } catch {
+    /* 头读不出来就当没有尺寸，调用方按 4:3 兜底 */
+  }
+  return null;
+}
+
+/** 幻灯片里要用的图片路径（几个别名都认）。 */
+function imagePathOf(slide) {
+  const v = slide && (slide.image || slide.picture || slide.photo);
+  return typeof v === 'string' ? v.trim() : '';
 }
 
 // ─────────────────────────────────────────────────────────── ZIP 写入器
@@ -789,7 +907,17 @@ class ZipWriter {
 
 // ─────────────────────────────────────────────────────────── 组装 pptx
 
-/** 把 outline.json 抹平成内部结构（宽进：类型不对就取默认，不炸） */
+/**
+ * 把 outline.json 抹平成内部结构（**宽进**：类型不对就取默认 + 一句警告，绝不抛）。
+ *
+ * 兼容两种写法：
+ *   v1（老）：`{ title, subtitle, author, slides:[{ title, bullets, notes }] }`
+ *   v2（本轮）：多出设计字段 ——
+ *     * 整份：`theme`（配色名）、`footer`、`pageNumbers`、`transition`、
+ *       `date`、`suffix`（续页后缀）、`hints`（三句提示的自定义文案）
+ *     * 每页：`layout`（版式名，见 LAYOUT_NAMES）+ 该版式要的内容字段
+ * 两种可以混用：**没写 layout 的页按内容字段自动猜版式**（inferLayout）。
+ */
 function normalizeOutline(raw) {
   const obj = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
   const warn = [];
@@ -802,7 +930,8 @@ function normalizeOutline(raw) {
     slides = [];
   }
 
-  const normSlides = slides.map((s, index) => {
+  /** 每一页：只做**类型收口**，内容字段原样透传（版式自己知道要什么）。 */
+  const normalizeSlide = (s, index) => {
     const o = s && typeof s === 'object' && !Array.isArray(s) ? s : {};
     let bullets = o.bullets !== undefined ? o.bullets : o.content;
     if (bullets === undefined || bullets === null) bullets = [];
@@ -824,34 +953,137 @@ function normalizeOutline(raw) {
         normBullets.push({ text, level: 0 });
       }
     }
-    return {
+    const out = {
       title: str(o.title).trim() || `第 ${index + 1} 节`,
+      subtitle: str(o.subtitle).trim(),
+      kicker: str(o.kicker !== undefined ? o.kicker : o.eyebrow).trim(),
+      layout: str(o.layout).trim().toLowerCase(),
       bullets: normBullets,
       notes: str(o.notes).trim(),
     };
-  });
+    // 透传版式要用的字段（没写就是没写 —— 版式内部会退化到"要点页"）
+    const passthrough = [
+      'items', 'cards', 'tiles', 'steps', 'timeline', 'metrics', 'stats', 'numbers',
+      'data', 'left', 'right', 'quote', 'cite', 'source', 'caption', 'image',
+      'picture', 'photo', 'number', 'date', 'when', 'text',
+    ];
+    for (const key of passthrough) {
+      if (o[key] !== undefined) out[key] = o[key];
+    }
+    if (o.chart !== undefined) out.chart = o.chart;
+    return out;
+  };
 
+  const normSlides = slides.map(normalizeSlide);
+
+  const hints = (obj.hints && typeof obj.hints === 'object') ? obj.hints : {};
   return {
     title: str(obj.title).trim() || '演示文稿',
     subtitle: str(obj.subtitle).trim(),
     author: str(obj.author).trim(),
+    date: str(obj.date).trim(),
+    footer: str(obj.footer).trim(),
+    theme: str(obj.theme).trim(),
+    transition: str(obj.transition).trim(),
+    pageNumbers: obj.pageNumbers !== false,
+    suffix: str(obj.suffix).trim(),
+    hints: {
+      empty: str(hints.empty).trim() || '（这一页没有正文）',
+      overflow: str(hints.overflow).trim() || '（本页内容较多，剩下的在下一页）',
+      imageMissing: str(hints.imageMissing).trim() || '（图片没找到，已在原位留空）',
+    },
     slides: normSlides,
     warn,
   };
 }
 
+/**
+ * 一页要点放不下就**拆成续页**（在渲染之前做，页码/页脚才对得上）。
+ *
+ * ⚠️ 只在"要点类"版式上拆（卡片/时间线自己会缩字号，拆页反而看不懂）。
+ */
+function expandSlides(slides, outline) {
+  const out = [];
+  const suffix = outline.suffix || '（续）';
+  for (const s of slides) {
+    if (s.bullets.length > 0) {
+      const layout = inferLayout(s);
+      if (layout === 'bullets' || layout === 'toc') {
+        const box = bodyBox(s);
+        const fit = fitBullets(s.bullets, GRID.contentW, box.h, { minPt: BULLET_MIN_PT });
+        if (!fit.ok) {
+          const pages = splitBullets(s.bullets, GRID.contentW, box.h, { minPt: BULLET_MIN_PT });
+          pages.forEach((page, i) => {
+            out.push(i === 0
+              ? { ...s, bullets: page }
+              : { ...s, title: `${s.title}${suffix}`, bullets: page, notes: '' });
+          });
+          continue;
+        }
+      }
+    }
+    out.push(s);
+  }
+  return out;
+}
+
 /** 生成所有部件（路径 → 内容），路径用 `/`，符合 OPC 包内命名 */
 function buildParts(outline) {
   const parts = new Map();
-  // 第 1 页是封面；后面每页对应 outline.slides 的一项
-  const total = 1 + outline.slides.length;
+  const theme = resolveTheme(outline.theme);
+  const slides = expandSlides(outline.slides, outline);
+  // 第 1 页是封面；后面每页对应 slides 的一项
+  const total = 1 + slides.length;
+
   const notesByIndex = new Map(); // slideIndex → 备注文本
-  for (let i = 1; i <= total; i += 1) {
-    const s = i === 1 ? null : outline.slides[i - 2];
-    if (s && s.notes) notesByIndex.set(i, s.notes);
+  for (let i = 2; i <= total; i += 1) {
+    if (slides[i - 2].notes) notesByIndex.set(i, slides[i - 2].notes);
   }
 
-  parts.set('[Content_Types].xml', contentTypesXml(total, notesByIndex));
+  // 图片登记表：**同一张图只存一份**（按内容哈希去重），内容类型按扩展名收集
+  const media = new Map(); // sha1 → { partName, bytes, ext, ct, cx, cy }
+  const mediaExts = new Map(); // ext → content type
+
+  /** 把图片读进来登记；拿不到就返回 null（调用方画"缺图占位"）。 */
+  const registerImage = (rawPath, warn) => {
+    const path = resolve(rawPath);
+    const ext = extname(path).slice(1).toLowerCase();
+    if (!IMAGE_TYPES[ext]) {
+      warn.push(`图片格式不支持（只认 png/jpg/jpeg/gif/bmp）：${rawPath}`);
+      return null;
+    }
+    if (!existsSync(path)) {
+      warn.push(`找不到图片：${rawPath}`);
+      return null;
+    }
+    let bytes;
+    try {
+      const st = statSync(path);
+      if (st.size > MAX_IMAGE_BYTES) {
+        warn.push(`图片太大（>${Math.round(MAX_IMAGE_BYTES / 1048576)}MB），已跳过：${rawPath}`);
+        return null;
+      }
+      bytes = readFileSync(path);
+    } catch (e) {
+      warn.push(`读不了图片（${rawPath}）：${e.message}`);
+      return null;
+    }
+    const sha = createHash('sha1').update(bytes).digest('hex');
+    if (media.has(sha)) return media.get(sha);
+    const dim = imageSizeOf(bytes, ext) || { cx: 0, cy: 0 };
+    const entry = {
+      partName: `ppt/media/image${media.size + 1}.${ext}`,
+      bytes,
+      ext,
+      ct: IMAGE_TYPES[ext],
+      cx: dim.cx,
+      cy: dim.cy,
+    };
+    media.set(sha, entry);
+    mediaExts.set(ext, IMAGE_TYPES[ext]);
+    return entry;
+  };
+
   parts.set('_rels/.rels', rootRelsXml());
   parts.set('docProps/core.xml', coreXml(outline));
   parts.set('ppt/presentation.xml', presentationXml(total, notesByIndex));
@@ -860,18 +1092,63 @@ function buildParts(outline) {
   parts.set('ppt/slideMasters/_rels/slideMaster1.xml.rels', slideMasterRelsXml());
   parts.set('ppt/slideLayouts/slideLayout1.xml', slideLayout1Xml());
   parts.set('ppt/slideLayouts/slideLayout2.xml', slideLayout2Xml());
-  parts.set('ppt/slideLayouts/_rels/slideLayout1.xml.rels', slideLayoutRelsXml());
-  parts.set('ppt/slideLayouts/_rels/slideLayout2.xml.rels', slideLayoutRelsXml());
+  parts.set('ppt/slideLayouts/slideLayout3.xml', slideLayout3Xml());
+  for (let i = 1; i <= LAYOUT_COUNT; i += 1) {
+    parts.set(`ppt/slideLayouts/_rels/slideLayout${i}.xml.rels`, slideLayoutRelsXml());
+  }
   parts.set('ppt/theme/theme1.xml', themeXml());
 
+  const usedLayouts = [];
   for (let i = 1; i <= total; i += 1) {
     const isCover = i === 1;
     const slide = isCover
-      ? { title: outline.title, subtitle: outline.subtitle, bullets: [] }
-      : { title: outline.slides[i - 2].title, bullets: outline.slides[i - 2].bullets };
-    parts.set(`ppt/slides/slide${i}.xml`, slideXml(slide, isCover));
-    parts.set(`ppt/slides/_rels/slide${i}.xml.rels`, slideRelsXml(isCover, notesByIndex.get(i) ? i : null));
+      ? { title: outline.title, subtitle: outline.subtitle, layout: 'cover', date: outline.date }
+      : slides[i - 2];
+
+    // ① 先定这一页要挂哪些图片（relId 必须先算好，才能写进 a:blip r:embed）
+    const imageRels = [];
+    const forSlide = () => {
+      const rawPath = imagePathOf(slide);
+      if (!rawPath) return null;
+      const entry = registerImage(rawPath, outline.warn);
+      if (!entry) return null;
+      imageRels.push(entry);
+      return {
+        relId: `rId${1 + imageRels.length}`,
+        cx: entry.cx,
+        cy: entry.cy,
+      };
+    };
+
+    // ② 排版（形状树全在这里算出来）
+    const built = buildSlideShapes({
+      slide,
+      theme,
+      deck: outline,
+      pageNo: i,
+      totalPages: total,
+      emptyHint: outline.hints.empty,
+      overflowHint: outline.hints.overflow,
+      imageMissingHint: outline.hints.imageMissing,
+      image: { forSlide },
+    });
+    usedLayouts.push(built.layout);
+
+    parts.set(`ppt/slides/slide${i}.xml`, slideXmlDesigned(built.shapes, outline.transition));
+    parts.set(
+      `ppt/slides/_rels/slide${i}.xml.rels`,
+      slideRelsXml({
+        layoutIndex: BLANK_LAYOUT_INDEX,
+        notesIndex: notesByIndex.get(i) ? i : null,
+        images: imageRels,
+      }),
+    );
   }
+
+  for (const entry of media.values()) parts.set(entry.partName, entry.bytes);
+
+  // ⚠️ [Content_Types].xml 必须**最后**写：它要知道用到了哪些图片扩展名
+  parts.set('[Content_Types].xml', contentTypesXml(total, notesByIndex, mediaExts, LAYOUT_COUNT));
 
   if (notesByIndex.size > 0) {
     parts.set('ppt/notesMasters/notesMaster1.xml', notesMasterXml());
@@ -881,7 +1158,8 @@ function buildParts(outline) {
       parts.set(`ppt/notesSlides/_rels/notesSlide${i}.xml.rels`, notesSlideRelsXml(i));
     }
   }
-  return parts;
+
+  return { parts, slides: total, layouts: usedLayouts, media: media.size };
 }
 
 // ─────────────────────────────────────────────────────────── 入口
@@ -918,11 +1196,14 @@ function main() {
   const outline = normalizeOutline(parsed);
   for (const w of outline.warn) process.stderr.write('[make-pptx] 警告：' + w + '\n');
 
-  const parts = buildParts(outline);
+  const built = buildParts(outline);
 
   const zip = new ZipWriter();
   // [Content_Types].xml 放第一个条目：符合惯例，也方便任何工具第一时间读到
-  for (const [name, content] of parts) zip.add(name, content);
+  const names = [...built.parts.keys()].sort(
+    (a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : a.localeCompare(b)),
+  );
+  for (const name of names) zip.add(name, built.parts.get(name));
   const buf = zip.finish();
 
   try {
@@ -933,12 +1214,17 @@ function main() {
     fail(`写不了输出文件（${outPath}）：${e.message}`);
   }
 
-  const slideCount = 1 + outline.slides.length;
   const notesCount = outline.slides.filter((s) => s.notes).length;
-  // 机器可读的一行，Dart 侧可以按 [make-pptx] 前缀解析
+  // 机器可读的一行，Dart 侧可以按 [make-pptx] 前缀解析。
+  // ⚠️ `slides` 是**真实页数**（含自动拆出来的续页），不是 outline 里写了几个 slide
+  //    —— 调用方要报"生成了 N 页"时用这个数才对。
   process.stdout.write(
-    `[make-pptx] ok slides=${slideCount} notes=${notesCount} parts=${parts.size} bytes=${buf.length} out=${outPath}\n`,
+    `[make-pptx] ok slides=${built.slides} notes=${notesCount} media=${built.media}`
+    + ` parts=${built.parts.size} bytes=${buf.length} out=${outPath}\n`,
   );
+  if (process.env.MAKE_PPTX_DEBUG_LAYOUTS === '1') {
+    process.stderr.write(`[make-pptx] 版式：${built.layouts.join(' → ')}\n`);
+  }
 }
 
 // 只有被直接 `node make-pptx.mjs` 调用时才执行；被 import 时不自动跑（方便单测）
@@ -953,4 +1239,4 @@ const isDirectRun = (() => {
 
 if (isDirectRun) main();
 
-export { buildParts, normalizeOutline, ZipWriter, crc32, main };
+export { buildParts, normalizeOutline, ZipWriter, crc32, main, LAYOUT_NAMES };

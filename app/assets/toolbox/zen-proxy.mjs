@@ -29,7 +29,7 @@
  * | 聊天端点 | **`/inference/v1/chat/completions`** | 打老 `/zen/v1/...` → **无条件 403** |
  * | 会话头 | **`x-opencode-session-id` 必须存在**（值与 `x-opencode-session` 相同） | 缺 → 403 |
  * | 会话 id 形状 | `ses_` + 12 位 hex 必须是**铸造**形状 `~(ms·0x1000+seq)`（低 12 位 ≈ `0xFFE`） | sha256 派生 / 随机 hex → 403 |
- * | 工具指纹 | **`bash` 与 `read` 必须同时声明**，且**各自 schema 至少有一个 property** | 只其一 → 403；`properties: {}` → 403 |
+ * | 工具指纹（**已升级，见下节**） | 2026-10-14 时是 `bash` + `read`；**2026-10-15 起是四个** | 只其一 → 403；`properties: {}` → 403 |
  * | User-Agent | **含 `deepseek-harness` 一律 403**（大小写不敏感、位置无关）；`dsh/…`、`opencode/1.18.x` 放行 | 403 |
  * | UA **版本号** | 必须在 **`[1.18.0, 1.18.33]`**（2026-10-14 13:45 UTC 起加的带；`<1.18.0` → **426**，`≥1.18.34` → **403**，官方 1.19.0 自己也被拒） | 426 / 403 |
  * | 会话 id（**加强**） | 不再是"能解出时间戳"，而是**官方 tA() 完整编码**：`((27<<36)-1-ms)<<12 \| 0xFFE`。手工把末 3 位凑成 `ffe` **仍然 403** | 403 |
@@ -40,7 +40,28 @@
  * 非官方客户端信号（`MingLoong/Aether` PR#72 的头部矩阵：仅 `x-opencode-*` → 200，
  * 再加 `x-session-id` → 200，**再加 `x-session-affinity` → 403**）。
  *
- * ## ⚠️ 但"契约全对"≠"就能用"：**出口也是被闸的一环**（2026-10-15 本机实测）
+ * ## 🔧 第 6 次变动（2026-10-15 社区摸清）与我们 2026-10-16 的**本机复测：通了**
+ *
+ * 10-15 上游又换了两处，同日被 `Ebony-Vinyl/dsh-our-free-model`（★1.8 万，当天连发
+ * 两个修复提交：`538b5197` "同步 OpenCode 请求协议"、`0525f8a9` "修复工具名大小写规范化"）
+ * 及 `artorias-zj/dsh-opencode-free-model` 实测出来：
+ *
+ * | 项目 | 现在要求 |
+ * |---|---|
+ * | 工具指纹 | **四个**函数工具：`bash`、`glob`、`grep`、`read`（不再是两个）；`bash`/`read` 各自 schema 仍要**至少一个 property** |
+ * | 工具名大小写 | 门禁按**小写**名字识别 → 调用方若发 `Bash`/`READ` 之类，**要规范化成小写再发**，回程再把调用方的原拼写还给他 |
+ * | 请求 id | `x-opencode-request` 用**铸造**形状 `msg_` + 12 位 hex（`ms·0x1000+seq`）+ 14 位 Base62（原来是 `req_` + 哈希前 20 位） |
+ * | 其余 | 端点仍是 `/inference/v1/chat/completions`、`x-opencode-session-id` 仍必须、UA 带仍是 `[1.18.0, 1.18.33]` |
+ *
+ * **⚠️ 两个证据都对，别把它们看成矛盾**：
+ *   * 我们 2026-10-15 用**两个**工具的旧形状在本机 403；社区同形状（另一出口）200；
+ *   * 2026-10-16 03:48 UTC 我们**在同一台机器**复测：**两个工具 200、四个工具也 200**
+ *     （`big-pickle` 与免 Key 名单里的模型都能真吐字，端到端 200 + `你好呀`）。
+ *     → 说明 10-15 那次 403 是**出口被分桶**（或上游当天又收紧），**不是形状**。
+ *   所以这一版把契约**按社区最新那份对齐**（四个工具 + 小写规范化 + `msg_` 请求 id）：
+ *   它是**超集**，对当前上游同样成立，且上游下次收紧时我们已经站在最新那条测线上。
+ *
+ * ## ⚠️ 但"契约全对"≠"永远能用"：**出口也是被闸的一环**（2026-10-15 本机实测）
  *
  * 把上面每一条都对齐之后（含最新的 UA 带 + 官方 tA() 会话编码），我们在本机仍然 403。
  * 一次判别实验把原因指出来了（同一个出口、同一时刻、只换模型）：
@@ -105,18 +126,24 @@ const DEFAULT_UPSTREAM = 'https://opencode.ai/inference';
 const DEFAULT_TTL_HOURS = 12;
 
 /**
- * 已在社区实测"匿名可用"的免费模型（离线兜底名单）。
- * 来源：opencode2dsh 的 `staticFreeModels`（带各自验证日期）。
+ * 已在社区/本机实测"匿名可用"的免费模型（离线兜底名单）。
+ * 2026-10-16 本机 `GET /inference/v1/models` 实测的免费层（10 条）——
+ * 之前那份（big-pickle + mimo-v2.5-free…）已经对不上今天上游的名单了：
+ * `big-pickle` 仍在售且能应答，但**不在**免费层名单里（所以这里不收它，
+ * 名单只放实测属于免费层的 id）。
  * ⚠️ 上游会上下架模型，所以这份名单只是"断网/接口失败时还能给出点东西"，
  *    真正的新鲜列表走 `GET /v1/models`。
  */
 const STATIC_FREE_MODELS = [
-  'big-pickle', // 2026-08-28 实测匿名可用
-  'mimo-v2.6-flash-free', // 2026-10-03 实测（mimo-v2.5-free 的后继）
-  'mimo-v2.5-free', // 2026-08-28 实测（models.dev 已标弃用，但仍能应答）
-  'ling-3.0-flash-fin-free', // 2026-09-01 实测
-  'nemotron-3.5-lightning-free', // 2026-09-01 实测
-  'nemotron-3-ultra-free', // 2026-09-01 实测
+  'cat-jam-free',
+  'deepseek-v4.1-flash-free',
+  'mimo-v2.6-flash-free',
+  'muse-spark-1.3-contributor-free',
+  'nemotron-3.5-lightning-free',
+  'nemotron-3.5-super-vl-free',
+  'jev-1.13-free',
+  'longcat-2.5-preview-free',
+  'space-bunny-free',
 ];
 
 /** 免费判定：名字里带 `free`，或者在我们已实测的静态名单里。 */
@@ -205,13 +232,11 @@ const SESSION_CACHE_MAX = 256;
 /** 按官方 tA() 公式铸造一个**当场**的会话 id（低 12 位固定 `0xFFE`）。 */
 function mintSessionId(nowMs) {
   const A = (27n << 36n) - 1n - BigInt(nowMs);
-  const hex = ((A << 12n) | 0xFFEn) & 0xFFFFFFFFFFFFn;
+  const hex = mintHex12((A << 12n) | 0xFFEn);
   // 后 14 位必须是 Base62：用一次随机数（同一个种子只在首次铸造时用得到）
   const rnd = createHash('sha256').update(String(Math.random())).digest();
   const tail = base62Fixed(BigInt('0x' + rnd.subarray(0, 8).toString('hex')), 14);
-  // ⚠️ BigInt.toString 的基数是**数字** 16，不是字符串 'hex'（写成 'hex' 会抛
-  //    RangeError —— 2026-10-15 自测当场抓到，代理一崩就是"fetch failed"）。
-  return `ses_${hex.toString(16).padStart(12, '0')}${tail}`;
+  return `ses_${hex}${tail}`;
 }
 
 function canonicalSessionId(seed) {
@@ -229,8 +254,26 @@ function canonicalSessionId(seed) {
   return minted;
 }
 
-function requestId(seed) {
-  return 'req_' + createHash('sha256').update('req\u0000' + seed).digest('hex').slice(0, 20);
+let REQUEST_SEQ = 0;
+
+function requestId() {
+  // 2026-10-15 起改成**铸造形状**的 `msg_`：12 位 hex 是 `ms·0x1000+seq`
+  // （官方 `msg_` 铸造算法），后 14 位 Base62。
+  // 老实现是 `req_` + sha256 前 20 位 —— 上游按形状识别客户端，`req_` 已经不吃香了。
+  REQUEST_SEQ += 1;
+  return `msg_${mintHex12(BigInt(Date.now()) * 0x1000n + BigInt(REQUEST_SEQ))}${base62Fixed(
+    BigInt('0x' + createHash('sha256').update(`req\u0000${REQUEST_SEQ}\u0000${Date.now()}`).digest('hex').slice(0, 12)),
+    14,
+  )}`;
+}
+
+/** 取低 48 位、高字节先出的 12 位 hex（`ses_` 与 `msg_` 都用这套编码）。 */
+function mintHex12(value) {
+  let hex = '';
+  for (let i = 0; i < 6; i += 1) {
+    hex += Number((value >> BigInt(40 - 8 * i)) & 0xffn).toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 function projectId(seed) {
@@ -286,14 +329,25 @@ function disguiseHeaders(session) {
     //    上游当成非官方客户端信号直接 403（Aether PR#72 的头部矩阵）。
     //    历史上这里写着"无害的防御性对齐"—— 实测恰好相反。
     'x-opencode-session-id': session,
-    'x-opencode-request': requestId(session),
+    'x-opencode-request': requestId(),
     'x-opencode-project': projectId(session),
     accept: 'application/json',
   };
 }
 
-/** 门禁要求的两个"占位"工具：只要**存在**就行（描述与参数都不检查）。 */
-const GATE_TOOL_NAMES = ['bash', 'read'];
+/**
+ * 门禁要求的**四个**"占位"工具（2026-10-15 起从两个升到四个）。
+ *
+ * 依据（当天三份独立实测，结论一致）：
+ *   * `Ebony-Vinyl/dsh-our-free-model` 提交 `538b5197`：`FREE_LANE_GATE_TOOLS`
+ *     从 `['bash','read']` 改成 `['bash','glob','grep','read']`，并注明
+ *     "服务端按这四个名字识别官方客户端形状"；
+ *   * `artorias-zj/dsh-opencode-free-model` README：门禁要求 body 声明
+ *     `bash/glob/grep/read`，缺一个就 403 `FreeTierError`。
+ *
+ * 只要**存在**就行（描述不检查），但 schema 不能是空的 —— 见下。
+ */
+const GATE_TOOL_NAMES = ['bash', 'glob', 'grep', 'read'];
 
 /// 每个诱饵工具**至少带一个 property**。
 ///
@@ -302,6 +356,8 @@ const GATE_TOOL_NAMES = ['bash', 'read'];
 ///  两个各带一个 property → 200）。所以 schema 不能偷懒写空对象。
 const GATE_TOOL_PROPERTY = {
   bash: 'command',
+  glob: 'pattern',
+  grep: 'pattern',
   read: 'filePath',
 };
 
@@ -351,32 +407,88 @@ function stampToolSchema(tool) {
   };
 }
 
+/// 门禁工具名集合（**小写**，上游按这四个小写名字识别官方客户端形状）。
+const GATE_TOOL_SET = new Set(GATE_TOOL_NAMES);
+
+/**
+ * 把调用方的工具名**规范化成小写**（只动那四个门禁名字），并记下"原拼写"。
+ *
+ * 为什么要动：2026-10-15 起门禁按**小写**名字认人 —— DSH 自己发的是小写，
+ * 但其它调用方（或将来 DSH 改了命名）可能发 `Bash`/`READ`，那就等于没声明。
+ * 依据：`Ebony-Vinyl/dsh-our-free-model` 提交 `0525f8a9` "修复 OpenCode 工具名
+ * 大小写规范化"（`canonicalizeWireTools` + 回程 `restoreToolName`）。
+ *
+ * ⚠️ 改过名就**必须**在回程把原拼写还回去（见 `restoreToolNames`）——
+ *    否则模型回一个 `bash` 的工具调用，调用方的工具链里叫 `Bash`，对不上。
+ * 返回值里的 `restore` 为空 Map 时表示**一个名字都没改**（绝大多数情况）。
+ */
+function canonicalizeToolNames(tools) {
+  const restore = new Map();
+  const seen = new Set();
+  const out = [];
+  for (const tool of tools) {
+    const fn = tool && typeof tool === 'object' ? tool.function : undefined;
+    const name = typeof fn?.name === 'string' ? fn.name : '';
+    if (!name || !GATE_TOOL_SET.has(name.toLowerCase())) {
+      out.push(tool);
+      continue;
+    }
+    const lower = name.toLowerCase();
+    if (seen.has(lower)) continue; // 同一个门禁工具声明了两遍：留一条
+    seen.add(lower);
+    if (lower === name) {
+      out.push(tool);
+    } else {
+      restore.set(lower, name);
+      out.push({ ...tool, function: { ...fn, name: lower } });
+    }
+  }
+  return { tools: out, restore };
+}
+
+/** 回程把被规范化过的工具名改回调用方原来的拼写（只动被改过的那些）。 */
+function restoreToolNames(text, restore) {
+  if (!restore || restore.size === 0) return text;
+  let out = String(text);
+  for (const [canonical, original] of restore) {
+    out = out.replace(
+      new RegExp(`"name"\\s*:\\s*"${canonical}"`, 'g'),
+      `"name":"${original}"`,
+    );
+  }
+  return out;
+}
+
 /**
  * 把请求体改造成能过门禁的形状：
- *   * 补上缺的 `bash` / `read`（**只在缺的时候补** —— DSH 自己的会话本来就带
- *     bash/read 工具，那种情况下这里什么都不做，请求保持原样）；
+ *   * 工具名规范化成小写（只动 `bash`/`glob`/`grep`/`read` 这四个）；
+ *   * 补上缺的门禁工具（**只在缺的时候补** —— DSH 自己的会话本来就带这些，
+ *     那种情况下这里什么都不做，请求保持原样）；
+ *   * 自带的门禁工具 schema 是空的 → 就地补一个 property；
  *   * 强制 `stream: true`（门禁要求）。
- * 返回 { body, injected }，`injected` 是这次补进去的名字（用于回程过滤）。
+ * 返回 { body, injected, schemaFixed, restore }。
  */
 function applyGate(body) {
   const out = { ...body, stream: true };
-  const tools = Array.isArray(body.tools) ? body.tools.slice() : [];
+  const rawTools = Array.isArray(body.tools) ? body.tools.slice() : [];
+  const { tools, restore } = canonicalizeToolNames(rawTools);
   const names = new Set(
     tools
       .map((t) => (t && typeof t === 'object' && t.type === 'function' ? t.function?.name : undefined))
       .filter(Boolean),
   );
   const injected = GATE_TOOL_NAMES.filter((n) => !names.has(n));
-  // 自带的 bash/read 也要**过得去 schema 那关**（空 schema = 403，见 stampToolSchema）
+  // 自带的门禁工具也要**过得去 schema 那关**（空 schema = 403，见 stampToolSchema）
   const stamped = tools.map(stampToolSchema);
   const schemaFixed = stamped.some((t, i) => t !== tools[i]);
   if (injected.length > 0) {
     for (const n of injected) stamped.push(gateTool(n));
   }
-  if (injected.length > 0 || schemaFixed) {
+  const renamed = restore.size > 0;
+  if (injected.length > 0 || schemaFixed || renamed) {
     out.tools = stamped;
   }
-  return { body: out, injected, schemaFixed };
+  return { body: out, injected, schemaFixed, restore };
 }
 
 // ─────────────────────────────────────────────────────────── 上游请求
@@ -416,6 +528,23 @@ function upstreamRequest({ method, url, headers, body, timeoutMs = 300000 }) {
       req.destroy(new Error('上游超时'));
     });
     req.on('error', bad);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+/** 流式转发：把上游响应**边收边发**（不再是"等整段收完再吐"）。 */
+function upstreamStream({ method, url, headers, body, timeoutMs = 300000, onResponse }) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    const u = new URL(url);
+    const transport = u.protocol === 'https:' ? https : http;
+    const req = transport.request(u, { method, headers, timeout: timeoutMs }, (res) => {
+      Promise.resolve()
+        .then(() => onResponse(res))
+        .then(resolvePromise, rejectPromise);
+    });
+    req.on('timeout', () => req.destroy(new Error('上游超时')));
+    req.on('error', rejectPromise);
     if (body) req.write(body);
     req.end();
   });
@@ -506,18 +635,41 @@ async function main() {
 
   /** 把上游的错误转成 OpenAI 形状，并附上**能看懂**的中文说明。 */
   function errorBody(status, text) {
+    // 上游把错误类型写在 JSON 里（`{"type":"error","error":{"type":"…"}}`）——
+    // 先把它抠出来：有些类型光看状态码是分不出来的（例如 400 的协议不支持）。
+    let upstreamType = '';
+    try {
+      const j = JSON.parse(text);
+      upstreamType = String(j?.error?.type || j?.type || '');
+    } catch {
+      upstreamType = '';
+    }
     let hint = '';
-    if (status === 403) {
-      // ⚠️ 2026-10-13/14 上游**第三次**收紧（新契约见文件头）。403 的含义是
-      //    "匿名免费车道又被闸了"，**不是**用户配错了什么 —— 把这句话说死，
-      //    否则用户会去反复检查自己的 Key（那条路怎么查都不会好）。
-      hint = '（上游把匿名免费车道闸了：这条通道只对官方 CLI 开放，2026-10-13/14 又收紧过一次。'
+    if (upstreamType === 'ModelProtocolUnsupported') {
+      // 2026-10-16 本机实测：免费层里 `jev-1.13-free` 就是这个（**400，不是 403**）。
+      // 它走的是 Responses / Messages 那条线，而本代理只转发 chat/completions ——
+      // 说清"是那个模型走的协议不同"，别让用户去怀疑网络或 Key。
+      hint = '（这个免费模型服务端只走另一条协议（Responses/Messages），本代理只转发 '
+          + 'chat/completions —— 换一个免费模型即可，不用改配置。）';
+    } else if (status === 403 && /region/i.test(text)) {
+      // ⚠️ 403 有两种**完全不同**的含义，别混成一句话：地区封锁（换网络才有用）
+      //    与免费层门禁（换模型 / 等它松）。2026-10-15 本机就同时见过这两种。
+      hint = '（你所在地区不在它的放行范围：这是出口地区封锁，与请求形状无关 —— '
+          + '换网络，或先在「设置 → 模型」里用别的模型。）';
+    } else if (status === 403) {
+      // 403 的含义是"匿名免费车道又被闸了"，**不是**用户配错了什么 —— 把这句话
+      // 说死，否则用户会去反复检查自己的 Key（那条路怎么查都不会好）。
+      hint = '（上游把匿名免费车道闸了：这条通道只对官方 CLI 开放，而且上游一直在改门禁'
+          + '（2026-09-16 起已收紧 6 次，最近一次是 10-15）。'
           + '这不是"你没配 Key"—— 它本来就不用 Key。'
           + '下一步：在「设置 → 模型」里换一个自己配了 Key 的模型，或过一阵再试。）';
     } else if (status === 429) {
       hint = '（被限流了：免费通道按出口 IP 限流，等一会儿再试。）';
     } else if (status === 401) {
       hint = '（上游要求鉴权：匿名通道可能已经关闭。）';
+    } else if (status === 426) {
+      hint = '（上游要求升级客户端版本：这道门禁按官方 CLI 的 UA 版本带放行，'
+          + '我们的代理没落在它当前接受的带内。）';
     }
     let detail = '';
     try {
@@ -533,6 +685,14 @@ async function main() {
         code: status,
       },
     });
+  }
+
+  /** 请求日志（`--log-requests` 才打；流式路径在结束时才写，所以这里单独一个函数）。 */
+  function logChat(model, bytes, startedAt) {
+    if (!args.logRequests) return;
+    process.stderr.write(
+      `[zen-proxy] POST chat model=${model} → 200 (${bytes}B, ${Date.now() - startedAt}ms)\n`,
+    );
   }
 
   const server = createServer(async (req, res) => {
@@ -591,7 +751,7 @@ async function main() {
           })();
         const session = canonicalSessionId(clientSeed);
 
-        const { body } = applyGate(payload);
+        const { body, restore } = applyGate(payload);
         const headers = {
           ...disguiseHeaders(session),
           'content-type': 'application/json',
@@ -600,34 +760,69 @@ async function main() {
         };
 
         try {
-          const r = await upstreamRequest({
+          await upstreamStream({
             method: 'POST',
             url: upstreamUrl(args.upstream, '/v1/chat/completions'),
             headers,
             body: Buffer.from(JSON.stringify(body), 'utf8'),
+            onResponse: (r) =>
+              new Promise((done) => {
+                const status = r.statusCode || 0;
+                if (status < 200 || status >= 300) {
+                  const chunks = [];
+                  r.on('data', (c) => chunks.push(c));
+                  r.on('end', () => {
+                    const text = Buffer.concat(chunks).toString('utf8');
+                    lastError = `HTTP ${status}`;
+                    process.stderr.write(`[zen-proxy] 上游 HTTP ${status}：${text.slice(0, 200)}\n`);
+                    res.writeHead(status, { 'content-type': 'application/json' });
+                    res.end(errorBody(status, text));
+                    done();
+                  });
+                  r.on('error', () => done());
+                  return;
+                }
+                lastError = null;
+                res.writeHead(200, {
+                  'content-type': r.headers['content-type'] || 'text/event-stream',
+                  'cache-control': 'no-cache',
+                  connection: 'keep-alive',
+                  'transfer-encoding': 'chunked',
+                });
+                let bytes = 0;
+                if (restore.size === 0) {
+                  // 绝大多数情况：一个字节都不改，边收边发（首字延迟 = 上游首字延迟）
+                  r.on('data', (c) => {
+                    bytes += c.length;
+                    res.write(c);
+                  });
+                  r.on('end', () => {
+                    res.end();
+                    logChat(payload.model, bytes, started);
+                    done();
+                  });
+                  r.on('error', () => {
+                    res.end();
+                    done();
+                  });
+                } else {
+                  // 罕见路径：调用方用了 `Bash`/`READ` 这类大小写变体 → 缓冲后改名再发
+                  const chunks = [];
+                  r.on('data', (c) => chunks.push(c));
+                  r.on('end', () => {
+                    const text = restoreToolNames(Buffer.concat(chunks).toString('utf8'), restore);
+                    bytes = Buffer.byteLength(text, 'utf8');
+                    res.end(text);
+                    logChat(payload.model, bytes, started);
+                    done();
+                  });
+                  r.on('error', () => {
+                    res.end();
+                    done();
+                  });
+                }
+              }),
           });
-          if (r.status < 200 || r.status >= 300) {
-            const text = r.body.toString('utf8');
-            lastError = `HTTP ${r.status}`;
-            process.stderr.write(`[zen-proxy] 上游 HTTP ${r.status}：${text.slice(0, 200)}\n`);
-            res.writeHead(r.status, { 'content-type': 'application/json' });
-            res.end(errorBody(r.status, text));
-            return;
-          }
-          lastError = null;
-          // 原样把上游的流回传（含 SSE 头）
-          res.writeHead(200, {
-            'content-type': r.headers['content-type'] || 'text/event-stream',
-            'cache-control': 'no-cache',
-            connection: 'keep-alive',
-            'transfer-encoding': 'chunked',
-          });
-          res.end(r.body);
-          if (args.logRequests) {
-            process.stderr.write(
-              `[zen-proxy] POST chat model=${payload.model} → 200 (${r.body.length}B, ${Date.now() - started}ms)\n`,
-            );
-          }
         } catch (e) {
           lastError = e.message;
           process.stderr.write(`[zen-proxy] 转发失败：${e.message}\n`);

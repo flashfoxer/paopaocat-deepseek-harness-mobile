@@ -1,0 +1,78 @@
+{
+  "title": "手机版 DSH 的一页纸说明",
+  "subtitle": "从 0.75 到现在的这一批改动",
+  "author": "泡泡猫 DSH",
+  "date": "2026-10-16",
+  "theme": "ocean",
+  "footer": "手机版 DSH · 内部说明",
+  "transition": "fade",
+  "slides": [
+    { "layout": "toc", "title": "今天讲三件事", "items": [
+      { "title": "一、免 Key 通道", "text": "为什么换、现在谁在服务" },
+      { "title": "二、通道自检", "text": "怎么分清五种失败" },
+      { "title": "三、原生 PPT", "text": "手机里直接生成能改的幻灯片" },
+      { "title": "四、下一步", "text": "还没做的两件事" }
+    ]},
+    { "layout": "section", "number": "01", "title": "免 Key 通道", "subtitle": "兑现「不用填 Key 就能聊」" },
+    { "layout": "bullets", "title": "做了什么", "kicker": "背景", "bullets": [
+      "OpenCode Zen 的匿名车道 2026-09-16 起被上游改过 6 次门禁",
+      { "text": "端点从 /zen/v1 搬到 /inference/v1", "level": 1 },
+      { "text": "会话头、工具指纹（从两个涨到四个）、UA 版本带都换过", "level": 1 },
+      "所以把承诺迁到**它自己就开放匿名层**的 Pollinations",
+      { "text": "不需要注册、不需要 Key、默认打开", "level": 1 }
+    ]},
+    { "layout": "compare", "title": "两条免 Key 通道", "left": {
+        "title": "Pollinations（默认开）",
+        "bullets": ["上游自己就开放匿名层", "一个 20B 级模型", "不需要本地代理", "稳定优先"]
+      }, "right": {
+        "title": "OpenCode Zen（彩蛋）",
+        "bullets": ["需要伪装成官方 CLI", "免费层有更聪明的模型", "经本机代理转发", "时好时坏"]
+      }},
+    { "layout": "cards", "title": "自检能给的五种结论", "items": [
+      { "title": "连不上（网络）", "text": "超时 / DNS / 本机服务没起来" },
+      { "title": "403 门禁", "text": "上游把请求当成非官方客户端" },
+      { "title": "403 地区", "text": "出口地区被封，和请求形状无关" },
+      { "title": "404 退役", "text": "模型名换了，要重新拉清单" },
+      { "title": "401 / 429", "text": "Key 不对，或被限流" },
+      { "title": "5xx", "text": "上游自己出问题" }
+    ]},
+    { "layout": "timeline", "title": "这一路的六个节点", "steps": [
+      { "title": "09-16", "text": "非官方形状一律 403", "date": "收紧 1" },
+      { "title": "10-13", "text": "会话 id 要能解出时间戳", "date": "收紧 2" },
+      { "title": "10-14", "text": "端点搬到 /inference/v1", "date": "收紧 3" },
+      { "title": "10-15", "text": "工具指纹涨到四个", "date": "收紧 4" },
+      { "title": "10-16", "text": "实测又能用了", "date": "复测" }
+    ]},
+    { "layout": "metrics", "title": "这一批的硬数字", "metrics": [
+      { "value": "1883", "label": "界面文案", "note": "三语 0 漂移" },
+      { "value": "4", "label": "工具指纹", "note": "原来两个" },
+      { "value": "12", "label": "版式", "note": "从两种涨到十二种" },
+      { "value": "-30", "label": "包体 MiB", "note": "运行环境外置" }
+    ]},
+    { "layout": "chart", "title": "包体大小（MiB）", "chart": { "kind": "bar", "unit": " MiB", "data": [
+      { "label": "0.74", "value": 106.3 }, { "label": "0.75", "value": 76.3 }, { "label": "目标", "value": 50 }
+    ]}},
+    { "layout": "chart", "title": "各通道耗时（秒）", "chart": { "kind": "hbar", "unit": "s", "data": [
+      { "label": "raw.githubusercontent", "value": 0.47 },
+      { "label": "jsDelivr", "value": 2.16 },
+      { "label": "GitHub API", "value": 2.10 }
+    ]}},
+    { "layout": "chart", "title": "文案占比", "chart": { "kind": "stacked", "data": [
+      { "label": "中文", "value": 62 }, { "label": "英语", "value": 20 }, { "label": "日语", "value": 12 }, { "label": "韩语", "value": 6 }
+    ]}},
+    { "layout": "quote", "text": "把排版交给引擎，把内容留给模型。", "cite": "这一轮的设计原则" },
+    { "layout": "bullets", "title": "内容很多的一页（测自动分页）", "bullets": [
+      "第一条：这一页故意塞了很多内容，用来验证放不下时会自动拆成续页，而不是把字压在版心外面。",
+      "第二条：序号从 2 开始的每一条都挺长，长到一行放不下，必须折行；折行之后高度还要算对。",
+      "第三条：中文一行大约三十来个字，其余的都是用来撑高度的填充内容，please ignore the semantics here.",
+      "第四条：这是一条比较长的要点，用来把第一页撑到放不下为止，好让续页真的出现。",
+      "第五条：续页会带上「（续）」后缀，标题还是同一个，正文接着上一页继续。",
+      "第六条：如果续页也放不下，会再拆一页 —— 拆页最多十二轮，防止死循环。",
+      "第七条：字号阶梯是 18 / 16 / 15 / 14 / 13 / 12 / 11 / 10.5 / 10 / 9.5，逐档往下试。",
+      "第八条：都没试成功才拆页 —— 顺序是「先缩字号、再拆页」，因为缩字号更不打扰读者。",
+      "第九条：这一条是为了把高度彻底撑满，让分页逻辑必须真的动手。",
+      "第十条：最后的收尾 —— 如果这段出现在第二页的开头，说明分页与续页标题都对。"
+    ]},
+    { "layout": "end", "title": "谢谢", "subtitle": "有问题随时说" }
+  ]
+}

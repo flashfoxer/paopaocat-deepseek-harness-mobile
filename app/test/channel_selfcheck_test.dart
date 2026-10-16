@@ -6,7 +6,9 @@
 /// 再一键发给开发者。它有三条**必须钉住**的性质，否则功能看着在、实际没用：
 ///   1. 每种结论都要有**能照着做**的下一步（不许出现"请检查配置"这种空话）；
 ///   2. "一键发"必须真的**写日志 → 生成报告 → 拉起分享**（少一环就发不出来）；
-///   3. 自检**只做读探测**（GET），绝不发 POST/上传 —— 这是它对用户的承诺。
+///   3. 自检**不做写操作**：普通厂家只 GET；免 Key 那条多一次"经本机代理的最小
+///      对话"（**非它不可**：本机实测 `GET /models` 一律 200，而真对话可能 403 ——
+///      只看清单会把"用不了"报成"好的"）。它不带任何凭据、只打 127.0.0.1。
 library;
 
 import 'dart:io';
@@ -25,17 +27,51 @@ void main() {
     }
   });
 
-  test('403 要说成"被当成非官方客户端"（不是笼统的"失败"）', () {
-    const c = ChannelCheck(
+  test('403 分两种：门禁（非官方客户端）与**地区封锁**，不许合成一句', () {
+    const blocked = ChannelCheck(
       id: 'zen',
       title: 'OpenCode Zen（免 Key）',
       outcome: ChannelOutcome.blocked,
       detail: 'HTTP 403',
       next: '把自检结果发给开发者核对。',
     );
-    expect(c.label, contains('非官方客户端'),
-        reason: '403 的成因很特别（上游只认它自家 CLI 的形状），笼统说"失败"等于没说');
-    expect(c.label, contains('403'));
+    const region = ChannelCheck(
+      id: 'zen',
+      title: 'OpenCode Zen（免 Key）',
+      outcome: ChannelOutcome.region,
+      detail: 'HTTP 403（上游说：地区不可用）',
+      next: '换网络，或先用别的模型。',
+    );
+    // 2026-10-15 本机实测：同一个出口、同一时刻，403 的两种含义**处理方式完全不同**
+    // ——把地区封锁说成"上游又收紧了门禁"，用户会一直去换模型（那条路怎么换都不好）。
+    expect(blocked.label, contains('非官方客户端'), reason: '门禁那种要说清成因很特别');
+    expect(region.label, contains('地区'), reason: '地区封锁必须点名"地区"');
+    expect(blocked.label, isNot(contains('地区')));
+    expect(region.label, isNot(contains('非官方客户端')));
+  });
+
+  test('免 Key 那条的自检**必须打一次真对话**（只看 /models 会假通过）', () {
+    final src = File('lib/local/channel_selfcheck.dart').readAsStringSync();
+    // 依据：本机 2026-10-15/16 两次实测，`GET /inference/v1/models` 一律 200，
+    // 而 `POST chat/completions` 可能 403 —— 只看清单会把"用不了"报成"好的"。
+    expect(src.contains('postUrl'), isTrue,
+        reason: 'zen 那条必须打一次对话，否则自检是假通过');
+    expect(src.contains('127.0.0.1:\$port/v1/chat/completions'), isTrue,
+        reason: '对话探测只许打**本机代理**（与 App 真正用的路径同一条），不许直连上游');
+  });
+
+  test('自检不带任何凭据、不做上传（POST 只打本机、且没有 Key）', () {
+    final src = File('lib/local/channel_selfcheck.dart').readAsStringSync();
+    expect(src.contains('multipart'), isFalse);
+    expect(src.contains('client.getUrl'), isTrue, reason: '普通厂家仍是 GET 探测');
+    // 对话探测那一段里不许出现 Authorization / apiKey 之类
+    final zenProbe = src.substring(
+        src.indexOf('static Future<({int status, bool region})> _zenChatOnce'),
+        src.indexOf('/// 一次 `GET <url>/…` 探测 → 结论。'));
+    expect(zenProbe.contains('authorizationHeader'), isFalse,
+        reason: '打本机代理不需要、也不该带任何凭据');
+    expect(zenProbe.contains('ProviderKeys'), isFalse,
+        reason: '免 Key 那条本来就没有 Key 可带');
   });
 
   test('toLogLine 就是"一键发给开发者"发出去的那一行', () {
@@ -68,13 +104,5 @@ void main() {
         reason: '没拉起分享面板 → 用户发不出去');
     expect(src.contains('一键发给开发者'), isTrue);
     expect(src.contains('_SelfCheckSheet'), isTrue, reason: '结果页没了');
-  });
-
-  test('自检只做读探测：GET，不发 POST、不传 multipart', () {
-    final src = File('lib/local/channel_selfcheck.dart').readAsStringSync();
-    expect(src.contains('client.getUrl'), isTrue, reason: '应该是 GET 探测');
-    expect(src.contains('postUrl'), isFalse,
-        reason: '自检不该发 POST —— 它对用户承诺过"不做写操作"');
-    expect(src.contains('multipart'), isFalse);
   });
 }

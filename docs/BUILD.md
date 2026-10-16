@@ -174,6 +174,17 @@ install\build-local-apk.ps1 -Abi x86_64 -Mode debug
 看不到 node 脚本，而 exec shim 的环境白名单与轮换代理的客户端令牌都住在那里。
 `rebuild-and-verify.ps1` 会在**打包之前**跑它，不过就 `exit 1`。
 
+**②-b 其它两个 node 侧测试**（同样是「`flutter test` 看不到」的脚本，手工跑）：
+
+```sh
+node install/test-make-pptx.mjs     # 25 项：PPT 排版引擎（容器/排版/设计/容错四层）
+node install/test-zen-proxy.mjs     # 19 项：免密通道的形状（四工具、msg_ 请求 id、真流式、两种 403）
+```
+
+`test-make-pptx.mjs` 里那个 XML 良构校验器是**自写无依赖**的 —— 生成器最容易犯的错
+（少一个闭合标签、属性漏引号、没转义的 `&`）都会让人**打不开文件**，而这在 `flutter test`
+里看不出来。`test-zen-proxy.mjs` **只用本地假上游**，不许拿真上游当测试靶子。
+
 **③ 运行时包瘦身**：`build-app-assets.ps1` 打完包会自动调用
 `install\slim-runtime-zip.py`，把 Android 永远用不到的东西剔掉
 （Windows 的 `.exe/.dll/.pdb`、source map、`.d.ts`、文档、测试目录…）。

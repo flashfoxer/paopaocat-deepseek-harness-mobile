@@ -216,8 +216,9 @@ class _SettingsTabState extends State<SettingsTab> {
                   //
                   // 为什么它排在最显眼的位置、而且是默认开：用户对外的承诺是
                   // 「不需要填写 Key」（原话：「主要就是以前承诺过不需要填写 key」）。
-                  // Zen 那条 2026-10-13/14 被上游第五次收紧之后基本已死（社区里测得最扎实的
-                  // 插件都不提供它了），所以现在**这条才是那句承诺的实现**。
+                  // Zen 那条从 2026-09-16 起被上游改过 6 次门禁（社区里测得最扎实的
+                  // 插件也一度放弃它），时好时坏 —— 2026-10-16 本机实测又能用了，
+                  // 但它**不能当承诺**；所以现在**这条（Pollinations）才是那句承诺的实现**。
                   DshCollapsibleSection(
                     title: context.tr('免费模型（无需 Key）'),
                     child: _card(
@@ -2443,8 +2444,9 @@ class _ZenChannelBlockState extends State<_ZenChannelBlock> {
               '**官方 CLI 的样子**发到 OpenCode 的匿名免费额度，并把拿到的免费模型'
               '直接加进你的模型列表 —— **不用配置任何 Key**。\n\n'
               '⚠️ 只是想"不用 Key 就能聊"的话，**用上面那条（免 Key 免费模型）就好** —— '
-              '这条 Zen 通道自 2026-10-13/14 起被上游反复收紧，现在多半是失效状态，'
-              '留在这里只是"万一上游又开了"。'),
+              '这条 Zen 通道自 2026-09-16 起被上游改过 6 次门禁，时好时坏'
+              '（2026-10-16 本机实测又能用了，但它随时可能再变）；'
+              '想知道此刻通不通，点下面的「通道自检」。'),
           style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
         ),
         const SizedBox(height: 10),
@@ -2479,7 +2481,8 @@ class _ZenChannelBlockState extends State<_ZenChannelBlock> {
           context.tr('⚠️ 请先看清楚：\n'
               '· 上游的免费额度**只给它自家客户端用**，这条通道是把请求**伪装成官方 CLI** '
               '去通过它的限制 —— 属于灰色用法，**随时可能失效**'
-              '（2026-10-13/14 就已经收紧过第三次：换了端点、加了会话头与工具校验）。\n'
+              '（自 2026-09-16 起已收紧 6 次：换过端点、加过会话头、'
+              '工具指纹从两个涨到四个）。\n'
               '· **它不需要任何 Key**：那条通道本来就是匿名的（上游凭据就是公开的 `public`），'
               '所以你不用在这里填任何东西；失效时它会如实报错，不会假装成功。\n'
               '· 它按出口 IP 限流，被限流时等一会儿再试。\n'
@@ -3987,7 +3990,7 @@ class _SelfCheckSheetState extends State<_SelfCheckSheet> {
                 style: TextStyle(color: DshColors.text, fontSize: 15)),
             const SizedBox(height: 4),
             Text(
-              context.tr('各通道只发一次最小的读取请求：不写任何东西、不上传任何内容。'),
+              context.tr('只发最小的探测请求（免 Key 那条会真发一句话，1 个字）：不写任何文件、不读你的资料、不把结果上传给任何人。'),
               style: TextStyle(
                   color: DshColors.textFaint, fontSize: 11, height: 1.4),
             ),

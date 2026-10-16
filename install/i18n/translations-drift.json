@@ -4123,5 +4123,205 @@
     "en": "Only needed when this channel stops working: run the self-check once and it tells you which kind of problem it is (no network / rejected by upstream / model name retired / invalid key / rate limited), and you can send the findings to the developer in one tap.",
     "ja": "このチャンネルが使えないときにだけ必要です：セルフチェックを 1 回実行すると、どの種類の問題か（ネットワーク不通 / 上流に拒否 / モデル名の廃止 / Key 無効 / レート制限）を教えてくれ、結果をワンタップで開発者に送れます。",
     "ko": "이 채널이 안 될 때만 필요합니다: 자체 점검을 한 번 실행하면 어떤 종류의 문제인지(네트워크 불통 / 상류 거부 / 모델명 폐기 / Key 무효 / 속도 제한) 알려주고, 결과를 한 번에 개발자에게 보낼 수 있습니다."
+  },
+  "HTTP 403（上游说：地区不可用）": {
+    "en": "HTTP 403 (upstream says: not available in your region)",
+    "ja": "HTTP 403（上流の応答：お住まいの地域では利用できません）",
+    "ko": "HTTP 403(업스트림 응답: 지역에서 사용할 수 없음)"
+  },
+  "Key 不对或过期了 —— 回「设置 → 模型」重新填一把再点「测试并保存」。": {
+    "en": "The key is wrong or expired — go back to Settings → Models, enter it again and tap “Test and save”.",
+    "ja": "Key が違うか期限切れです — 「設定 → モデル」に戻って入れ直し、「テストして保存」を押してください。",
+    "ko": "Key가 틀렸거나 만료되었습니다 — 「설정 → 모델」로 돌아가 다시 입력하고 「테스트하고 저장」을 누르세요."
+  },
+  "Key 无效（401）": {
+    "en": "Invalid key (401)",
+    "ja": "Key が無効（401）",
+    "ko": "Key 무효(401)"
+  },
+  "OpenCode Zen（免 Key）": {
+    "en": "OpenCode Zen (no key)",
+    "ja": "OpenCode Zen（Key 不要）",
+    "ko": "OpenCode Zen(Key 불필요)"
+  },
+  "⚠️ 请先看清楚：\n· 上游的免费额度**只给它自家客户端用**，这条通道是把请求**伪装成官方 CLI** 去通过它的限制 —— 属于灰色用法，**随时可能失效**（自 2026-09-16 起已收紧 6 次：换过端点、加过会话头、工具指纹从两个涨到四个）。\n· **它不需要任何 Key**：那条通道本来就是匿名的（上游凭据就是公开的 `public`），所以你不用在这里填任何东西；失效时它会如实报错，不会假装成功。\n· 它按出口 IP 限流，被限流时等一会儿再试。\n· 本 App **不做** IP 轮换、也不做反复重试（不拿它去刷额度）。\n· 用不到时请把它关掉。": {
+    "en": "⚠️ Read this first:\n· The upstream free quota is **for its own client only**; this channel gets through by **disguising requests as the official CLI** — a grey-area use that **can break at any time** (six gate changes since 2026-09-16: the endpoint moved, session headers were added, the tool fingerprint grew from two to four).\n· **It needs no key**: that lane is anonymous (the upstream credential is the public word `public`), so there is nothing to fill in here; when it fails it says so honestly and never fakes success.\n· It rate-limits by egress IP; if you get throttled, wait a while.\n· This app does **not** rotate IPs and does **not** retry in a loop (we do not farm the quota).\n· Turn it off when you do not need it.",
+    "ja": "⚠️ 先にお読みください：\n· 上流の無料枠は**自社クライアント専用**で、このチャネルはリクエストを**公式 CLI に見せかけて**通します — グレーな使い方で、**いつ止まってもおかしくありません**（2026-09-16 以降に 6 回のゲート変更：エンドポイント移転、セッションヘッダ追加、ツール指紋が 2 個から 4 個へ）。\n· **Key は不要**：このレーンはもともと匿名です（上流の資格情報は公開語 `public`）。ここに入力するものは何もありません。失敗時は正直にエラーを出し、成功を装いません。\n· 出口 IP ごとのレート制限があります。制限されたら少し待ってください。\n· 本アプリは IP ローテーションも**しません**し、繰り返し再試行も**しません**（枠を掘りません）。\n· 不要なときはオフにしてください。",
+    "ko": "⚠️ 먼저 확인하세요:\n· 업스트림 무료 한도는 **자사 클라이언트 전용**이고, 이 채널은 요청을 **공식 CLI로 위장**해 통과시킵니다 — 회색지대 사용이며 **언제든 끊길 수 있습니다**(2026-09-16 이후 게이트 변경 6회: 엔드포인트 이동, 세션 헤더 추가, 도구 지문이 2개에서 4개로).\n· **Key가 필요 없습니다**: 이 레인은 원래 익명입니다(업스트림 자격 증명은 공개 문자열 `public`). 여기에 입력할 것은 없습니다. 실패하면 솔직히 오류를 내고 성공한 척하지 않습니다.\n· 출구 IP 기준 요청 제한이 있습니다. 제한되면 잠시 후 다시 시도하세요.\n· 이 앱은 IP 로테이션을 **하지 않고** 반복 재시도도 **하지 않습니다**(한도를 긁지 않습니다).\n· 쓰지 않을 때는 꺼 두세요."
+  },
+  "上游把请求当成\"非官方客户端\"拒了。这条通道可能已经变了，把自检结果发给开发者核对。": {
+    "en": "The upstream refused the request as a \"non-official client\". This channel may have changed — send the self-check result to the developer to verify.",
+    "ja": "上流が「非公式クライアント」とみなして拒否しました。このチャネルは変わった可能性があります。自己診断の結果を開発者に送って確認してください。",
+    "ko": "업스트림이 요청을 \"비공식 클라이언트\"로 보고 거부했습니다. 이 채널이 바뀌었을 수 있으니 자체 점검 결과를 개발자에게 보내 확인하세요."
+  },
+  "上游自己出问题了，过一会儿再试（不是你的配置问题）。": {
+    "en": "The upstream itself is having problems — try again shortly (this is not your configuration).",
+    "ja": "上流側の不具合です。少し待って再試行してください（あなたの設定の問題ではありません）。",
+    "ko": "업스트림 자체 문제입니다. 잠시 후 다시 시도하세요(설정 문제가 아닙니다)."
+  },
+  "上游自身故障（5xx）": {
+    "en": "Upstream failure (5xx)",
+    "ja": "上流側の障害（5xx）",
+    "ko": "업스트림 장애(5xx)"
+  },
+  "代理没能给出任何免费模型": {
+    "en": "The local proxy returned no free models",
+    "ja": "ローカル代理が無料モデルを1つも返しませんでした",
+    "ko": "로컬 프록시가 무료 모델을 하나도 주지 않았습니다"
+  },
+  "你所在地区不在它的放行范围 —— 这与请求形状无关：换网络，或先用别的模型。": {
+    "en": "Your region is not in its allow-list — this has nothing to do with the request shape: change networks, or use another model for now.",
+    "ja": "お住まいの地域は許可範囲外です — これはリクエストの形とは無関係です：ネットワークを変えるか、別のモデルを使ってください。",
+    "ko": "지역이 허용 범위에 없습니다 — 요청 형식과 무관합니다: 네트워크를 바꾸거나 다른 모델을 쓰세요."
+  },
+  "先确认手机能上网（换 WiFi/流量试一下）；如果用代理，看代理是否在跑。": {
+    "en": "First check that the phone is online (try Wi-Fi and mobile data in turn); if you use a proxy, check that it is running.",
+    "ja": "まずスマホがネットにつながるか確認（Wi-Fi／モバイル通信を切り替えてみる）。プロキシを使っているなら、動いているか確認してください。",
+    "ko": "먼저 휴대폰이 인터넷에 연결되는지 확인하세요(Wi-Fi/데이터를 번갈아 시도). 프록시를 쓴다면 프록시가 실행 중인지 보세요."
+  },
+  "免费模型 {0} 个；试了 {1} 个都没通：{2}": {
+    "en": "{0} free models; tried {1}, none worked: {2}",
+    "ja": "無料モデル {0} 件。{1} 件試して全て不通：{2}",
+    "ko": "무료 모델 {0}개. {1}개를 시도했지만 모두 실패: {2}"
+  },
+  "免费模型 {0} 个；试到第 {1} 个（{2}）能正常回答": {
+    "en": "{0} free models; number {1} ({2}) answered normally",
+    "ja": "無料モデル {0} 件。{1} 件目（{2}）が正常に応答しました",
+    "ko": "무료 모델 {0}개. {1}번째({2})가 정상 응답했습니다"
+  },
+  "只发最小的探测请求（免 Key 那条会真发一句话，1 个字）：不写任何文件、不读你的资料、不把结果上传给任何人。": {
+    "en": "Only minimal probes are sent (the no-key channel really sends one 1-token line): no files are written, none of your data is read, and nothing is uploaded to anyone.",
+    "ja": "最小限のプローブだけを送ります（Key 不要のチャネルは実際に 1 トークンの一言を送ります）：ファイルは書かず、あなたのデータも読まず、結果も誰にも送りません。",
+    "ko": "최소한의 탐색 요청만 보냅니다(Key 불필요 채널은 실제로 1토큰짜리 한 마디를 보냅니다). 파일을 쓰지 않고, 자료를 읽지 않으며, 결과를 누구에게도 업로드하지 않습니다."
+  },
+  "回「设置 → 模型」把「免费模型 · OpenCode Zen」打开一次（它会起代理），然后再点自检。": {
+    "en": "Go back to Settings → Models and switch on “Free models · OpenCode Zen” once (that starts the proxy), then run the self-check again.",
+    "ja": "「設定 → モデル」に戻って「無料モデル · OpenCode Zen」を一度オンにしてください（代理が起動します）。その後で自己診断を実行してください。",
+    "ko": "「설정 → 모델」로 돌아가 「무료 모델 · OpenCode Zen」을 한 번 켜세요(프록시가 시작됩니다). 그런 뒤 자체 점검을 다시 실행하세요."
+  },
+  "回「设置 → 模型」点一次「获取模型」重新拉；一直拉不到就说明上游这条通道又变了，把自检结果发出去核对。": {
+    "en": "Go back to Settings → Models and tap “Fetch models” once; if it keeps coming back empty, the upstream channel has changed again — send the self-check result for verification.",
+    "ja": "「設定 → モデル」に戻って「モデルを取得」を一度押してください。何度やっても取れないなら上流のチャネルがまた変わっています。自己診断の結果を送って確認してください。",
+    "ko": "「설정 → 모델」로 돌아가 「모델 가져오기」를 한 번 누르세요. 계속 비어 있다면 업스트림 채널이 또 바뀐 것이니 자체 점검 결과를 보내 확인하세요."
+  },
+  "开关是关的": {
+    "en": "The switch is off",
+    "ja": "スイッチはオフです",
+    "ko": "스위치가 꺼져 있습니다"
+  },
+  "打开后，App 会在本机起一个小小的**转发代理**，把请求按**官方 CLI 的样子**发到 OpenCode 的匿名免费额度，并把拿到的免费模型直接加进你的模型列表 —— **不用配置任何 Key**。\n\n⚠️ 只是想\"不用 Key 就能聊\"的话，**用上面那条（免 Key 免费模型）就好** —— 这条 Zen 通道自 2026-09-16 起被上游改过 6 次门禁，时好时坏（2026-10-16 本机实测又能用了，但它随时可能再变）；想知道此刻通不通，点下面的「通道自检」。": {
+    "en": "Once on, the app starts a tiny **forwarding proxy** on your device, sends requests to OpenCode's anonymous free quota **in the shape of its official CLI**, and adds the free models it finds straight to your model list — **no key to configure**.\\n\\n⚠️ If all you want is “chat without a key”, **the entry above (free models, no key) is the one to use** — this Zen channel has had six gate changes from the upstream since 2026-09-16 and comes and goes (it measured working again on 2026-10-16, but it can change again at any time); to see whether it works right now, tap “Channel self-check” below.",
+    "ja": "オンにすると、アプリは端末内に小さな**転送プロキシ**を起動し、リクエストを**公式 CLI の形**で OpenCode の匿名無料枠へ送り、取得した無料モデルをそのままモデル一覧に追加します — **Key の設定は不要**。\\n\\n⚠️ 「Key なしで話せればよい」だけなら、**上の項目（無料モデル・Key 不要）を使ってください** — この Zen チャネルは 2026-09-16 以降に 6 回ゲートが変わり、通ったり通らなかったりします（2026-10-16 の実機計測では再び使えましたが、いつまた変わるか分かりません）。今つながるか知りたいときは、下の「チャネル自己診断」を押してください。",
+    "ko": "켜면 앱이 기기 안에 작은 **전달 프록시**를 띄워, 요청을 **공식 CLI의 형태**로 OpenCode 익명 무료 한도에 보내고, 받아온 무료 모델을 모델 목록에 그대로 추가합니다 — **설정할 Key가 없습니다**.\\n\\n⚠️ 'Key 없이 대화'만 원한다면 **위 항목(무료 모델, Key 불필요)을 쓰세요** — 이 Zen 채널은 2026-09-16 이후 게이트가 6번 바뀌어 될 때도 안 될 때도 있습니다(2026-10-16 실기기 측정에서는 다시 됐지만 언제든 또 바뀔 수 있습니다). 지금 되는지 보려면 아래 「채널 자체 점검」을 누르세요."
+  },
+  "把自检结果发给开发者看一下（里面没有 Key）。": {
+    "en": "Send the self-check result to the developer (it contains no keys).",
+    "ja": "自己診断の結果を開発者に送って見てもらってください（Key は含まれません）。",
+    "ko": "자체 점검 결과를 개발자에게 보내 확인하세요(Key는 들어 있지 않습니다)."
+  },
+  "拿到 {0} 个模型": {
+    "en": "got {0} models",
+    "ja": "{0} 件のモデルを取得",
+    "ko": "모델 {0}개 확보"
+  },
+  "接口或**模型名已经退役**（名字换了就会这样）：回「设置 → 模型」点「获取模型」拉一份新的清单，重新勾选保存。": {
+    "en": "The endpoint or the **model name has been retired** (this is what a rename looks like): go back to Settings → Models, tap “Fetch models” for a fresh list, re-select and save.",
+    "ja": "エンドポイントか**モデル名が廃止**されています（名前が変わるとこうなります）：「設定 → モデル」で「モデルを取得」を押して新しい一覧を取り、選び直して保存してください。",
+    "ko": "엔드포인트나 **모델 이름이 퇴역**했습니다(이름이 바뀌면 이렇게 됩니다). 「설정 → 모델」에서 「모델 가져오기」로 새 목록을 받아 다시 선택하고 저장하세요."
+  },
+  "接口或模型名已退役（404）": {
+    "en": "Endpoint or model name retired (404)",
+    "ja": "エンドポイントまたはモデル名が廃止（404）",
+    "ko": "엔드포인트 또는 모델 이름 퇴역(404)"
+  },
+  "未启用": {
+    "en": "Not enabled",
+    "ja": "未使用",
+    "ko": "사용 안 함"
+  },
+  "未知（需要人工看）": {
+    "en": "Unknown (needs a human look)",
+    "ja": "不明（人が確認する必要あり）",
+    "ko": "알 수 없음(사람이 확인 필요)"
+  },
+  "本机代理没在跑": {
+    "en": "The on-device proxy is not running",
+    "ja": "端末内の代理が動いていません",
+    "ko": "기기 내 프록시가 실행 중이 아닙니다"
+  },
+  "没有存 Key": {
+    "en": "No key stored",
+    "ja": "Key が保存されていません",
+    "ko": "저장된 Key 없음"
+  },
+  "直接就能用，不用填 Key。": {
+    "en": "It works right away, no key needed.",
+    "ja": "そのまま使えます。Key は不要です。",
+    "ko": "바로 사용할 수 있습니다. Key가 필요 없습니다."
+  },
+  "被上游拒绝（403：地区封锁）": {
+    "en": "Rejected by upstream (403: region-blocked)",
+    "ja": "上流に拒否（403：地域ブロック）",
+    "ko": "업스트림 거부(403: 지역 차단)"
+  },
+  "被上游拒绝（403：当成非官方客户端）": {
+    "en": "Rejected by upstream (403: treated as a non-official client)",
+    "ja": "上流に拒否（403：非公式クライアント扱い）",
+    "ko": "업스트림 거부(403: 비공식 클라이언트로 간주)"
+  },
+  "被限流了：等一会儿再试，或换一个模型。": {
+    "en": "Rate-limited: wait a moment and retry, or switch to another model.",
+    "ja": "レート制限です：少し待って再試行するか、別のモデルに切り替えてください。",
+    "ko": "요청 제한입니다: 잠시 후 다시 시도하거나 다른 모델로 바꾸세요."
+  },
+  "被限流（429）": {
+    "en": "Rate-limited (429)",
+    "ja": "レート制限（429）",
+    "ko": "요청 제한(429)"
+  },
+  "要用就回「设置 → 模型」填上它的 API Key。": {
+    "en": "To use it, go back to Settings → Models and enter its API key.",
+    "ja": "使うには「設定 → モデル」に戻って、その API Key を入れてください。",
+    "ko": "사용하려면 「설정 → 모델」로 돌아가 해당 API Key를 입력하세요."
+  },
+  "要用就回「设置 → 模型」把 Zen 那条打开（它经 App 内代理转发）。": {
+    "en": "To use it, go back to Settings → Models and switch on the Zen entry (it forwards through an in-app proxy).",
+    "ja": "使うには「設定 → モデル」に戻って Zen の項目をオンにしてください（アプリ内の代理経由で転送します）。",
+    "ko": "사용하려면 「설정 → 모델」로 돌아가 Zen 항목을 켜세요(앱 내 프록시를 거쳐 전달됩니다)."
+  },
+  "要用就回「设置 → 模型」把「免费模型（无需 Key）」打开。": {
+    "en": "To use it, go back to Settings → Models and switch on “Free models (no key)”.",
+    "ja": "使うには「設定 → モデル」に戻って「無料モデル（Key 不要）」をオンにしてください。",
+    "ko": "사용하려면 「설정 → 모델」로 돌아가 「무료 모델(Key 불필요)」을 켜세요."
+  },
+  "超时（{0}s 没响应）": {
+    "en": "Timed out (no response in {0}s)",
+    "ja": "タイムアウト（{0} 秒応答なし）",
+    "ko": "시간 초과({0}초 무응답)"
+  },
+  "这条是好的。": {
+    "en": "This one is fine.",
+    "ja": "これは正常です。",
+    "ko": "이 채널은 정상입니다."
+  },
+  "这条通道现在是通的，不用填 Key。模型清单随时会变，以「获取模型」拉到的那份为准。": {
+    "en": "This channel is working right now, with no key needed. The model list changes at any time — trust what “Fetch models” returns.",
+    "ja": "このチャネルは今つながっています（Key 不要）。モデル一覧は随時変わります。「モデルを取得」で取れたものを正としてください。",
+    "ko": "이 채널은 지금 연결됩니다(Key 불필요). 모델 목록은 수시로 바뀌니 「모델 가져오기」로 받은 목록을 기준으로 하세요."
+  },
+  "连不上（网络）": {
+    "en": "Cannot connect (network)",
+    "ja": "接続できません（ネットワーク）",
+    "ko": "연결 실패(네트워크)"
+  },
+  "连不上：{0}": {
+    "en": "Cannot connect: {0}",
+    "ja": "接続できません：{0}",
+    "ko": "연결 실패: {0}"
+  },
+  "（地区封锁）": {
+    "en": " (region-blocked)",
+    "ja": "（地域ブロック）",
+    "ko": " (지역 차단)"
   }
 }

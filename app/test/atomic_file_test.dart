@@ -8,10 +8,16 @@
 ///   → 用户的厂家与模型全没了，**且界面上没有任何提示**。
 ///
 /// 修法有两半，两半都必须被钉住：
-///   ① 写：`.part` + `rename`（不会留半份）；
+///   ① 写：`<目标>.part.<唯一后缀>` + `rename`（不会留半份）；
 ///   ② 读：解析失败**不当成空**，而是把坏文件挪到 `.corrupt` 并报错。
 /// 第 ② 半是真正堵住"数据全没了"的那一步 —— 只要原始字节还在，
 /// 人就能救回来。所以这里专门断言"坏文件的字节**还在**"。
+///
+/// ⚠️ 2026-10-16 起临时文件名**带唯一后缀**（`.part.<微秒>-<pid>-<序号>`）：
+///    真机上两次保存同一个目标时隔 21ms 撞了同一个 `.part`，先完成的把它 rename 走，
+///    后一个直接 `Cannot rename …`，**那一次更新就丢了**（产物索引真丢过一次）。
+///    所以断言也从"没有那个固定名 `.part`"改成"**没有任何 `.part*` 残留**"，
+///    并补一条"并发保存同一个目标，两次都要落地"。
 library;
 
 import 'dart:convert';
@@ -36,12 +42,32 @@ void main() {
   });
 
   group('原子写', () {
-    test('写出内容，并且不留下 .part', () async {
+    /// 盘上还剩几个 `.part*`（带不带唯一后缀都算）。
+    int partLeftovers(Directory dir) => dir
+        .listSync()
+        .where((e) => e is File && e.path.contains('.part'))
+        .length;
+
+    test('写出内容，并且不留下任何 .part（含带唯一后缀的）', () async {
       final f = File('${tmp.path}/a.json');
       await writeStringAtomic(f, '{"x":1}');
       expect(f.readAsStringSync(), '{"x":1}');
-      expect(File('${f.path}.part').existsSync(), isFalse,
-          reason: '.part 应该已经被 rename 掉，不该留在盘上');
+      expect(partLeftovers(tmp), 0,
+          reason: '临时文件应当已经被 rename 掉，不该留在盘上（${tmp.listSync().map((e) => e.path).join(', ')}）');
+    });
+
+    test('并发保存同一个目标：两次都要落地，且不留临时文件', () async {
+      // 真机踩过的那条：两次保存相隔 21ms、共用固定名 `.part` → 后一次 rename 失败、
+      // **那次更新就丢了**。修法是每次写用唯一临时名 —— 这条测试钉住它。
+      final f = File('${tmp.path}/c.json');
+      await Future.wait(<Future<void>>[
+        writeStringAtomic(f, 'first'),
+        writeStringAtomic(f, 'second'),
+        writeStringAtomic(f, 'third'),
+      ]);
+      expect(<String>['first', 'second', 'third'], contains(f.readAsStringSync()),
+          reason: '目标文件必须是其中一次的完整内容（不能是空/半份）');
+      expect(partLeftovers(tmp), 0, reason: '并发写完应当没有临时文件残留');
     });
 
     test('覆盖已有文件（rename 覆盖）', () async {
@@ -61,20 +87,26 @@ void main() {
       final f = File('${tmp.path}/s.json');
       writeStringAtomicSync(f, 'sync');
       expect(f.readAsStringSync(), 'sync');
-      expect(File('${f.path}.part').existsSync(), isFalse);
+      expect(partLeftovers(tmp), 0);
     });
 
     test('中途失败不会把目标文件截断成半份（.part 与目标互不影响）', () async {
       final f = File('${tmp.path}/a.json');
       await writeStringAtomic(f, '{"good":1}');
-      // 模拟"写 .part 的时候崩了"：目标文件必须还是完整的那份。
-      File('${f.path}.part').writeAsStringSync('{"half":');
+      // 模拟"正在写临时文件的时候崩了"：按实现的样子造一个**带唯一后缀**的半份
+      // 临时文件。目标文件必须还是完整的那份 —— 这才是原子性的定义。
+      File('${f.path}.part.999-1-1').writeAsStringSync('{"half":');
       expect(f.readAsStringSync(), '{"good":1}',
-          reason: '目标文件被 .part 的内容污染了 —— 原子性没了');
-      // 复原：下一次写会把 .part 覆盖掉
+          reason: '目标文件被半份临时文件污染了 —— 原子性没了');
+      // 下一次写照样成功（互不影响）
       await writeStringAtomic(f, '{"good":2}');
       expect(f.readAsStringSync(), '{"good":2}');
-      expect(File('${f.path}.part').existsSync(), isFalse);
+      // ⚠️ 那次"崩掉"留下的临时文件**不会被下一次写顺手清掉**（名字是唯一的，
+      //    实现无法知道谁是谁的残留）—— 所以这里只断言"真写进去的那次没有残留"：
+      //    盘上最多留着我们手工造的那一个，别的都不该多出来。
+      expect(partLeftovers(tmp), 1,
+          reason: '只应有我们手工造的那个残留（${tmp.listSync().map((e) => e.path).join(', ')}）');
+      File('${f.path}.part.999-1-1').deleteSync();
     });
   });
 

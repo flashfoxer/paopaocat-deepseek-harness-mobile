@@ -27,6 +27,13 @@ class AndroidToolbox {
   static const Map<String, String> assets = <String, String>{
     'assets/toolbox/android-exec-shim.cjs': 'shims/android-exec-shim.cjs',
     'assets/toolbox/make-pptx.mjs': 'toolbox/make-pptx.mjs',
+    // PPT 的**排版引擎**（2026-10-16）：`make-pptx.mjs` 用 `import './pptx-design.mjs'`
+    // 引它 —— 所以必须落在**同一个目录**里；少一个文件，会话里跑 make-pptx 会
+    // 直接 `Cannot find module`。
+    // 分工：这层只管「算」（主题、文本测量、自动缩排/分页、各版式的形状树），
+    // 打包成 .pptx（ZIP + OOXML + rels）仍是 make-pptx.mjs 的事 —— 所以它能
+    // 在电脑上被单独 import 做纯函数测试（见 install/test-make-pptx.mjs）。
+    'assets/toolbox/pptx-design.mjs': 'toolbox/pptx-design.mjs',
     // ── Office 文档（用户 2026-10-12「全做」的 D 项）：
     // 手机上**没有 python / openpyxl / pandas**，但 xlsx/docx 的本质就是
     // **ZIP + XML**，而 node 自带 `node:zlib` —— 所以这条路自己走。

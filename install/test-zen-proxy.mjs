@@ -3,13 +3,15 @@
 // ## 为什么用假上游
 //
 // 要验的是**代理的形状是否正确**：门禁要求的会话 id 形状、`stream:true`、
-// `bash`/`read` 两个工具、以及流式原样回传与错误映射。
+// **四个**门禁工具（`bash`/`glob`/`grep`/`read`）、工具名大小写规范化与回写、
+// `msg_` 形状的请求 id、真流式（边收边发）、以及错误映射。
 // 这些全部可以在本地断言 —— 而且**不该**拿真上游做测试（那是往人家服务上打请求）。
 //
 // 用法：node install/test-zen-proxy.mjs
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
+import http from 'node:http';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -62,8 +64,12 @@ async function withUpstream(handler, fn) {
 
 /** 起代理（指向给定上游），返回 { port, proc, stop }。 */
 async function startProxy(upstream) {
+  // ⚠️ 每次给**自己的** state 目录：模型列表会缓存到 state 里（ttl 12h），
+  //    共用一个目录时，前一条测试的假列表会被后一条读到 —— 那样"静态兜底"
+  //    那条测试其实什么都没验到（2026-10-16 自测当场踩到）。
+  const state = mkdtempSync(join(tmpdir(), 'zen-proxy-state-'));
   const proc = spawn(process.execPath, [
-    SCRIPT, '--port', '0', '--upstream', upstream, '--state', work, '--ttl-hours', '12',
+    SCRIPT, '--port', '0', '--upstream', upstream, '--state', state, '--ttl-hours', '12',
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
   let out = '';
   let err = '';
@@ -99,6 +105,34 @@ async function proxyFetch(port, path, init) {
   return { status: res.status, text, json: (() => { try { return JSON.parse(text); } catch { return null; } })() };
 }
 
+/**
+ * 直接走 node:http 发一次对话（**不用 fetch** —— 这里要看"首块什么时候到"，
+ * fetch 会把流包一层，观测首字节的时间就不准了）。`onFirst` 在第一块到达时调一次。
+ */
+function streamChat(port, body, onFirst) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify(body);
+    const req = http.request({
+      hostname: '127.0.0.1',
+      port,
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(data) },
+    }, (res) => {
+      let all = '';
+      res.on('data', (c) => {
+        const t = c.toString('utf8');
+        if (all === '' && onFirst) onFirst(t);
+        all += t;
+      });
+      res.on('end', () => resolve(all));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.end(data);
+  });
+}
+
 /** 假上游的 SSE 响应（两段增量 + 结束）。 */
 function sseReply(res) {
   res.writeHead(200, { 'content-type': 'text/event-stream' });
@@ -109,7 +143,7 @@ function sseReply(res) {
 
 // ─────────────────────────────────────────────────────────────────────
 
-section('门禁形状：会话 id / stream / bash+read 工具');
+section('门禁形状：会话 id / stream / 四个工具 / 请求 id');
 {
   await test('转发时会带上**官方形状**的会话 id 与 CLI 头', async () => {
     await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
@@ -156,7 +190,7 @@ section('门禁形状：会话 id / stream / bash+read 工具');
     });
   });
 
-  await test('客户端没带工具 → 自动补上 bash 与 read，并强制 stream:true', async () => {
+  await test('客户端没带工具 → 自动补上四个门禁工具，并强制 stream:true', async () => {
     await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
       const p = await startProxy(upstream);
       try {
@@ -170,11 +204,14 @@ section('门禁形状：会话 id / stream / bash+read 工具');
         const body = chat[0].json;
         assert.equal(body.stream, true, '门禁要求 stream:true');
         const names = (body.tools || []).map((t) => t.function && t.function.name);
-        assert.ok(names.includes('bash'), `缺 bash 工具：${JSON.stringify(names)}`);
-        assert.ok(names.includes('read'), `缺 read 工具：${JSON.stringify(names)}`);
+        // ⚠️ 2026-10-15 起是**四个**（不再是 bash+read 两个）—— 少一个上游按
+        //    "不是官方客户端"直接 403 FreeTierError（社区两份独立实测）。
+        for (const name of ['bash', 'glob', 'grep', 'read']) {
+          assert.ok(names.includes(name), `缺 ${name} 工具：${JSON.stringify(names)}`);
+        }
         // 2026-10-14 起：`properties: {}` 与"没声明"一样会被 403，每个诱饵工具
         // 都必须至少有一个 property（社区工具矩阵实测）。
-        for (const name of ['bash', 'read']) {
+        for (const name of ['bash', 'glob', 'grep', 'read']) {
           const t = (body.tools || []).find((x) => x.function?.name === name);
           const props = Object.keys(t?.function?.parameters?.properties ?? {});
           assert.ok(props.length > 0,
@@ -184,7 +221,78 @@ section('门禁形状：会话 id / stream / bash+read 工具');
     });
   });
 
-  await test('客户端已经带了自己的 bash/read → 不重复注入（保持请求原样）', async () => {
+  await test('x-opencode-request 用 `msg_` 铸造形状（10-15 起不再吃 `req_`），且每次不同', async () => {
+    await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
+      const p = await startProxy(upstream);
+      try {
+        for (let i = 0; i < 2; i += 1) {
+          await proxyFetch(p.port, '/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-zen-seed': 'same-conv' },
+            body: JSON.stringify({ model: 'big-pickle', messages: [{ role: 'user', content: 'hi' }] }),
+          });
+        }
+        const reqs = chatHits(hits).map((h) => h.headers['x-opencode-request'] || '');
+        assert.equal(reqs.length, 2);
+        for (const id of reqs) {
+          assert.match(id, /^msg_[0-9a-f]{12}[0-9A-Za-z]{14}$/, `请求 id 形状不对：${id}`);
+          // 12 位 hex 是 `(ms*0x1000 + seq)` 的**低 48 位**（官方 msg_ 铸造编码；
+          // ms*0x1000 需要 53 位，所以高位在 48 位编码里本来就是被截掉的 ——
+          // 这里按"与当前时刻的同余差在 2 分钟内"判定，别去直接反解毫秒）。
+          const hex = BigInt('0x' + id.slice(4, 16));
+          const mask = 0xFFFFFFFFFFFFn;
+          const nowHex = (BigInt(Date.now()) * 0x1000n) & mask;
+          const raw = (hex - nowHex + mask + 1n) % (mask + 1n);
+          const delta = raw > mask / 2n ? mask + 1n - raw : raw; // 取环上的**最近**距离
+          assert.ok(delta < 4096n * 120000n,
+            `请求 id 里编码的时间戳要接近当前时刻（${id}，差 ${delta}）`);
+        }
+        assert.notEqual(reqs[0], reqs[1], '每个请求应当有自己的请求 id');
+        // 同一个会话里 session 必须稳定（与每次不同的 request 成对照）
+        const sessions = chatHits(hits).map((h) => h.headers['x-opencode-session']);
+        assert.equal(sessions[0], sessions[1], '同一会话的 session 必须稳定');
+      } finally { await p.stop(); }
+    });
+  });
+
+  await test('工具名大小写：`Bash`/`READ` 发成小写，回程再改回调用方的原拼写', async () => {
+    const sseWithToolCall = (res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.write('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"bash"}}]}}]}\n\n');
+      res.write('data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"command\\":\\"ls\\"}"}}]}}]}\n\n');
+      res.end('data: [DONE]\n\n');
+    };
+    await withUpstream(async (rec, res) => { sseWithToolCall(res); }, async ({ upstream, hits }) => {
+      const p = await startProxy(upstream);
+      try {
+        const r = await proxyFetch(p.port, '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            model: 'big-pickle',
+            messages: [{ role: 'user', content: 'hi' }],
+            tools: [
+              { type: 'function', function: { name: 'Bash', description: '调用方的写法就是大写', parameters: { type: 'object', properties: { command: { type: 'string' } } } } },
+              { type: 'function', function: { name: 'read', parameters: { type: 'object', properties: { filePath: { type: 'string' } } } } },
+            ],
+          }),
+        });
+        // ① 发给上游的名字必须是小写（门禁按小写识别）
+        const sent = chatHits(hits)[0].json.tools.map((t) => t.function.name);
+        assert.ok(sent.includes('bash'), `上游必须收到小写 bash，实际 ${JSON.stringify(sent)}`);
+        assert.ok(!sent.includes('Bash'), `大写 Bash 不能出现在发给上游的 body 里：${JSON.stringify(sent)}`);
+        // 调用方的描述必须原样保留（我们不覆盖他的工具语义）
+        const bash = chatHits(hits)[0].json.tools.find((t) => t.function.name === 'bash');
+        assert.equal(bash.function.description, '调用方的写法就是大写');
+        // ② 回程必须把模型吐的 `bash` 改回调用方的 `Bash`，否则工具链对不上
+        assert.match(r.text, /"name":"Bash"/,
+          `回程要把工具名改回原拼写，实际：${r.text.slice(0, 200)}`);
+        assert.ok(!/"name":"bash"/.test(r.text), '回程不该留下小写的 bash');
+      } finally { await p.stop(); }
+    });
+  });
+
+  await test('客户端已经带了自己的 bash/read → 只补缺的两个，绝不重复注入', async () => {
     await withUpstream(async (rec, res) => { sseReply(res); }, async ({ upstream, hits }) => {
       const p = await startProxy(upstream);
       try {
@@ -204,8 +312,15 @@ section('门禁形状：会话 id / stream / bash+read 工具');
         const chat = chatHits(hits);
         assert.equal(chat.length, 1);
         const body = chat[0].json;
+        const names = (body.tools || []).map((t) => t.function?.name);
+        // 缺的那两个补上（10-15 起门禁要四个都声明）
+        assert.ok(names.includes('glob') && names.includes('grep'),
+          `该补上 glob/grep，实际 ${JSON.stringify(names)}`);
+        // 但已有的绝不重复
+        for (const n of ['bash', 'read']) {
+          assert.equal(names.filter((x) => x === n).length, 1, `不该重复注入 ${n}`);
+        }
         const bashTools = (body.tools || []).filter((t) => t.function?.name === 'bash');
-        assert.equal(bashTools.length, 1, '不该重复注入 bash');
         assert.equal(bashTools[0].function.description, 'DSH 自己的 bash',
           '客户端自己的工具必须被保留，不能被我们的占位工具覆盖');
         // 但 schema 空着过不了门禁 → 就地补一个 property（名字/描述/数量都不动）
@@ -254,13 +369,45 @@ section('流式透传与模型列表');
     });
   });
 
+  await test('**真流式**：第一段先到，不等上游结束（这是"边收边发"的判据）', async () => {
+    // 假上游：先写一段，停 400ms，再写第二段并结束。
+    // 老实现是 `res.end(r.body)`（整段收完再吐）→ 首字节要等 400ms 以上；
+    // 新实现应当**马上**把第一段交出去。用"首字节耗时 < 200ms"钉住它。
+    await withUpstream(async (rec, res) => {
+      res.writeHead(200, { 'content-type': 'text/event-stream' });
+      res.write('data: {"choices":[{"delta":{"content":"第一段"}}]}\n\n');
+      setTimeout(() => {
+        res.write('data: {"choices":[{"delta":{"content":"第二段"}}]}\n\n');
+        res.end('data: [DONE]\n\n');
+      }, 400);
+    }, async ({ upstream }) => {
+      const p = await startProxy(upstream);
+      try {
+        const started = Date.now();
+        let firstAt = 0;
+        const full = await streamChat(
+          p.port,
+          { model: 'big-pickle', messages: [{ role: 'user', content: 'hi' }] },
+          () => { firstAt = Date.now(); },
+        );
+        const elapsed = firstAt - started;
+        assert.ok(firstAt > 0, '一块都没收到');
+        assert.ok(elapsed < 200,
+          `首字节用了 ${elapsed}ms —— 说明还在"整段收完再吐"（假上游故意在第二段前停 400ms）`);
+        assert.match(full, /第一段/);
+        assert.match(full, /第二段/, '尾巴不能丢');
+        assert.match(full, /\[DONE\]/, '流结束标记不能丢');
+      } finally { await p.stop(); }
+    });
+  });
+
   await test('模型列表只列**免费**的（付费模型不许出现在里面）', async () => {
     await withUpstream(async (rec, res) => {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ data: [
         { id: 'big-pickle' },
         { id: 'gpt-5.9-paid' },
-        { id: 'nemotron-3-ultra-free' },
+        { id: 'nemotron-3.5-lightning-free' },
         { id: 'claude-x-free' },
       ] }));
     }, async ({ upstream }) => {
@@ -269,8 +416,13 @@ section('流式透传与模型列表');
         const r = await proxyFetch(p.port, '/v1/models');
         assert.equal(r.status, 200);
         const ids = r.json.data.map((m) => m.id);
-        assert.deepEqual(ids.sort(), ['big-pickle', 'claude-x-free', 'nemotron-3-ultra-free']);
+        // ⚠️ 判据是"名字里带 free"（或落在我们静态实测名单里）。`big-pickle`
+        //    虽然在售且能应答，但**不在**上游免费层名单里 —— 2026-10-16 实测
+        //    免费层是另外 10 个 id，所以它不该出现在这条通道的列表里（列表是
+        //    "免费层"，不是"任何能用的模型"）。
+        assert.deepEqual(ids.sort(), ['claude-x-free', 'nemotron-3.5-lightning-free']);
         assert.ok(!ids.includes('gpt-5.9-paid'), '付费模型不该出现在免费通道的列表里');
+        assert.ok(!ids.includes('big-pickle'), '不在免费层名单里的模型不该被列成免费');
       } finally { await p.stop(); }
     });
   });
@@ -285,7 +437,9 @@ section('流式透传与模型列表');
         const r = await proxyFetch(p.port, '/v1/models');
         assert.equal(r.status, 200);
         assert.ok(r.json.data.length >= 3, `静态兜底名单不该是空的：${r.text}`);
-        assert.ok(r.json.data.some((m) => m.id === 'big-pickle'));
+        // 2026-10-16 复测后的名单（big-pickle 不在免费层，已从兜底名单移出）
+        assert.ok(r.json.data.some((m) => m.id === 'cat-jam-free'),
+          `静态兜底名单要跟上今天的免费层：${r.text}`);
       } finally { await p.stop(); }
     });
   });
@@ -325,6 +479,50 @@ section('错误呈现：不许假装成功，要说清"怎么办"');
         assert.match(r.json.error.message, /不是"你没配 Key"|本来就不用 Key/,
           '要主动澄清：这不是"缺 Key"');
         assert.match(r.json.error.message, /FreeTierError/, '要带出上游原话，便于排查');
+      } finally { await p.stop(); }
+    });
+  });
+
+  await test('上游 403 RegionError → 说清是**地区封锁**（与"门禁"是两码事）', async () => {
+    // 2026-10-15 本机实测：同一个出口、同一时刻，403 有两种完全不同的含义
+    // （FreeTierError = 门禁；RegionError = 地区）。混成一句话会把用户
+    // 引去"反复换模型"或者"反复换网络"里错的那一条。
+    await withUpstream(async (rec, res) => {
+      res.writeHead(403, { 'content-type': 'application/json' });
+      res.end('{"error":{"message":"RegionError: model is not available in your region"}}');
+    }, async ({ upstream }) => {
+      const p = await startProxy(upstream);
+      try {
+        const r = await proxyFetch(p.port, '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'cat-jam-free', messages: [] }),
+        });
+        assert.equal(r.status, 403);
+        assert.match(r.json.error.message, /地区/, '要说清这是地区封锁');
+        assert.match(r.json.error.message, /RegionError/, '要带出上游原话');
+      } finally { await p.stop(); }
+    });
+  });
+
+  await test('上游 400 ModelProtocolUnsupported → 说清"这个模型走另一条协议"', async () => {
+    // 2026-10-16 本机实测：免费层里 `jev-1.13-free` 回的是 **400** 而不是 403
+    // （`ModelProtocolUnsupported`）—— 光看状态码会把它归成"未知"，用户只能瞎猜。
+    await withUpstream(async (rec, res) => {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end('{"type":"error","error":{"type":"ModelProtocolUnsupported","message":"Model does not support this protocol."}}');
+    }, async ({ upstream }) => {
+      const p = await startProxy(upstream);
+      try {
+        const r = await proxyFetch(p.port, '/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ model: 'jev-1.13-free', messages: [] }),
+        });
+        assert.equal(r.status, 400);
+        assert.match(r.json.error.message, /另一条协议/,
+          '要说清是这个模型的协议不同，别让人去查网络/Key');
+        assert.match(r.json.error.message, /换一个免费模型/, '要给出能照做的下一步');
       } finally { await p.stop(); }
     });
   });
@@ -369,7 +567,10 @@ section('错误呈现：不许假装成功，要说清"怎么办"');
       try {
         const r = await proxyFetch(p.port, '/v1/embeddings', { method: 'POST', body: '{}' });
         assert.equal(r.status, 404);
-        assert.equal(hits.length, 0, '不该把不认识的路径转发给上游');
+        // ⚠️ 只看**这个路径**有没有被转发：代理启动时会自己预热一次
+        //    `GET /v1/models`（那是它该做的），不能把它算成"转发了未知路径"。
+        const forwarded = hits.filter((h) => String(h.url).includes('embeddings'));
+        assert.equal(forwarded.length, 0, '不该把不认识的路径转发给上游');
       } finally { await p.stop(); }
     });
   });

@@ -408,7 +408,12 @@ class ExpertCatalogCache {
   也不要用 python-pptx / pandoc（都没有）。本机自带一个转换脚本：把大纲写成 JSON，再跑
   `node "$DSH_ANDROID_TOOLBOX/make-pptx.mjs" outline.json 输出.pptx`
   `outline.json` 的形状：
-  `{"title": "封面标题", "subtitle": "可选副标题", "slides": [{"title": "小节标题", "bullets": ["要点1", "要点2"], "notes": "可选演讲者备注"}]}`
+  `{"title": "封面标题", "subtitle": "可选副标题", "theme": "ink", "slides": [{"layout": "bullets", "title": "小节标题", "bullets": ["要点1", "要点2"], "notes": "可选演讲者备注"}]}`
+  **排版不用你算**：坐标/字号/分栏/放不下时怎么缩怎么分页都由脚本算，你不要写这些字段。
+  每页用 `layout` 选版式（`section` 章节页 / `toc` 目录 / `bullets` 要点 / `cards` 并列几件事 /
+  `timeline` 流程 / `compare` 两栏对比 / `metrics` 关键数字 / `chart` 数据图 / `quote` 引用 /
+  `image` 配图 / `end` 结尾；不写就按内容字段自动猜），`theme` 六选一
+  （`ink`/`ocean`/`forest`/`sunrise`/`berry`/`mono`）。完整字段与边界见技能 `make-slides`。
   生成后把**文件路径**告诉用户。**不要**再用 HTML 幻灯片顶替 PPT（除非用户明确要 HTML）。
 - **用户要图片 / 要视频时，直接生成，别只给提示词、更不要假装已经生成**：
   * 文生图：`node "$DSH_ANDROID_TOOLBOX/make-image.mjs" "提示词" 输出.png [--size 2K] [--ratio 16:9] [--ref 参考图URL或本地文件]`

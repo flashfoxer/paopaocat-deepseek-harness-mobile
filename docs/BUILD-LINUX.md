@@ -185,6 +185,24 @@ cp build/app/outputs/flutter-apk/app-release.apk \
 `/root/办公/__migr/03-build-deps/android-node/jnilibs/`（与 node 依赖同处），
 丢了就从最近的 `dist/*.apk` 里取回（`unzip -j <apk> 'lib/arm64-v8a/libav*.so' …`）。
 
+## 5.3 ⚠️ 想核对"包里的文案"时：Dart AOT 把中文存成 **UTF-16LE**
+
+出 0.76 时差点因此误判成"更新说明没进包"：拿 `unzip -p … libapp.so | strings | grep '检查更新'`
+**一个都找不到**（连 0.75 包里早就有的文案也找不到）。真因是 **Dart AOT 的字符串常量**：
+纯 ASCII 的存成一字节（Latin-1，能被 `grep`/`strings` 直接看到），
+**含中文的存成两字节 UTF-16LE** —— 所以按 UTF-8 找永远是 0。
+
+正确的核对姿势（Python）：
+
+```python
+import zipfile
+blob = zipfile.ZipFile('dist/xxx.apk').read('lib/arm64-v8a/libapp.so')
+print(blob.count('修好 20 个问题'.encode('utf-16-le')))   # 1 表示在包里
+```
+
+`install/check-release.py` 之所以没踩这个坑，是因为它只核对**纯 ASCII** 的东西
+（脚本路径、`AndroidToolbox.assets` 的 key）。
+
 ## 6. 交付前静态自检（本次全部通过）
 
 ```bash

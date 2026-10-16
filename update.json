@@ -1,20 +1,20 @@
 {
-  "version": "0.75",
-  "versionCode": 75,
-  "url": "https://github.com/zmm863-commits/paopaocat-deepseek-harness-mobile/releases/download/v0.75/paopaocat-preview-0.75-arm64-v8a-lite.apk",
-  "size": 68287206,
-  "sha256": "b4a078cd719ed4ac31dc62d5e3e36e55b279ace32ecef53cc6449cf085cb6509",
-  "urlFull": "https://github.com/zmm863-commits/paopaocat-deepseek-harness-mobile/releases/download/v0.75/paopaocat-preview-0.75-arm64-v8a.apk",
-  "sizeFull": 99848826,
-  "sha256Full": "c53128b7f29d246704d310305acb53c561d1437a62064365674ebd4adf34d2f8",
+  "version": "0.76",
+  "versionCode": 76,
+  "url": "https://github.com/zmm863-commits/paopaocat-deepseek-harness-mobile/releases/download/v0.76/paopaocat-preview-0.76-20261016-lite-arm64-v8a.apk",
+  "size": 71419906,
+  "sha256": "75d9bffb1578c72783023e137bfc99b722148ca37fa14e06b22175d950534104",
+  "urlFull": "https://github.com/zmm863-commits/paopaocat-deepseek-harness-mobile/releases/download/v0.76/paopaocat-preview-0.76-20261016-full-arm64-v8a.apk",
+  "sizeFull": 102983262,
+  "sha256Full": "5e758078e3dc7d44848e515621909be4fee31678a4efd1cb5df964839ad6dc58",
   "minVersionCode": 0,
-  "publishedAt": "2026-10-14",
+  "publishedAt": "2026-10-16",
   "notes": [
-    "新增「检查更新」：设置页第一块，有新版本会显示版本号 / 日期 / 包多大 / 这一版改了什么",
-    "应用内直接下载新版，断了能接着下；下完在本机验两样 —— 文件哈希 + 与已装应用比对签名，签名对不上就不给你装",
-    "最后那一下要你在系统安装界面上点（Android 不允许普通应用自己装东西）—— 覆盖安装，数据不会丢",
-    "安装包小了一大截：本地大模型那一套整个拿掉了（-11 MB）；运行环境只在**更新时**才不下（老用户因此每次少下 32 MB）",
-    "**全新安装请下完整包**（含运行环境，装完即用、没网也能打开）；手机里已有运行环境的，更新时自动下精简包",
-    "检查更新是静默的：连不上只写日志、不弹窗打扰；可自填更新源镜像、可关自动检查、可「跳过这个版本」"
+    "修好 20 个问题、新增 17 项功能（这条是这一版的总账，逐条见「更新说明」）",
+    "做 PPT 从「能生成」变成「能拿得出手」：12 种版式 + 自动排版，产物是真 .pptx（创作台 → 工具 → 做 PPT / 幻灯片）",
+    "「不用填 Key 就能聊」重新站住：免 Key 免费模型默认开着，会话里还能联网搜索、能分子智能体干活",
+    "会话不再丢：空壳会话不再产生也不再显示；切模型不再偷偷换会话；提问失败会当场说原因",
+    "顺手修好一批真机反馈：换厂家后会话「只剩摘要」、来回切会话后窜出会话页、输入框太透明看不清、长按二维码弹「无法访问」",
+    "**全新安装请下完整包**（含运行环境，装完即用、没网也能打开）；手机里已有运行环境的，更新时自动下精简包"
   ]
 }

@@ -1307,6 +1307,16 @@ class _MediaPageState extends State<MediaPage> {
                 ),
               ),
             ),
+            // 2026-10-16（用户问「ppt 这个功能放哪了」）：原来只有**首页内置会话**
+            // 那条「做一份幻灯片」能进这条路，创作台里找不到 → 在这里补一个明确入口。
+            // 与「画图表」同一个形状：先给一张说明 + 几个可点的例子，点了才开会话
+            // （PPT 需要模型先写大纲，不是一键直出，所以不做成"填个框就生成"）。
+            _workbenchEntry(
+              icon: Icons.slideshow_outlined,
+              title: context.tr('做 PPT / 幻灯片'),
+              hint: context.tr('生成真正的 .pptx：12 种版式 + 自动排版（封面 / 卡片 / 时间线 / 对比 / 数据图…）'),
+              onTap: () => _showSlidesSheet(),
+            ),
             _workbenchEntry(
               icon: Icons.schema_outlined,
               title: context.tr('画图表'),
@@ -1405,6 +1415,72 @@ class _MediaPageState extends State<MediaPage> {
                 context.tr('如实说明：上游那几个 python 自检脚本（几何校验、drawio/mermaid '
                     '导入）**没有随包**（手机上没 python），所以那几步用不了；'
                     '上游的 211 个示例图也没随包（省 4.4 MB）。画法规范在技能里是完整的。'),
+                style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.5),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 「做 PPT / 幻灯片」的说明弹层：几个可点的例子 → 开新会话（点名 make-slides）。
+  ///
+  /// 为什么不做成"填个框就生成"：幻灯片要先由模型把材料**写成大纲**（选版式、拆页、
+  /// 写要点），再交给 `make-pptx.mjs` 排版 —— 它是**会话里的技能**，不是一键工具。
+  /// 所以这里给的是"从哪个例子开始"，点下去就是一条指名技能的开场白。
+  Future<void> _showSlidesSheet() async {
+    final prefix = context.tr('用 make-slides 技能帮我做一份幻灯片。');
+    final examples = <String>[
+      context.tr('把下面这些材料做成 8 页左右的工作汇报（材料我贴在后面）'),
+      context.tr('做一份教学幻灯片：讲清「什么是向量数据库」，10 页以内'),
+      context.tr('做一份路演稿：产品是什么 / 给谁用 / 怎么赚钱 / 要多少钱，6 页'),
+      context.tr('把这两个方案做成一页对比：左边 A 方案、右边 B 方案'),
+    ];
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(context.tr('做 PPT / 幻灯片'),
+                  style: TextStyle(
+                      color: DshColors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text(
+                context.tr('**排版不用你操心**：你只说讲什么、想做成哪种样子，脚本自己算字号、'
+                    '分栏与分页（放不下会缩字号、再放不下会拆成「（续）」页）。'
+                    '产物是真正的 .pptx —— 原生形状，在 WPS / Office 里能改颜色、改字。'
+                    '下面是几个起点，点一个就开始（会话里再改成你要的）。'),
+                style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
+              ),
+              const SizedBox(height: 10),
+              for (final e in examples)
+                ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.chevron_right, size: 18, color: DshColors.accent),
+                  title: Text(e,
+                      style: TextStyle(color: DshColors.text, fontSize: 12.5, height: 1.4)),
+                  onTap: widget.onStartPrompt == null
+                      ? null
+                      : () {
+                          // ⚠️ 与画图表那处同样的两个坑：前缀必须先取出来（否则 i18n
+                          //    扫描器看不见那个字面量）；顺序交给 closeThenStart。
+                          closeThenStart(ctx, widget.onStartPrompt!, '$prefix$e');
+                        },
+                ),
+              const SizedBox(height: 6),
+              Text(
+                context.tr('如实说明：App 里**看不了** .pptx 的样子（没有 Office 组件）。'
+                    '生成后在「资料库」里能找到它，用「用其它应用打开」交给手机上的 WPS / Office，'
+                    '或者直接分享出去。'),
                 style: TextStyle(color: DshColors.textFaint, fontSize: 11, height: 1.5),
               ),
             ],

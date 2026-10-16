@@ -4323,5 +4323,50 @@
     "en": " (region-blocked)",
     "ja": "（地域ブロック）",
     "ko": " (지역 차단)"
+  },
+  "做 PPT / 幻灯片": {
+    "en": "Make a presentation (.pptx)",
+    "ja": "スライドを作る（.pptx）",
+    "ko": "슬라이드 만들기(.pptx)"
+  },
+  "生成真正的 .pptx：12 种版式 + 自动排版（封面 / 卡片 / 时间线 / 对比 / 数据图…）": {
+    "en": "Generates a real .pptx: 12 layouts with automatic typesetting (cover / cards / timeline / comparison / data charts…)",
+    "ja": "本物の .pptx を生成：12 種類のレイアウト＋自動組版（表紙／カード／タイムライン／比較／データ図…）",
+    "ko": "진짜 .pptx 생성: 12가지 레이아웃 + 자동 조판(표지/카드/타임라인/비교/데이터 차트…)"
+  },
+  "用 make-slides 技能帮我做一份幻灯片。": {
+    "en": "Use the make-slides skill to make me a presentation. ",
+    "ja": "make-slides スキルでスライドを作ってください。",
+    "ko": "make-slides 스킬로 슬라이드를 만들어 주세요."
+  },
+  "把下面这些材料做成 8 页左右的工作汇报（材料我贴在后面）": {
+    "en": "Turn the material below into a work report of about 8 slides (I'll paste the material after this).",
+    "ja": "以下の材料を 8 枚程度の業務報告スライドにしてください（材料はこの後に貼ります）。",
+    "ko": "아래 자료를 8장 정도의 업무 보고 슬라이드로 만들어 주세요(자료는 뒤에 붙여 넣습니다)."
+  },
+  "做一份教学幻灯片：讲清「什么是向量数据库」，10 页以内": {
+    "en": "Make a teaching deck: explain “what a vector database is”, within 10 slides.",
+    "ja": "教材スライドを作ってください：「ベクトルデータベースとは何か」を 10 枚以内で。",
+    "ko": "교육용 슬라이드를 만들어 주세요: 「벡터 데이터베이스란 무엇인가」를 10장 이내로."
+  },
+  "做一份路演稿：产品是什么 / 给谁用 / 怎么赚钱 / 要多少钱，6 页": {
+    "en": "Make a pitch deck: what the product is / who it is for / how it makes money / how much we need — 6 slides.",
+    "ja": "ピッチ資料を作ってください：製品は何か／誰が使うか／どう稼ぐか／いくら必要か、6 枚。",
+    "ko": "피치 덱을 만들어 주세요: 제품은 무엇인지 / 누가 쓰는지 / 어떻게 버는지 / 얼마가 필요한지, 6장."
+  },
+  "把这两个方案做成一页对比：左边 A 方案、右边 B 方案": {
+    "en": "Put these two options on one comparison slide: option A on the left, option B on the right.",
+    "ja": "この 2 案を 1 枚の比較スライドにしてください：左に A 案、右に B 案。",
+    "ko": "이 두 안을 한 장 비교 슬라이드로 만들어 주세요: 왼쪽 A안, 오른쪽 B안."
+  },
+  "**排版不用你操心**：你只说讲什么、想做成哪种样子，脚本自己算字号、分栏与分页（放不下会缩字号、再放不下会拆成「（续）」页）。产物是真正的 .pptx —— 原生形状，在 WPS / Office 里能改颜色、改字。下面是几个起点，点一个就开始（会话里再改成你要的）。": {
+    "en": "**You do not have to place anything yourself**: just say what to cover and how it should feel — the script works out font sizes, columns and page breaks (it shrinks the text first, and splits into a “(cont.)” slide if it still does not fit). The result is a real .pptx with native shapes you can recolour and retype in WPS / Office. Pick a starting point below, then adjust it in the session.",
+    "ja": "**レイアウトは気にしなくて大丈夫**：何を話すか、どんな見せ方にしたいかだけ伝えてください。文字サイズ・段組み・改ページはスクリプトが計算します（入りきらない時はまず文字を縮め、それでも無理なら「（続き）」ページに分割）。出力は本物の .pptx（ネイティブ図形）で、WPS / Office で色も文字も変更できます。下の出発点を選んで始めてください（セッションで調整できます）。",
+    "ko": "**배치는 신경 쓰지 않으셔도 됩니다**: 무엇을 말할지, 어떤 모양으로 만들지만 알려 주세요. 글자 크기·단 구성·쪽 나눔은 스크립트가 계산합니다(안 들어가면 글자를 줄이고, 그래도 안 되면 「(계속)」 페이지로 나눕니다). 결과물은 진짜 .pptx(네이티브 도형)라 WPS / Office에서 색과 글자를 고칠 수 있습니다. 아래 시작점을 골라 시작하세요(세션에서 수정 가능)."
+  },
+  "如实说明：App 里**看不了** .pptx 的样子（没有 Office 组件）。生成后在「资料库」里能找到它，用「用其它应用打开」交给手机上的 WPS / Office，或者直接分享出去。": {
+    "en": "To be clear: this app **cannot show** what a .pptx looks like (no Office components inside). After it is generated you will find it in the Library — use “Open with another app” to hand it to WPS / Office on the phone, or share it directly.",
+    "ja": "正直に言うと：このアプリ内では .pptx の見た目を**表示できません**（Office コンポーネントを同梱していないため）。生成後は「ライブラリ」にあります。「他のアプリで開く」でスマホの WPS / Office に渡すか、そのまま共有してください。",
+    "ko": "분명히 말씀드리면: 이 앱에서는 .pptx의 모양을 **볼 수 없습니다**(Office 구성 요소 미포함). 생성 후 「자료실」에서 찾을 수 있고, 「다른 앱으로 열기」로 휴대폰의 WPS / Office에 넘기거나 바로 공유하세요."
   }
 }

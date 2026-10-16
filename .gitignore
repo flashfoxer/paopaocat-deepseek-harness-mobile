@@ -21,3 +21,9 @@ dist/*.apk
 # Python 工具的字节码缓存（tools/ 下是开发用脚本，不随 App 分发）
 __pycache__/
 *.pyc
+
+# 大体积原生库（构建依赖，不进版本库）：ffmpeg 那一套 10 个 .so 由
+# install/build-ffmpeg-android.sh 编好后手工放进构建目录，持久副本在
+# /root/办公/__migr/03-build-deps/android-node/jnilibs（见 docs/BUILD-LINUX.md §5.2）。
+# 这条是防呆：**别把 27 MB 的 .so 提交进仓库**。
+app/android/app/src/main/jniLibs/

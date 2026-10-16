@@ -397,7 +397,8 @@ def check_assets(apk: str, repo: str, results: list) -> None:
 #   * 已下线的引擎**不该**在包里 —— 它是 11.8 MB 的死重，而且真机实证在
 #     Armv9.2 上处理长请求必然段错误（0.47 按用户选定的"路线 A"下线）。
 #     多带一份不会报错，只会让包变大、让排查时误以为"这条路还能用"。
-#   * 有几个库**必须**在包里 —— 它们不是链接进去的，而是运行时 `dlopen` 的。
+#   * 有几个库**必须**在包里 —— 它们不是链接进去的，而是运行时 `dlopen` 的
+#     （现状：ffmpeg/ffprobe 那 10 个 `.so`；LiteRT 四件套已按用户决定拿掉，见下）。
 #     谁"顺手清理一下 native 库"就会让本地模型在真机上崩，而编译期毫无征兆。
 RETIRED_ENGINE_LIBS = {
     "libsdserver.so": "stable-diffusion 服务器（2026-10-11 按用户要求删除：纯死重，14.9 MiB）",
@@ -413,13 +414,16 @@ RETIRED_ENGINE_LIBS = {
     "libggml-vulkan.so": "ggml Vulkan 后端",
 }
 
-# 运行时被 dlopen 的库：**必须**存在，缺了本地模型起不来。
-MUST_SHIP_LIBS = {
-    "libLiteRtClGlAccelerator.so": "LiteRT OpenCL/GL 加速器",
-    "libLiteRtCompilerPlugin_Qualcomm.so": "LiteRT Qualcomm 编译插件",
-    "libLiteRtDispatch_Qualcomm.so": "LiteRT Qualcomm 调度",
-    "liblitertlm_jni.so": "LiteRT-LM JNI 桥（本地模型入口）",
-}
+# 运行时被 dlopen 的库：**必须**存在，缺了就起不来。
+#
+# ⚠️ 2026-10-16 订正：这里**不再**列 LiteRT 那四件套。
+#    本地大模型已于 2026-10-14 按用户决定整个拿掉
+#    （原话「本地模型那一套彻底不用了」），`build.gradle.kts` 的 `packaging.jniLibs`
+#    里**明确排除**了那四个 .so（0.75 起安装包因此少 11.2 MiB，changelog 里也对用户写了）。
+#    它们现在**刻意不在包里，不算失败** —— 见下面 `PARKED_ENGINE_LIBS`。
+#    以前留在这里的后果是：每一次 0.75 出包都会**假红**（把"按决策拿掉的东西"
+#    报成"缺了会崩"），而假红和假绿一样会让真问题被忽略。
+MUST_SHIP_LIBS = {}
 
 # 「假装成 .so 的可执行程序」：它们**不是** dlopen 的库，而是要被 **exec** 的程序
 # —— Android 只允许从 nativeLibraryDir 执行文件，所以必须以 `lib*.so` 的名字打包
@@ -450,8 +454,17 @@ MUST_SHIP_EXEC_SO = {
 # 却占压缩后约 14.9 MiB / 未压缩 40.8 MiB。**要恢复**的话见
 # `app/android/app/build.gradle.kts` 里那段说明（三段都要做）。
 #
-# 有意保留（0.45 决定），只报信息、不算失败。
+# 有意**不随包**（或有意保留）的引擎库：只报信息、不算失败。
+#
+# * 本地大模型四件套（LiteRT-LM）：2026-10-14 用户决定整个拿掉，安装包少 11.2 MiB。
+#   代码与 AAR 依赖**原样保留**（`LiteRtLmBridge.kt` 还在，且 native 失败被
+#   `catch (Throwable)` 接住）—— 要恢复只需删掉 `build.gradle.kts` 里那四行
+#   `excludes`，重出包即可，**不用改任何代码**。
 PARKED_ENGINE_LIBS = {
+    "libLiteRtClGlAccelerator.so": "LiteRT OpenCL/GL 加速器（本地大模型已按用户决定拿掉）",
+    "libLiteRtCompilerPlugin_Qualcomm.so": "LiteRT Qualcomm 编译插件（同上）",
+    "libLiteRtDispatch_Qualcomm.so": "LiteRT Qualcomm 调度（同上）",
+    "liblitertlm_jni.so": "LiteRT-LM JNI 桥（同上）",
 }
 
 
@@ -511,7 +524,8 @@ def check_engines(apk: str, repo: str, results: list) -> None:
     else:
         results.append(
             ("ok", "引擎检查：运行时 dlopen 的库必须都在",
-             f"{len(must)} 个（LiteRT 加速器/Qualcomm 插件/JNI 桥 + ffmpeg/ffprobe）都在")
+             f"{len(must)} 个都在"
+             "（" + "、".join(sorted(must)) + "）")
         )
 
     # ②b ffmpeg/ffprobe 必须是 **AArch64** 的 ELF（放错了架构 = 装上也跑不起来）
@@ -541,7 +555,7 @@ def check_engines(apk: str, repo: str, results: list) -> None:
         size = sum(libs[k][0] for k in parked) / 1e6
         results.append(
             ("ok", "引擎检查：有意保留的引擎",
-             f"{'、'.join(parked)}（未压缩 {size:.1f} MB）—— 0.45 起从界面撤下但链路有意保留，"
+             f"{'、'.join(parked)}（未压缩 {size:.1f} MB）—— 按决策**刻意不随包**（不算失败），"
              f"要恢复只需去掉 ondevice_models_page 的那处过滤")
         )
 

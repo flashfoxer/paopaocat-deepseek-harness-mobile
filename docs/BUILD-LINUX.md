@@ -148,6 +148,43 @@ cp build/app/outputs/flutter-apk/app-release.apk \
 
 ---
 
+## 5.1 两个包：精简包（默认）与完整包（`DSH_ANDROID_INCLUDE_RUNTIME=1`）
+
+0.75 起**每次出包都要出两个**（同 versionCode、同签名，可互相覆盖）：
+
+| | 命令 | 给谁 | 包里带 `assets/dsh-runtime.zip`？ |
+|---|---|---|---|
+| 精简包 | `flutter build apk --release --target-platform android-arm64` | 应用内更新（手机里已有运行时） | ❌ |
+| 完整包 | `DSH_ANDROID_INCLUDE_RUNTIME=1 flutter build apk --release --target-platform android-arm64` | 全新安装 | ✅ |
+
+开关的实现见 `app/android/app/build.gradle.kts` 的 `sourceSets.main.assets.srcDirs`
+（`includeRuntime` 决定要不要把 `$DSH_ANDROID_NODE/app-assets` 挂上）。
+
+⚠️ 两个坑（2026-10-16 实测）：
+1. **`gradlew` 在 `android/` 下**，同步过来的副本**没有执行位** → 先 `chmod +x android/gradlew`；
+2. **`PUB_HOSTED_URL` 是 `https://pub.flutter-io.cn`**（不是 `storage.flutter-io.cn`，
+   写错的话 `flutter pub get` 会报 `could not find package flutter_lints`）；
+3. 切换 flavor 之前清一下 `build/app/intermediates/{assets,merged_native_libs,stripped_native_libs}`，
+   免得 Gradle 的增量判断把上一次的原生库留在包里。
+
+## 5.2 ⚠️ `$DSH_ANDROID_NODE/jnilibs` 里有两个来源，重建时**别把它们弄丢**
+
+`jniLibs.srcDirs` 收两个目录的内容：
+
+* **Termux 的 node 与依赖库**（libnode / libicu* / libcrypto3…）—— 由
+  `install/fetch-termux-deps.mjs` + `install/normalize-runtime-libs.mjs` 重新生成；
+* **ffmpeg 那一套 10 个 `.so`**（libffmpeg / libffprobe / libav* / libsw* / libpostproc）
+  —— 由 `install/build-ffmpeg-android.sh` 编出来**手工放进去的**，**上面那两个脚本不会生成它们**。
+
+2026-10-16 就踩了这个坑：重建 `android-node` 之后 ffmpeg 那 10 个文件没了，
+于是 0.75 的 `20261015a`~`h` 全部**没有 ffmpeg**（口播 / 短剧 / 剪辑 / 配音在真机上 ENOENT），
+而 `libapp.so` 里的字符串、单测、`flutter analyze` **全部照过** —— 只有
+`python3 install/check-release.py`（只认包里的字节）能拦下来。
+
+所以：**重建构建目录后，务必跑一次 `check-release.py`**；持久副本放在
+`/root/办公/__migr/03-build-deps/android-node/jnilibs/`（与 node 依赖同处），
+丢了就从最近的 `dist/*.apk` 里取回（`unzip -j <apk> 'lib/arm64-v8a/libav*.so' …`）。
+
 ## 6. 交付前静态自检（本次全部通过）
 
 ```bash

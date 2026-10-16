@@ -25,6 +25,7 @@ import '../../state/model_store.dart';
 import '../../local/local_tts.dart';
 import '../../local/model_install.dart';
 import '../../data/library_store.dart' show resolveWorkspaceFromFilesDir;
+import '../widgets/dsh_panel.dart';
 import '../theme/dsh_tokens.dart';
 import '../session_start.dart';
 
@@ -1231,80 +1232,116 @@ class _MediaPageState extends State<MediaPage> {
   /// 用整行卡片而不是网格：窄屏（`narrow_layout_test` 覆盖的那些机型）上
   /// 两列网格会把标题挤成两行、还容易溢出；整行卡片横向永远不溢出。
   Widget _launcherView() {
+    // ⚠️ 用户 2026-10-16：「创作台那里项目太多，是不是也分类，用下拉菜单」。
+    //    之前这里有 **10 个入口平铺**（5 个生成模式 + 剪辑 / APP界面设计台 / 画图表 /
+    //    小说改游戏 / AI 角色），一屏放不下也不好找。现在按**"你要做的事"**分成 4 组，
+    //    组用 `DshGroupSection`（就是设置页那套折叠分组：点标题展开/收起），
+    //    **默认全部收起** —— 先让用户看见"有哪几类"，要找什么再展开哪一类。
+    //
+    //    分组口径（按用途，不按实现）：
+    //      · 生成图像与视频 = 产出一张图/一段视频（含修图）；
+    //      · 口播与短剧     = 带声音/带剧情的整活；
+    //      · 工具           = 处理已有素材、或画东西；
+    //      · 创作           = 一条完整的创作流程。
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 20),
       children: <Widget>[
         Text(
           context.tr('选一个功能开始。做完点左上角就能回到这里。'),
-          style: TextStyle(color: DshColors.textFaint, fontSize: 11.5, height: 1.5),
+          style:
+              TextStyle(color: DshColors.textFaint, fontSize: 11.5, height: 1.5),
         ),
         const SizedBox(height: 10),
-        for (final m in _modes)
-          _workbenchEntry(
-            icon: m.icon,
-            title: _modeLabel(context, m.value),
-            hint: _modeHint(context, m.value),
-            onTap: () => _openFunction(m.value),
-          ),
-        const SizedBox(height: 2),
-        // 2026-10-12（用户问「OpenCut 能不能复刻到创作台」）：**剪辑**。
-        // 结论是"那种多轨时间线剪辑器搬不动"，但它的**最小可用子集**能真跑 ——
-        // 用随包的 ffmpeg 剪一段/拼接/抽音频/抽一帧/压小（见 ClipPage 的说明）。
-        // 它是**编辑已有素材**，与上面六个"生成模式"是两回事，所以单独一格。
-        _workbenchEntry(
-          icon: Icons.content_cut_outlined,
-          title: context.tr('剪辑'),
-          hint: context.tr('手上已有视频：剪一段 / 拼接 / 抽音频 / 抽一帧 / 压小（本机跑，不联网）'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => ClipPage(runtime: widget.runtime),
-            ),
-          ),
+        DshGroupSection(
+          title: context.tr('生成图像与视频'),
+          children: <Widget>[
+            for (final m in _modes.where((m) => m.value <= 2))
+              _workbenchEntry(
+                icon: m.icon,
+                title: _modeLabel(context, m.value),
+                hint: _modeHint(context, m.value),
+                onTap: () => _openFunction(m.value),
+              ),
+          ],
         ),
-        // 2026-10-16（用户：「做好放到创作台」）：**APP界面设计台**。
-        // 泡泡猫设计工作站的手机版（基于 m3e-canvas，MIT）—— 产物随包（约 3 MB），
-        // 由 App 进程内的 loopback 静态服务 + WebView 打开（不用容器、不联网）。
-        // 它自带画布 + 手势 + 底部弹层，所以在竖屏下需要**整屏** → 是全屏页而不是标签。
-        _workbenchEntry(
-          icon: Icons.design_services_outlined,
-          title: context.tr('APP界面设计台'),
-          hint: context.tr('在手机上画界面草图（Material 3），导出成给 AI 的描述（随包自带，打开即用）'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => StudioPage(runtime: widget.runtime),
-            ),
-          ),
+        DshGroupSection(
+          title: context.tr('口播与短剧'),
+          children: <Widget>[
+            for (final m in _modes.where((m) => m.value >= 3))
+              _workbenchEntry(
+                icon: m.icon,
+                title: _modeLabel(context, m.value),
+                hint: _modeHint(context, m.value),
+                onTap: () => _openFunction(m.value),
+              ),
+          ],
         ),
-        // 2026-10-12（用户「也可以」）：**创作**这一条线先接「小说改游戏」。
-        // 它不是一个"生成模式"，而是一整条七阶段的改编流程 —— 所以点进去是
-        // 说明页 + 可复制的起始指令，而不是又一个表单（见 CreationGuidePage 的说明）。
-        _workbenchEntry(
-          icon: Icons.schema_outlined,
-          title: context.tr('画图表'),
-          hint: context.tr('架构图 / 流程图 / 时序图 / ER 图 / 时间线…（44 种，出自包含网页）'),
-          onTap: () => _showDiagramSheet(),
-        ),
-        _workbenchEntry(
-          icon: Icons.auto_stories_outlined,
-          title: context.tr('创作 · 小说改游戏'),
-          hint: context.tr('把一本小说改编成能在浏览器里玩的游戏（七个阶段）'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => CreationGuidePage(onStart: widget.onStartPrompt),
+        DshGroupSection(
+          title: context.tr('工具'),
+          children: <Widget>[
+            // 2026-10-12（用户问「OpenCut 能不能复刻到创作台」）：**剪辑**。
+            // 那种多轨时间线剪辑器搬不动，但它的**最小可用子集**能真跑 ——
+            // 用随包的 ffmpeg 剪一段/拼接/抽音频/抽一帧/压小（见 ClipPage 的说明）。
+            _workbenchEntry(
+              icon: Icons.content_cut_outlined,
+              title: context.tr('剪辑'),
+              hint: context.tr(
+                  '手上已有视频：剪一段 / 拼接 / 抽音频 / 抽一帧 / 压小（本机跑，不联网）'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => ClipPage(runtime: widget.runtime),
+                ),
+              ),
             ),
-          ),
-        ),
-        // 2026-10-12（用户「做成创作台里的一格」）：**AI 角色（实验）** ——
-        // 让模型演一个角色、而且有目标与结束条件（不是"和 AI 聊天"）。
-        _workbenchEntry(
-          icon: Icons.theater_comedy_outlined,
-          title: context.tr('AI 角色（实验）'),
-          hint: context.tr('让模型演一个角色，你跟他打交道 —— 每局都有目标和结束条件'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => AiRolePage(onStart: widget.onStartPrompt),
+            // 2026-10-16（用户：「做好放到创作台」）：**APP界面设计台**。
+            // 基于 m3e-canvas（MIT）的手机适配版；产物与字体都随包，
+            // 由 App 进程内的 loopback 静态服务 + WebView 打开（不用容器）。
+            _workbenchEntry(
+              icon: Icons.design_services_outlined,
+              title: context.tr('APP界面设计台'),
+              hint: context.tr(
+                  '在手机上画界面草图（Material 3），导出成给 AI 的描述（随包自带，打开即用）'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => StudioPage(runtime: widget.runtime),
+                ),
+              ),
             ),
-          ),
+            _workbenchEntry(
+              icon: Icons.schema_outlined,
+              title: context.tr('画图表'),
+              hint: context.tr('架构图 / 流程图 / 时序图 / ER 图 / 时间线…（44 种，出自包含网页）'),
+              onTap: () => _showDiagramSheet(),
+            ),
+          ],
+        ),
+        DshGroupSection(
+          title: context.tr('创作'),
+          children: <Widget>[
+            // 2026-10-12（用户「也可以」）：**创作**这条线先接「小说改游戏」——
+            // 它不是"生成模式"，而是一整条七阶段改编流程（点进去是说明页 + 起始指令）。
+            _workbenchEntry(
+              icon: Icons.auto_stories_outlined,
+              title: context.tr('创作 · 小说改游戏'),
+              hint: context.tr('把一本小说改编成能在浏览器里玩的游戏（七个阶段）'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => CreationGuidePage(onStart: widget.onStartPrompt),
+                ),
+              ),
+            ),
+            // 2026-10-12（用户「做成创作台里的一格」）：**AI 角色（实验）**。
+            _workbenchEntry(
+              icon: Icons.theater_comedy_outlined,
+              title: context.tr('AI 角色（实验）'),
+              hint: context.tr('让模型演一个角色，你跟他打交道 —— 每局都有目标和结束条件'),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => AiRolePage(onStart: widget.onStartPrompt),
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );

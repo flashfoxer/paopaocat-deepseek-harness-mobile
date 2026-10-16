@@ -19,6 +19,38 @@ import 'package:dsh_mobile/state/model_store.dart';
 import 'package:dsh_mobile/ui/pages/media_page.dart';
 import 'package:dsh_mobile/ui/theme/dsh_tokens.dart';
 
+/// 创作台的入口现在按 **4 组折叠**（用户 2026-10-16：「创作台那里项目太多，
+/// 是不是也分类，用下拉菜单」）—— 收起时入口文字不在树里，直接找会找不到。
+/// 这个 helper 负责把目标入口"弄出来"：**已经可见就直接返回**（幂等），
+/// 否则依次点开那几个组标题，一找到就停。
+///
+/// ⚠️ 为什么"找到就停"而不是一次点开全部：点标题是**切换**，已经展开的再点会收起 ——
+/// 所以只能按需点、且必须提前返回。
+Future<void> revealEntry(WidgetTester tester, String label) async {
+  if (find.text(label).evaluate().isNotEmpty) return;
+  for (final g in <String>['生成图像与视频', '口播与短剧', '工具', '创作']) {
+    final t = find.text(g);
+    if (t.evaluate().isEmpty) continue; // 不在入口屏（比如已经进了详情页）
+    await tester.tap(t);
+    await tester.pumpAndSettle();
+    if (find.text(label).evaluate().isNotEmpty) return;
+  }
+}
+
+/// 把创作台入口屏的 4 个组**全部展开**。
+///
+/// 给"测入口屏本身有什么"的用例用（入口现在按组折叠，收起时字不在树里）。
+/// ⚠️ 入口屏刚 pump 出来时 4 组都是收起的，所以这里"每格点一次"就是展开；
+/// 别在已经展开的页面上重复调（点标题是切换，会收起来）。
+Future<void> expandAllGroups(WidgetTester tester) async {
+  for (final g in <String>['生成图像与视频', '口播与短剧', '工具', '创作']) {
+    final t = find.text(g);
+    if (t.evaluate().isEmpty) continue;
+    await tester.tap(t);
+    await tester.pumpAndSettle();
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -68,6 +100,12 @@ void main() {
     // 2026-10-12（用户提议）：这一页现在**先给一屏功能入口**（创作台），
     // 点进去才是那个功能。默认帮调用方进「生图」—— 这样各条断言写的
     // "一进来就能看到生图的东西"仍然成立；要测入口屏本身的传 `enter: null`。
+
+    // 停在入口屏的用例（`enter: null`）关心的是"这里有什么入口"，不是折叠状态
+    // —— 而入口现在按组折叠（2026-10-16）→ 先全部展开，断言才有东西可找。
+    if (initialSeg == null && enter == null) {
+      await expandAllGroups(tester);
+    }
     if (initialSeg == null && enter != null) {
       // ⚠️ `pumpWidget` 对**同一类型**的 widget 会复用 State（例如一个测试里
       //    第二次 pump 只为改 refreshTick）—— 那时可能已经停在某个详情页，
@@ -76,6 +114,7 @@ void main() {
         await tester.tap(find.byTooltip('回创作台'));
         await tester.pumpAndSettle();
       }
+      await revealEntry(tester, enter);
       final entry = find.ancestor(
           of: find.text(enter), matching: find.byType(InkWell));
       expect(entry, findsWidgets, reason: '创作台上找不到入口「$enter」');
@@ -127,6 +166,7 @@ void main() {
         await tester.tap(back);
         await tester.pumpAndSettle();
       }
+      await revealEntry(tester, label);
       target = find.ancestor(
           of: find.text(label), matching: find.byType(InkWell));
     }
@@ -193,7 +233,10 @@ void main() {
     await tester.tap(find.byTooltip('回创作台'));
     await tester.pumpAndSettle();
     expect(find.text('创作台'), findsOneWidget);
-    expect(find.text('生视频'), findsOneWidget, reason: '回到入口屏，六个入口都在');
+    // ⚠️ 重新进到入口屏时**分组是收起的**（那是默认状态；入口按 4 组折叠后
+    //    这是它该有的样子）→ 断言内容之前先展开。
+    await expandAllGroups(tester);
+    expect(find.text('生视频'), findsOneWidget, reason: '回到入口屏，入口都在（展开后）');
   });
 
   testWidgets('生图页有输入框、清晰度与比例选项、生成按钮', (tester) async {

@@ -4023,5 +4023,20 @@
     "en": "No usable model yet. To start right now: in Settings → Models turn on “Free model (no key)” — no key, no cost. To use your own model (DeepSeek / Agnes …), fill in the address and API key and tap “Test and save”.",
     "ja": "使えるモデルがまだありません。すぐ使うなら：「設定 → モデル」で「無料モデル（Key 不要）」をオンに — Key も費用も不要です。自分のモデル（DeepSeek / Agnes など）を使うなら、アドレスと API Key を入力して「テストして保存」を押します。",
     "ko": "사용할 수 있는 모델이 아직 없습니다. 바로 쓰려면: '설정 → 모델'에서 '무료 모델(Key 불필요)'을 켜세요 — Key도 비용도 없습니다. 직접 쓰는 모델(DeepSeek / Agnes 등)을 쓰려면 주소와 API Key를 입력하고 '테스트 후 저장'을 누르세요."
+  },
+  "创作": {
+    "en": "Create",
+    "ja": "創作",
+    "ko": "창작"
+  },
+  "口播与短剧": {
+    "en": "Voice-over & short drama",
+    "ja": "ナレーションとショートドラマ",
+    "ko": "내레이션과 숏드라마"
+  },
+  "生成图像与视频": {
+    "en": "Images & video",
+    "ja": "画像と動画",
+    "ko": "이미지와 동영상"
   }
 }

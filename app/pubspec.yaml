@@ -62,13 +62,13 @@ flutter:
     # 「APP界面设计台」（创作台里的入口）：泡泡猫设计工作站（基于 m3e-canvas，MIT）的
     # **静态产物**（Next.js `output: export`）。字体也在这里（`fonts/`）。
     # ⚠️ Flutter 的 assets **不递归**：子目录必须逐个列，少一行手机上就白屏/图标消失。
-    #    下面这份清单由脚本枚举生成，`test/studio_assets_test.dart` 守着两边一致。
+    #    清单由脚本枚举生成，`test/studio_assets_test.dart` 守着两边一致。
     # 重新生成：cd /root/软件/m3e-canvas && npx next build && cp -r out/. <这里>
     - assets/studio/
     - assets/studio/404/
-    - assets/studio/_next/static/a4GQih8lrGXro9A_47oNf/
     - assets/studio/_next/static/chunks/
     - assets/studio/_next/static/media/
+    - assets/studio/_next/static/rexaG2S0zLQn--z9fjBst/
     - assets/studio/_not-found/
     - assets/studio/fonts/
     - assets/studio/fonts/material-symbols/

@@ -85,6 +85,15 @@ void main() {
       ));
       await tester.pump(const Duration(milliseconds: 50));
       expect(tester.takeException(), isNull, reason: '${w.toInt()}dp 下影视页溢出了');
+      // ⚠️ 创作台入口屏 2026-10-16 起按 4 组**折叠**（用户：「项目太多，是不是也分类，
+      //    用下拉菜单」）→ 收起时入口文字不在树里，所以断言"看得见"之前先把各组展开。
+      //    （页面刚 pump 出来时 4 组都是收起的，每格点一次即展开。）
+      for (final g in <String>['生成图像与视频', '口播与短剧', '工具', '创作']) {
+        final t = find.text(g);
+        if (t.evaluate().isEmpty) continue;
+        await tester.tap(t);
+        await tester.pumpAndSettle();
+      }
       // ⚠️ 关键断言：**各模式不仅要存在，还要真的落在屏幕里**。
       //
       // 只 `find.text` 是不够的 —— 横向滚动的 chip 行里，屏幕外的 chip 照样"存在"

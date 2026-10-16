@@ -31,7 +31,7 @@ class _ConstProbe extends StatelessWidget {
 
 void main() {
   group('三张表', () {
-    test('条目数一致，且规模对得上（1827 条界面文案）', () {
+    test('条目数一致，且规模对得上（1830 条界面文案）', () {
       // 994 这个数不是随手写的：2026-10-09 按审计 P0-11/P1-5 清过一轮漂移
       // （补 48 条漏翻 / 删 77 条陈旧 / 修 17 条换行错，三张表各自）。
       // 清理的依据是 `install/i18n/check-tables.mjs` —— 那个脚本以前**不存在**，
@@ -158,7 +158,9 @@ void main() {
       // ⚠️ 2026-10-16 1822 → 1821：去掉了「测试并保存」那条"只登记前 N 个"的说明
       //    （用户要求所有模型全部获取，截断逻辑与那句文案一起删了）。
       // ⚠️ 2026-10-16 1821 → 1827：「设计画布」（创作台入口）新增 6 条文案。
-      expect(kEnTable.length, 1827);
+      // ⚠️ 2026-10-16 1827 → 1830：创作台入口屏分类，新增 3 条分组标题
+      //    （生成图像与视频 / 口播与短剧 / 创作；「工具」原来就有）。
+      expect(kEnTable.length, 1830);
       expect(kJaTable.length, kEnTable.length);
       expect(kKoTable.length, kEnTable.length);
     });

@@ -111,12 +111,34 @@
 
 ---
 
-## 六、发布记录
+## 六、发布记录（2026-10-16 实测）
 
-* tag：`v0.76` · Release 附件：完整包 / 精简包 / `dsh-runtime.zip`
-* `update.json`：version `0.76` / versionCode `76` / 新体积与 sha256（含 `urlFull` / `sizeFull` / `sha256Full`）
-* `runtime.json`：version `1` → **`2`**（指向本版 Release 里的新运行环境）
-* 回查：raw 主源 / jsDelivr 兜底 / `runtime.json` 三处都读到新版本；GitHub API 复核附件字节数与清单**逐字节一致**（见 `docs/CHANGES-2026-10-16.md` §7）
+**推仓库**（四步流程第 ④ 步，用户批准后执行）：
+
+| 步骤 | 结果 |
+|---|---|
+| `git push origin main` | `5026d44..2a406cd` ✓（**快进**，保留了全部提交历史） |
+| tag | **`v0.76`** ✓ |
+| GitHub Release | [v0.76](https://github.com/zmm863-commits/paopaocat-deepseek-harness-mobile/releases/tag/v0.76) · 标题「**泡泡猫 DeepSeek Harness（DSH）手机版 v0.76**」· 正文即本文 · **三个附件**（完整包 / 精简包 / `dsh-runtime.zip`） |
+| 仓库简介 | 一起改成全称（首次出现写「DeepSeek Harness（DSH）」） |
+
+**回查（三源 + 附件，全部实测）**：
+
+| 检查 | 结果 |
+|---|---|
+| raw 主源 `update.json` | **0.76** · versionCode 76 · size 71,419,906 · sha256 `75d9bffb…` ✓ |
+| jsDelivr 兜底 `update.json` | **0.76** ✓（没有吃到 12 小时缓存） |
+| `runtime.json` | **version 2** · 33,705,871 · sha256 `a0530f5b…` ✓ |
+| GitHub API 三个附件字节数 | 与 `update.json` / `runtime.json` **逐字节一致**（102,983,262 / 71,419,906 / 33,705,871） |
+| 三条下载直链 | 都 **HTTP 206**（支持断点续传），各取前 1 KB 成功；APK 与 runtime 的前 4 字节都是 **`50 4b 03 04`**（真 ZIP，不是错误页） |
+
+> ⚠️ **本机的一个网络坑（记下来，下次直接照做）**：`github.com` 解析到的 IP（20.205.243.166）
+> 当时**连不上**（134 秒超时），而 `api.github.com`、`raw.githubusercontent.com`、
+> `uploads.github.com` 都通。所以：**push/tag 通过临时给 `github.com` 指一个可达的 GitHub IP
+> （`/etc/hosts` 里写 `140.82.112.3 github.com`）完成**，Release 与附件走 **REST API + uploads.github.com**。
+> 用完整条链路后把 `/etc/hosts` 的那行**撤掉**。
+
+---
 
 > 技术侧逐条依据与验证见 [`CHANGES-2026-10-16.md`](CHANGES-2026-10-16.md)（本轮）与
 > [`CHANGES-2026-10-15.md`](CHANGES-2026-10-15.md)（0.75+1）；

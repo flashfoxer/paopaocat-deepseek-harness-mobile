@@ -59,6 +59,24 @@ flutter:
     #    由 test/toolbox_assets_test.dart 守着（磁盘上有的必须都在包里）。
     - assets/toolbox/vendor/seek-bzip/
     - assets/toolbox/vendor/seek-bzip/lib/
+    # 「设计画布」（创作台里的入口）：泡泡猫设计工作站（基于 m3e-canvas，MIT）的
+    # **静态产物**（Next.js `output: export`，约 3 MB）。
+    # ⚠️ 必须**整体随包**：它是离线工具，用户在手机上画草图时不该等下载。
+    #    打开方式见 `local/studio_server.dart`（解包到私有目录 + 进程内 loopback 服务 + WebView）。
+    #
+    # ⚠️⚠️ Flutter 的 assets **不递归** —— 声明一个目录只带该目录下的文件，子目录必须逐个列。
+    #      少一行手机上就少一批文件（表现为**白屏**），而本机测试读磁盘、看不出来。
+    #      下面这份清单由脚本枚举生成（`find assets/studio -type f -printf '%h\n' | sort -u`），
+    #      并由 `test/studio_assets_test.dart` 守着：磁盘上有的必须都在这里。
+    # 重新生成产物：cd /root/软件/m3e-canvas && npx next build && cp -r out/. <这里>
+    - assets/studio/
+    - assets/studio/404/
+    - assets/studio/_next/static/WSXUoDAuAnv0IwmZecDlP/
+    - assets/studio/_next/static/chunks/
+    - assets/studio/_next/static/media/
+    - assets/studio/_not-found/
+    - assets/studio/icons/
+    - assets/studio/logos/
     # 随包内置技能：App 启动时由 `data/builtin_skills.dart` 装到
     # `<DSH_HOME>/skills/<name>/SKILL.md`（DSH 的用户级技能根）。
     # 首页 12 条「内置会话」各自绑定这里的一个技能 —— 技能不在设备上，

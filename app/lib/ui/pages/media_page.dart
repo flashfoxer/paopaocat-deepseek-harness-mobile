@@ -19,6 +19,7 @@ import '../../local/media_service.dart';
 import '../../state/app_settings.dart';
 import 'ai_role_page.dart';
 import 'clip_page.dart';
+import 'studio_page.dart';
 import 'creation_guide_page.dart';
 import '../../state/model_store.dart';
 import '../../local/local_tts.dart';
@@ -1257,6 +1258,20 @@ class _MediaPageState extends State<MediaPage> {
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
               builder: (_) => ClipPage(runtime: widget.runtime),
+            ),
+          ),
+        ),
+        // 2026-10-16（用户：「做好放到创作台」）：**APP界面设计台**。
+        // 泡泡猫设计工作站的手机版（基于 m3e-canvas，MIT）—— 产物随包（约 3 MB），
+        // 由 App 进程内的 loopback 静态服务 + WebView 打开（不用容器、不联网）。
+        // 它自带画布 + 手势 + 底部弹层，所以在竖屏下需要**整屏** → 是全屏页而不是标签。
+        _workbenchEntry(
+          icon: Icons.design_services_outlined,
+          title: context.tr('APP界面设计台'),
+          hint: context.tr('在手机上画界面草图（Material 3），导出成给 AI 的描述（随包自带，打开即用）'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => StudioPage(runtime: widget.runtime),
             ),
           ),
         ),

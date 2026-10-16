@@ -3958,5 +3958,55 @@
     "en": "There's an easter egg in Settings.",
     "ja": "設定に隠し要素があります。",
     "ko": "설정에 이스터에그가 있어요."
+  },
+  "在手机上画界面草图（Material 3），导出成给 AI 的描述（随包自带，打开即用）": {
+    "en": "Sketch UI screens (Material 3) on your phone and export a prompt for AI (bundled, ready to use)",
+    "ja": "スマホで UI スケッチ（Material 3）を描き、AI 向けの説明文に書き出せます（同梱・すぐ使えます）",
+    "ko": "휴대폰에서 UI 스케치(Material 3)를 그리고 AI용 설명으로 내보냅니다(동봉, 바로 사용)"
+  },
+  "如果提示\"安装包里没有 assets/studio\"，说明这一版没把设计画布打进去，需要重新构建 App。": {
+    "en": "If it says \"assets/studio is missing from the package\", this build did not bundle the design canvas — the app has to be rebuilt.",
+    "ja": "「インストールパッケージに assets/studio がない」と表示される場合、この版にはデザインキャンバスが含まれていません。アプリを再ビルドしてください。",
+    "ko": "\"설치 패키지에 assets/studio가 없습니다\"라고 나오면 이 빌드에 디자인 캔버스가 포함되지 않은 것이므로 앱을 다시 빌드해야 합니다."
+  },
+  "正在准备设计画布（首次会解包一次，之后直接打开）…": {
+    "en": "Preparing the design canvas (it unpacks once the first time, then opens straight away)…",
+    "ja": "デザインキャンバスを準備しています（初回のみ展開し、次回からはすぐ開きます）…",
+    "ko": "디자인 캔버스를 준비하는 중입니다(처음 한 번만 풀면 다음부터는 바로 열립니다)…"
+  },
+  "设计画布": {
+    "en": "Design canvas",
+    "ja": "デザインキャンバス",
+    "ko": "디자인 캔버스"
+  },
+  "设计画布打不开：{0}": {
+    "en": "The design canvas won't open: {0}",
+    "ja": "デザインキャンバスを開けません：{0}",
+    "ko": "디자인 캔버스를 열 수 없습니다: {0}"
+  },
+  "重新加载": {
+    "en": "Reload",
+    "ja": "再読み込み",
+    "ko": "새로 고침"
+  },
+  "APP界面设计台": {
+    "en": "App UI design studio",
+    "ja": "アプリUIデザインスタジオ",
+    "ko": "앱 UI 디자인 스튜디오"
+  },
+  "APP界面设计台打不开：{0}": {
+    "en": "The App UI design studio won't open: {0}",
+    "ja": "アプリUIデザインスタジオを開けません：{0}",
+    "ko": "앱 UI 디자인 스튜디오를 열 수 없습니다: {0}"
+  },
+  "如果提示\"安装包里没有 assets/studio\"，说明这一版没把APP界面设计台打进去，需要重新构建 App。": {
+    "en": "If it says \"assets/studio is missing from the package\", this build did not bundle the App UI design studio — the app has to be rebuilt.",
+    "ja": "「インストールパッケージに assets/studio がない」と表示される場合、この版にはアプリUIデザインスタジオが含まれていません。アプリを再ビルドしてください。",
+    "ko": "\"설치 패키지에 assets/studio가 없습니다\"라고 나오면 이 빌드에 앱 UI 디자인 스튜디오가 포함되지 않은 것이므로 앱을 다시 빌드해야 합니다."
+  },
+  "正在准备 APP界面设计台（首次会解包一次，之后直接打开）…": {
+    "en": "Preparing the App UI design studio (it unpacks once the first time, then opens straight away)…",
+    "ja": "アプリUIデザインスタジオを準備しています（初回のみ展開し、次回からはすぐ開きます）…",
+    "ko": "앱 UI 디자인 스튜디오를 준비하는 중입니다(처음 한 번만 풀면 다음부터는 바로 열립니다)…"
   }
 }

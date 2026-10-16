@@ -59,22 +59,29 @@ flutter:
     #    由 test/toolbox_assets_test.dart 守着（磁盘上有的必须都在包里）。
     - assets/toolbox/vendor/seek-bzip/
     - assets/toolbox/vendor/seek-bzip/lib/
-    # 「设计画布」（创作台里的入口）：泡泡猫设计工作站（基于 m3e-canvas，MIT）的
-    # **静态产物**（Next.js `output: export`，约 3 MB）。
+    # 「APP界面设计台」（创作台里的入口）：泡泡猫设计工作站（基于 m3e-canvas，MIT）的
+    # **静态产物**（Next.js `output: export`，约 4.8 MB / 57 个文件）。
     # ⚠️ 必须**整体随包**：它是离线工具，用户在手机上画草图时不该等下载。
     #    打开方式见 `local/studio_server.dart`（解包到私有目录 + 进程内 loopback 服务 + WebView）。
+    # 字体也在里面（`fonts/`）：Roboto 正文 + **Material Symbols Rounded 图标字体** ——
+    #    后者不本地化的话，国内网络/离线时图标会全变成方块（工具靠它画所有图标）。
     #
     # ⚠️⚠️ Flutter 的 assets **不递归** —— 声明一个目录只带该目录下的文件，子目录必须逐个列。
-    #      少一行手机上就少一批文件（表现为**白屏**），而本机测试读磁盘、看不出来。
+    #      少一行手机上就少一批文件（表现为**白屏**或**图标消失**），而本机测试读磁盘、看不出来。
     #      下面这份清单由脚本枚举生成（`find assets/studio -type f -printf '%h\n' | sort -u`），
     #      并由 `test/studio_assets_test.dart` 守着：磁盘上有的必须都在这里。
     # 重新生成产物：cd /root/软件/m3e-canvas && npx next build && cp -r out/. <这里>
     - assets/studio/
     - assets/studio/404/
-    - assets/studio/_next/static/WSXUoDAuAnv0IwmZecDlP/
     - assets/studio/_next/static/chunks/
     - assets/studio/_next/static/media/
+    - assets/studio/_next/static/npMYm5HLmHJhWqfuIBWCH/
     - assets/studio/_not-found/
+    - assets/studio/fonts/
+    - assets/studio/fonts/material-symbols/
+    - assets/studio/fonts/roboto/
+    - assets/studio/fonts/roboto-flex/
+    - assets/studio/fonts/roboto-serif/
     - assets/studio/icons/
     - assets/studio/logos/
     # 随包内置技能：App 启动时由 `data/builtin_skills.dart` 装到

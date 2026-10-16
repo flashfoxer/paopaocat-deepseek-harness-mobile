@@ -12,13 +12,30 @@
 /// 用户 2026-10-16 原话：「所有模型全部可以获取，而且**带 free 字样的放到前边**」。
 library;
 
+/// **免 Key / 免费通道**的厂家 id。
+///
+/// 这些通道里出来的模型**全都是免费的**，哪怕名字里一个 `free` 都没有 ——
+/// 真实例子：zen 通道的 `big-pickle`（它出现在那个"只列免费模型"的 `/v1/models` 里，
+/// 2026-10-16 实测）。只看名字里的 `free` 会把它排到最后，与"免费的放前面"正好相反。
+const Set<String> kFreeChannelProviders = <String>{'zen', 'polli'};
+
 /// 这个模型算不算"免费档"。
 ///
-/// [id] 与 [name] **两处都看**、不分大小写：有的厂家把 free 写进 id
-/// （`mimo-v2.6-flash-free`），有的写在显示名（`MiMo Free` / `Muse Spark (free)`）。
-/// 只看 id 会漏掉第二种，只看 name 会漏掉第一种。
+/// 判据有三条，命中任一即算（**从强到弱**）：
+///   1. **来自免 Key 通道**（[kFreeChannelProviders]，id 形如 `zen/big-pickle`）——
+///      最可靠：那个通道里没有收费模型；
+///   2. id 里含 `free`（`mimo-v2.6-flash-free`）；
+///   3. 显示名里含 `free`（`MiMo Free` / `Muse Spark (free)`）。
+///
+/// 为什么三条都要：只看名字会漏掉 `big-pickle` 这种；只看 id 会漏掉名字里才写的；
+/// 只看通道则漏掉用户自己配的"xxx-free"厂家。
 bool looksFreeModel(String id, [String? name]) {
-  if (id.toLowerCase().contains('free')) return true;
+  final lower = id.toLowerCase();
+  final slash = lower.indexOf('/');
+  if (slash > 0 && kFreeChannelProviders.contains(lower.substring(0, slash))) {
+    return true;
+  }
+  if (lower.contains('free')) return true;
   final n = name?.toLowerCase() ?? '';
   return n.contains('free');
 }

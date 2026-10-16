@@ -4118,5 +4118,10 @@
     "en": "vision",
     "ja": "画像対応",
     "ko": "이미지 인식"
+  },
+  "这条通道用不了的时候才需要它：点一次自检，它会告诉你到底是哪种问题（网络不通 / 被上游拒绝 / 模型名退役 / Key 失效 / 限流），并可以把结论一键发给开发者。": {
+    "en": "Only needed when this channel stops working: run the self-check once and it tells you which kind of problem it is (no network / rejected by upstream / model name retired / invalid key / rate limited), and you can send the findings to the developer in one tap.",
+    "ja": "このチャンネルが使えないときにだけ必要です：セルフチェックを 1 回実行すると、どの種類の問題か（ネットワーク不通 / 上流に拒否 / モデル名の廃止 / Key 無効 / レート制限）を教えてくれ、結果をワンタップで開発者に送れます。",
+    "ko": "이 채널이 안 될 때만 필요합니다: 자체 점검을 한 번 실행하면 어떤 종류의 문제인지(네트워크 불통 / 상류 거부 / 모델명 폐기 / Key 무효 / 속도 제한) 알려주고, 결과를 한 번에 개발자에게 보낼 수 있습니다."
   }
 }

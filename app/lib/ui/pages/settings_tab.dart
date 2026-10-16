@@ -68,6 +68,12 @@ import '../../i18n/dsh_i18n.dart';
 /// "展开、点模型进池、落盘、overlay 里出现 `rotate` 这个厂家"，
 /// **没有**在真机上制造一次 429 去验证"真的会切换下一个成员"
 /// （那需要能稳定返回 429 的上游，模拟器上做不到）。
+
+/// 给**文件级**函数用的一句话提示（`SettingsTab._toast` 是实例方法，顶层调不到）。
+void _snack(BuildContext context, String msg) {
+  ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(msg)));
+}
+
 class SettingsTab extends StatefulWidget {
   const SettingsTab({
     super.key,
@@ -922,38 +928,7 @@ class _SettingsTabState extends State<SettingsTab> {
   /// 「发给开发者」= 先把每一条结论写进**诊断日志**（报告里就有了），
   /// 再生成报告文件并拉起系统分享面板 —— 复用「分享运行日志」同一条链路
   /// （`DiagnosticsLog.writeToFile` + `DshHost.shareFile`），不新造轮子。
-  Future<void> _runSelfCheck() async {
-    final checks = await showModalBottomSheet<List<ChannelCheck>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: DshColors.surfaceStrong,
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(DshMetrics.radius(18))),
-      ),
-      builder: (ctx) => _SelfCheckSheet(settings: widget.appSettings),
-    );
-    if (checks == null || !mounted) return;
-    for (final c in checks) {
-      DiagnosticsLog.add('selfcheck', c.toLogLine());
-    }
-    final path = await DiagnosticsLog.writeToFile(
-      headerLines: <String>[
-        '# 本文件由 App 内「通道自检」一键生成（分类结论见 selfcheck 行）',
-      ],
-      prefix: 'dsh-selfcheck',
-    );
-    if (!mounted) return;
-    if (path == null) {
-      _toast(context.tr('生成报告失败（运行日志还没初始化）。'));
-      return;
-    }
-    await DshHost.shareFile(path,
-        subject: context.tr('泡泡猫 DSH 通道自检报告'));
-    if (!mounted) return;
-    _toast(context.tr(
-        '自检结果已写进运行日志并生成报告 —— 在分享面板里选一个应用发给开发者即可（报告里没有 Key）。'));
-  }
+
 
   Widget _aboutSection(BuildContext context, AppSettings settings, DshRuntime runtime) {
     return Column(
@@ -1039,28 +1014,6 @@ class _SettingsTabState extends State<SettingsTab> {
         //
         // ⚠️ 这里**故意不用 `const`**：const 出来的组件实例在换肤（浅色/深色）时会被
         // Flutter 原样复用、跳过重建，颜色就不会刷新 —— 本项目多处踩过这个坑。
-        // ── 通道自检（用户 2026-10-16 提的「探查机制」第①层）──
-        // 各通道跑一次最小请求，把失败**按状态码分类**成人话（网络 / 被拒 403 /
-        // 名字退役 404 / Key 失效 401 / 限流…），然后可以**一键发给开发者**。
-        // 放在「导出运行日志」上面：先自检拿到结论，再决定要不要发日志。
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              child: Text(
-                context.tr(
-                    '模型用不了时先跑一次自检：它会逐个通道试一遍，告诉你到底是哪种问题（网络不通 / 被上游拒绝 / 模型名退役 / Key 失效 / 限流）。'),
-                style: TextStyle(
-                    color: DshColors.textFaint, fontSize: 11, height: 1.5),
-              ),
-            ),
-            const SizedBox(width: 8),
-            OutlinedButton(
-              onPressed: () => unawaited(_runSelfCheck()),
-              child: Text(context.tr('通道自检')),
-            ),
-          ],
-        ),
         const SizedBox(height: 12),
         // ignore: prefer_const_constructors
         SendLogButton(),
@@ -2493,6 +2446,31 @@ class _ZenChannelBlockState extends State<_ZenChannelBlock> {
               '这条 Zen 通道自 2026-10-13/14 起被上游反复收紧，现在多半是失效状态，'
               '留在这里只是"万一上游又开了"。'),
           style: TextStyle(color: DshColors.textDim, fontSize: 12, height: 1.5),
+        ),
+        const SizedBox(height: 10),
+        // ── 「通道自检」放在**这条通道自己的设置里**（用户 2026-10-16 指出的位置问题）──
+        // 原来我把它放在「关于」里，那是错的：Zen 是个**彩蛋通道**（默认关、解锁才看得到），
+        // 没解锁的用户在「关于」里看到"通道自检"根本不知所云。放在这里，上下文自洽：
+        // 它就在讲这条通道，而这条通道正是最可能失效的那条。
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                context.tr('这条通道用不了的时候才需要它：点一次自检，它会告诉你到底是哪种问题'
+                    '（网络不通 / 被上游拒绝 / 模型名退役 / Key 失效 / 限流），'
+                    '并可以把结论一键发给开发者。'),
+                style: TextStyle(
+                    color: DshColors.textFaint, fontSize: 11, height: 1.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () => unawaited(
+                  _runSelfCheckFlow(context, widget.settings)),
+              child: Text(context.tr('通道自检')),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         // ⚠️ 风险说明：不能省。这是把"随时可能失效、且属于绕过上游限制"的能力
@@ -4106,3 +4084,43 @@ class _SelfCheckSheetState extends State<_SelfCheckSheet> {
     );
   }
 }
+
+/// 「通道自检」的完整流程（**文件级函数**：`SettingsTab` 与 Zen 通道块都要能调它）。
+///
+/// ⚠️ 它必须放在类外 —— 放在 `_SettingsTabState` 里的话，Zen 块（另一个 State）
+/// 根本看不到它（2026-10-16 实际踩到：`undefined_method` + `unused_element`）。
+/// 也因此这里用 `context.mounted` 而不是 `mounted`。
+Future<void> _runSelfCheckFlow(BuildContext context, AppSettings settings) async {
+    final checks = await showModalBottomSheet<List<ChannelCheck>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DshColors.surfaceStrong,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(DshMetrics.radius(18))),
+      ),
+      builder: (ctx) => _SelfCheckSheet(settings: settings),
+    );
+    if (checks == null || !context.mounted) return;
+    for (final c in checks) {
+      DiagnosticsLog.add('selfcheck', c.toLogLine());
+    }
+    final path = await DiagnosticsLog.writeToFile(
+      headerLines: <String>[
+        '# 本文件由 App 内「通道自检」一键生成（分类结论见 selfcheck 行）',
+      ],
+      prefix: 'dsh-selfcheck',
+    );
+    if (!context.mounted) return;
+    if (path == null) {
+      _snack(context, context.tr('生成报告失败（运行日志还没初始化）。'));
+      return;
+    }
+    await DshHost.shareFile(path,
+        subject: context.tr('泡泡猫 DSH 通道自检报告'));
+    if (!context.mounted) return;
+    _snack(
+        context,
+        context.tr(
+            '自检结果已写进运行日志并生成报告 —— 在分享面板里选一个应用发给开发者即可（报告里没有 Key）。'));
+  }

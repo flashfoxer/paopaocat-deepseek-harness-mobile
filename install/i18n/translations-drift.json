@@ -4053,5 +4053,70 @@
     "en": "This session has used about {0} of its context (estimate). The long-session assistant can carry the key points into a new window so the conversation continues without a break.",
     "ja": "このセッションはコンテキストを約 {0} 使っています（推定）。「長いセッションの助手」を使うと、要点を新しいウィンドウに引き継いで会話を続けられます。",
     "ko": "이 세션은 컨텍스트를 약 {0} 사용했습니다(추정). '긴 세션 도우미'를 쓰면 핵심 내용을 새 창으로 가져가 대화를 끊김 없이 이어갈 수 있습니다."
+  },
+  "一键发给开发者": {
+    "en": "Send to developer",
+    "ja": "開発者に送る",
+    "ko": "개발자에게 보내기"
+  },
+  "各通道只发一次最小的读取请求：不写任何东西、不上传任何内容。": {
+    "en": "Each channel gets one minimal read request: nothing is written, nothing is uploaded.",
+    "ja": "各チャンネルに最小の読み取りリクエストを 1 回だけ送ります：何も書き込まず、何もアップロードしません。",
+    "ko": "각 채널에 최소한의 읽기 요청을 한 번만 보냅니다: 아무것도 쓰지 않고, 아무것도 업로드하지 않습니다."
+  },
+  "各通道都是正常的。": {
+    "en": "All channels are healthy.",
+    "ja": "各チャンネルとも正常です。",
+    "ko": "모든 채널이 정상입니다."
+  },
+  "有 {0} 条不正常 —— 报告里会带上它们的分类结论。": {
+    "en": "{0} of them are not healthy — the report includes their classification.",
+    "ja": "{0} 件が正常ではありません — レポートに分類結果が含まれます。",
+    "ko": "{0}개가 정상이 아닙니다 — 보고서에 분류 결과가 포함됩니다."
+  },
+  "模型用不了时先跑一次自检：它会逐个通道试一遍，告诉你到底是哪种问题（网络不通 / 被上游拒绝 / 模型名退役 / Key 失效 / 限流）。": {
+    "en": "When a model stops working, run the self-check first: it tries every channel and tells you which kind of problem it is (no network / rejected by upstream / model name retired / invalid key / rate limited).",
+    "ja": "モデルが使えないときはまずセルフチェックを実行してください：各チャンネルを試し、どの種類の問題か（ネットワーク不通 / 上流に拒否 / モデル名の廃止 / Key 無効 / レート制限）を教えます。",
+    "ko": "모델이 안 될 때 먼저 자체 점검을 실행하세요: 각 채널을 시도해 어떤 종류의 문제인지(네트워크 불통 / 상류 거부 / 모델명 폐기 / Key 무효 / 속도 제한) 알려줍니다."
+  },
+  "正在逐个通道试一遍…": {
+    "en": "Trying each channel…",
+    "ja": "各チャンネルを試しています…",
+    "ko": "각 채널을 시도하는 중…"
+  },
+  "没有可自检的通道（先去「模型」里打开一个）。": {
+    "en": "No channel to check (turn one on in Models first).",
+    "ja": "セルフチェックできるチャンネルがありません（先に「モデル」で 1 つ有効にしてください）。",
+    "ko": "점검할 채널이 없습니다(먼저 모델에서 하나 켜세요)."
+  },
+  "泡泡猫 DSH 通道自检报告": {
+    "en": "PaopaoCat DSH channel self-check report",
+    "ja": "泡泡猫 DSH チャンネルセルフチェックレポート",
+    "ko": "파오파오캣 DSH 채널 자체 점검 보고서"
+  },
+  "生成报告失败（运行日志还没初始化）。": {
+    "en": "Could not build the report (the runtime log is not initialised yet).",
+    "ja": "レポートを生成できません（実行ログがまだ初期化されていません）。",
+    "ko": "보고서를 만들 수 없습니다(실행 로그가 아직 초기화되지 않았습니다)."
+  },
+  "自检本身出错了：{0}": {
+    "en": "The self-check itself failed: {0}",
+    "ja": "セルフチェック自体が失敗しました：{0}",
+    "ko": "자체 점검 자체가 실패했습니다: {0}"
+  },
+  "自检结果已写进运行日志并生成报告 —— 在分享面板里选一个应用发给开发者即可（报告里没有 Key）。": {
+    "en": "The self-check results are in the runtime log and a report was generated — pick an app in the share sheet to send it to the developer (the report contains no keys).",
+    "ja": "セルフチェック結果は実行ログに記録し、レポートを生成しました — 共有シートでアプリを選んで開発者に送ってください（レポートに Key は含まれません）。",
+    "ko": "자체 점검 결과가 실행 로그에 기록되고 보고서가 생성되었습니다 — 공유 시트에서 앱을 골라 개발자에게 보내세요(보고서에 Key는 없습니다)."
+  },
+  "通道自检": {
+    "en": "Channel self-check",
+    "ja": "チャンネルのセルフチェック",
+    "ko": "채널 자체 점검"
+  },
+  "可看图": {
+    "en": "vision",
+    "ja": "画像対応",
+    "ko": "이미지 인식"
   }
 }

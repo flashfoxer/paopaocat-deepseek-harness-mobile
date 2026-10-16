@@ -1,3 +1,5 @@
+import '../../local/diagnostics_log.dart';
+import '../../local/channel_selfcheck.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -915,6 +917,44 @@ class _SettingsTabState extends State<SettingsTab> {
   ///
   /// ⚠️ 下面那段话是用户**原话**，逐字照抄（含 `：）`）—— 不要改写、不要"优化"语气、
   /// 不要补标点。用户改过一次文案，以这里最新的为准。
+  /// 跑「通道自检」，把结果给用户看，并支持**一键发给开发者**。
+  ///
+  /// 「发给开发者」= 先把每一条结论写进**诊断日志**（报告里就有了），
+  /// 再生成报告文件并拉起系统分享面板 —— 复用「分享运行日志」同一条链路
+  /// （`DiagnosticsLog.writeToFile` + `DshHost.shareFile`），不新造轮子。
+  Future<void> _runSelfCheck() async {
+    final checks = await showModalBottomSheet<List<ChannelCheck>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: DshColors.surfaceStrong,
+      shape: RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(DshMetrics.radius(18))),
+      ),
+      builder: (ctx) => _SelfCheckSheet(settings: widget.appSettings),
+    );
+    if (checks == null || !mounted) return;
+    for (final c in checks) {
+      DiagnosticsLog.add('selfcheck', c.toLogLine());
+    }
+    final path = await DiagnosticsLog.writeToFile(
+      headerLines: <String>[
+        '# 本文件由 App 内「通道自检」一键生成（分类结论见 selfcheck 行）',
+      ],
+      prefix: 'dsh-selfcheck',
+    );
+    if (!mounted) return;
+    if (path == null) {
+      _toast(context.tr('生成报告失败（运行日志还没初始化）。'));
+      return;
+    }
+    await DshHost.shareFile(path,
+        subject: context.tr('泡泡猫 DSH 通道自检报告'));
+    if (!mounted) return;
+    _toast(context.tr(
+        '自检结果已写进运行日志并生成报告 —— 在分享面板里选一个应用发给开发者即可（报告里没有 Key）。'));
+  }
+
   Widget _aboutSection(BuildContext context, AppSettings settings, DshRuntime runtime) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -999,6 +1039,29 @@ class _SettingsTabState extends State<SettingsTab> {
         //
         // ⚠️ 这里**故意不用 `const`**：const 出来的组件实例在换肤（浅色/深色）时会被
         // Flutter 原样复用、跳过重建，颜色就不会刷新 —— 本项目多处踩过这个坑。
+        // ── 通道自检（用户 2026-10-16 提的「探查机制」第①层）──
+        // 各通道跑一次最小请求，把失败**按状态码分类**成人话（网络 / 被拒 403 /
+        // 名字退役 404 / Key 失效 401 / 限流…），然后可以**一键发给开发者**。
+        // 放在「导出运行日志」上面：先自检拿到结论，再决定要不要发日志。
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                context.tr(
+                    '模型用不了时先跑一次自检：它会逐个通道试一遍，告诉你到底是哪种问题（网络不通 / 被上游拒绝 / 模型名退役 / Key 失效 / 限流）。'),
+                style: TextStyle(
+                    color: DshColors.textFaint, fontSize: 11, height: 1.5),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: () => unawaited(_runSelfCheck()),
+              child: Text(context.tr('通道自检')),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
         // ignore: prefer_const_constructors
         SendLogButton(),
         const SizedBox(height: 12),
@@ -3894,6 +3957,152 @@ class _UpdateSectionState extends State<_UpdateSection> {
           ],
         ),
       ],
+    );
+  }
+}
+
+
+/// 「通道自检」的结果弹层：先跑（几秒），再逐条列出来。
+///
+/// 点了「一键发给开发者」→ 返回 `List<ChannelCheck>`；只是关闭 → 返回 null。
+class _SelfCheckSheet extends StatefulWidget {
+  const _SelfCheckSheet({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  State<_SelfCheckSheet> createState() => _SelfCheckSheetState();
+}
+
+class _SelfCheckSheetState extends State<_SelfCheckSheet> {
+  List<ChannelCheck>? _checks;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_run());
+  }
+
+  Future<void> _run() async {
+    try {
+      final r = await ChannelSelfCheck.run(settings: widget.settings);
+      if (mounted) setState(() => _checks = r);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final checks = _checks;
+    final bad = checks?.where((c) => !c.ok).length ?? 0;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+            DshMetrics.pagePad, 14, DshMetrics.pagePad, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(context.tr('通道自检'),
+                style: TextStyle(color: DshColors.text, fontSize: 15)),
+            const SizedBox(height: 4),
+            Text(
+              context.tr('各通道只发一次最小的读取请求：不写任何东西、不上传任何内容。'),
+              style: TextStyle(
+                  color: DshColors.textFaint, fontSize: 11, height: 1.4),
+            ),
+            const SizedBox(height: 10),
+            if (_error != null)
+              Text(context.tr('自检本身出错了：{0}', [_error!]),
+                  style: TextStyle(color: DshColors.err, fontSize: 12))
+            else if (checks == null)
+              Row(children: <Widget>[
+                const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 8),
+                Text(context.tr('正在逐个通道试一遍…'),
+                    style: TextStyle(color: DshColors.textDim, fontSize: 12)),
+              ])
+            else if (checks.isEmpty)
+              Text(context.tr('没有可自检的通道（先去「模型」里打开一个）。'),
+                  style: TextStyle(color: DshColors.textDim, fontSize: 12))
+            else
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: checks.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final c = checks[i];
+                    final tone = c.ok ? DshColors.accent : DshColors.err;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(children: <Widget>[
+                          Icon(
+                              c.ok
+                                  ? Icons.check_circle_outline
+                                  : Icons.error_outline,
+                              size: 14,
+                              color: tone),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text('${c.title} · ${c.label}',
+                                style: TextStyle(
+                                    color: tone,
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600)),
+                          ),
+                        ]),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 20, top: 2),
+                          child: Text('${c.detail}\n${c.next}',
+                              style: TextStyle(
+                                  color: DshColors.textDim,
+                                  fontSize: 11,
+                                  height: 1.45)),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 12),
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: checks == null
+                        ? null
+                        : () => Navigator.of(context).pop(checks),
+                    icon: const Icon(Icons.ios_share, size: 16),
+                    label: Text(context.tr('一键发给开发者')),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(context.tr('关闭')),
+                ),
+              ],
+            ),
+            if (checks != null && checks.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  bad == 0
+                      ? context.tr('各通道都是正常的。')
+                      : context.tr('有 {0} 条不正常 —— 报告里会带上它们的分类结论。', [bad]),
+                  style: TextStyle(color: DshColors.textFaint, fontSize: 11),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

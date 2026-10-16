@@ -30,12 +30,24 @@ class FetchedModel {
     this.displayName,
     this.contextLength,
     this.supportedEndpoints = const <String>[],
+    this.inputModalities = const <String>[],
   });
 
   final String id;
   final String? displayName;
   final int? contextLength;
   final List<String> supportedEndpoints;
+
+  /// 这个模型**能接收什么**（官方 `/models` 的 `input_modalities`：`text` / `image`）。
+  ///
+  /// ⚠️ 这一项以前**没解析**（用户 2026-10-16 问「deepseek 还有个视觉模型，为什么不抓」）——
+  /// 后果是：官方明明在 `/models` 里写了 `deepseek-flash` 的输入含 `image`
+  /// （它就是 DeepSeek 现在的视觉模型），而我们的界面**一句话都没说**，
+  /// 于是"哪个模型能看图"完全不可见，用户只能猜。
+  final List<String> inputModalities;
+
+  /// 能不能看图（[inputModalities] 里有 `image`）。
+  bool get acceptsImage => inputModalities.contains('image');
 
   String get label => (displayName != null && displayName!.trim().isNotEmpty)
       ? displayName!.trim()
@@ -182,6 +194,7 @@ List<FetchedModel> parseModelList(String body) {
     String? name;
     int? ctx;
     var endpoints = const <String>[];
+    var inputs = const <String>[];
 
     if (item is String) {
       id = item;
@@ -226,6 +239,12 @@ List<FetchedModel> parseModelList(String body) {
       if (ep is List) {
         endpoints = ep.whereType<String>().toList();
       }
+      // `input_modalities`：有的厂家会给（DeepSeek 官方就给了 `["text","image"]`）。
+      // 以前漏了它 → 界面上看不出哪个模型能看图。
+      final im = item['input_modalities'];
+      if (im is List) {
+        inputs = im.whereType<String>().toList();
+      }
     }
 
     if (id == null || id.isEmpty || !seen.add(id)) continue;
@@ -234,6 +253,7 @@ List<FetchedModel> parseModelList(String body) {
       displayName: name,
       contextLength: ctx,
       supportedEndpoints: endpoints,
+      inputModalities: inputs,
     ));
   }
   return out;

@@ -2822,8 +2822,12 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
                   fontSize: 13,
                 ),
               ),
+              // 「可看图」要标出来（用户 2026-10-16 问"deepseek 的视觉模型为什么不抓"）——
+              // 视觉能力现在是**并进普通模型**里的（DeepSeek 的 `deepseek-flash` 就是），
+              // 不标的话用户根本不知道哪条能收图片。
               subtitle: Text(
                 <String>[
+                  if (m.acceptsImage) context.tr('可看图'),
                   m.id,
                   if (ctx.isNotEmpty) ctx,
                   if (isAlready) context.tr('已在我的模型里'),

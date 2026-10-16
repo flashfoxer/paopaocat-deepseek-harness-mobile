@@ -65,6 +65,23 @@ void main() {
     expect(list[1].contextLength, 8192);
   });
 
+  test('input_modalities 里的 image 会被认出来（deepseek-flash 就是视觉模型）', () {
+    // 用户 2026-10-16 问「deepseek 还有个视觉模型，为什么不抓」：
+    // 官方 `/models` 里 `deepseek-flash` 的 `input_modalities` = ["text","image"]
+    // —— **视觉能力就是并进它里面的**，不是第 3 个模型。以前我们没解析这一项，
+    // 于是界面上根本看不出哪个能看图。
+    final list = parseModelList('{"data":['
+        '{"id":"deepseek-flash","name":"DeepSeek-V4.1-Flash","input_modalities":["text","image"]},'
+        '{"id":"deepseek-v4-pro","name":"DeepSeek-V4-Pro","input_modalities":["text"]}'
+        ']}');
+    expect(list[0].acceptsImage, isTrue,
+        reason: 'flash 的输入含 image —— 它就是 DeepSeek 现在的视觉模型');
+    expect(list[1].acceptsImage, isFalse, reason: 'v4-pro 只吃文本');
+    // 没给这个字段的厂家 → 不算支持（宁可不标，别乱标）
+    final none = parseModelList('{"data":[{"id":"x"}]}');
+    expect(none.single.acceptsImage, isFalse);
+  });
+
   test('supported_endpoints 会被取出来（界面上用它标"可能调不通"）', () {
     final list = parseModelList(
         '{"data":[{"id":"a","supported_endpoints":["/v1/messages"]}]}');

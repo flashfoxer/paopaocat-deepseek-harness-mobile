@@ -148,7 +148,14 @@ List<ModelProvider> get kModelProviders => <ModelProvider>[
             '官方直连。若你的 Key 是 Anthropic 协议的，端点要改成 https://api.deepseek.com/anthropic。'),
         intro:
             tr('DeepSeek 官方直连，用的是官方账号自己的额度与计费。适合已经有 DeepSeek 账号、想直接走官方端点的人。'),
-        exampleModels: <String>['deepseek-chat', 'deepseek-reasoner'],
+        // ⚠️ 官方 `/models` 现在只列这两个（2026-10-16 核对）：
+        //    deepseek-flash = DeepSeek-V4.1-Flash、deepseek-v4-pro = DeepSeek-V4-Pro。
+        //    这里以前是 `deepseek-chat` / `deepseek-reasoner`（V3/R1 时代的名字）——
+        //    名字换了以后，**拉取失败时的兜底清单会给出两个已经不存在的模型**，
+        //    用户点"测试并保存"就会拿它们去测、然后失败。
+        //    来源：https://api-docs.deepseek.com/api/list-models （返回样例）
+        //    ⚠️ 以后这里会过时 —— 这正是"兜底清单需要跟着上游核对"的例子。
+        exampleModels: <String>['deepseek-flash', 'deepseek-v4-pro'],
       ),
       ModelProvider(
         id: 'longcat',

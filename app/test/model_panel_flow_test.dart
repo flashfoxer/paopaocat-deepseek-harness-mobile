@@ -390,7 +390,8 @@ void main() {
           .where((m) => m.provider == 'deepseek')
           .map((m) => m.id)
           .toList();
-      expect(ds, <String>['deepseek-chat', 'deepseek-reasoner']);
+      // 2026-10-16 核对官方 /models：现在就是这两个（V4.1-Flash / V4-Pro）
+      expect(ds, <String>['deepseek-flash', 'deepseek-v4-pro']);
       // ③ 别的厂家 / 它的模型 / 轮换池一条都不许丢
       expect(
           cfg.providers.map((p) => p.id).toList(), <String>['com', 'deepseek']);

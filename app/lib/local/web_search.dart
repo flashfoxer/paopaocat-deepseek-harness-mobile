@@ -259,7 +259,12 @@ Future<List<WebSearchResult>> _deepseek(HttpClient c, String key, String q,
         'anthropic-version': '2023-06-01',
       },
       <String, dynamic>{
-        'model': 'deepseek-chat',
+        // ⚠️ 用**当前**的模型名（2026-10-16 核对）：官方 `/models` 现在只列
+        //    `deepseek-flash` / `deepseek-v4-pro`，而 V4 这两个都声明了
+        //    `api_capabilities.anthropic_messages` —— 也就是支持我们这条路
+        //    （Anthropic 兼容端点 + 服务端 web_search 工具）。
+        //    以前写的是 `deepseek-chat`（V3 时代的名字），有失效风险。
+        'model': 'deepseek-flash',
         'max_tokens': 1024,
         'tools': <Object>[
           <String, dynamic>{

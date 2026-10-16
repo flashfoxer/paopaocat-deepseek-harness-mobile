@@ -262,7 +262,12 @@ ApiErrorText? translateDshError(String raw) {
   // 最后那种是真机 2026-10-07 的现场：用户发第一句真话 → 引擎段错误崩掉 →
   // overlay 还指着那个死端口 → 每次重发都是同一句英文。所以文案里必须带上
   // 「本机模型就回去点一次启动」这条**具体动作**，否则用户只能反复重发。
-  if (s.contains('transport') && s.contains('connection error')) {
+  // ⚠️ 不能要求**同时**出现 "transport"：真机日志（2026-10-16）里 DSH 给的是
+  // `Internal error: turn failed: Connection error.` —— 没有 transport 字样，
+  // 于是它落到"未知错误"：用户看到一句英文，也不知道其实是**网络不通**
+  // （那条链路本该可重试，见 retryable）。所以这里放宽成"出现任一即可"。
+  if (s.contains('connection error') ||
+      (s.contains('transport') && s.contains('connection'))) {
     return ApiErrorText(
       zh: tr(
           '连不上模型端点。\n可能是：手机网络不通、Base URL 写错，或者你在用「轮换组」而本地代理没起来（回设置页切一下模型就会重新起）；'

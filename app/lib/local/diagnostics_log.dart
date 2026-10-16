@@ -363,11 +363,32 @@ class DiagnosticsLog {
     final ts = m?.group(1) ?? '';
     final tag = m?.group(2) ?? 'raw';
     final msg = m?.group(3) ?? line;
-    return (ts: ts, tag: tag, lvl: levelOf(msg), msg: msg);
+    return (ts: ts, tag: tag, lvl: levelOf(msg, tag: tag), msg: msg);
   }
 
   /// 判级别：只认**明确**的信号，不猜语气。
-  static String levelOf(String msg) {
+  ///
+  /// ⚠️ [tag] 会决定**要不要扫关键词**。真机 2026-10-16 的教训：模型（在写游戏代码）
+  /// 满屏 `fail` / `error` / `throws` / `异常`，按关键词判级会让报告里
+  /// 「错误 10 条」有 8 条其实是**模型的原话** —— 用户看到数字就以为出了大事，
+  /// 我排查时也得先把它剔掉。所以：
+  ///   * `print`（裸行）= 模型/子进程的原始输出 → **不判级**，一律 I；
+  ///   * `print:chat` 里以 `thought:` / `message:` / `stopReason=` / `prompt:` 开头的是
+  ///     **会话正常事件** → I；其它（例如 `prompt failed`）仍然照常判级；
+  ///   * App 自己的日志（`print:dsh-*`）与其余 tag 一律照旧。
+  static String levelOf(String msg, {String tag = ''}) {
+    if (tag == 'print') return 'I';
+    if (tag == 'print:chat') {
+      for (final p in const <String>[
+        'thought:',
+        'message:',
+        'stopReason=',
+        'prompt:',
+        'tool:',
+      ]) {
+        if (msg.startsWith(p)) return 'I';
+      }
+    }
     final m = msg.toUpperCase();
     // "零失败"是**自证清白**，不是失败：`失败 0` / `错误: 0`。
     //

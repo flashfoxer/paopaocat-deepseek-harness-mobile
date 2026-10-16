@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../local/diagnostics_log.dart';
 import '../../local/acp_client.dart';
 import '../../local/dsh_runtime.dart';
 import '../../local/local_model_server.dart';
@@ -996,6 +997,12 @@ class _ChatPageState extends State<ChatPage> {
     _autoScroll();
   }
 
+  /// 诊断日志里用的短串：压掉换行、截到 60 字。
+  static String _shortTool(String s) {
+    final one = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return one.length <= 60 ? one : '${one.substring(0, 60)}…';
+  }
+
   void _onToolCall(Map<String, dynamic> update) {
     final id = update['toolCallId'] as String? ?? 'unknown';
     final title = update['title'] as String? ?? context.tr('工具');
@@ -1004,6 +1011,15 @@ class _ChatPageState extends State<ChatPage> {
     if (!mounted) return;
     // 把**完整** rawInput 留一份：完成通知里基本不会再有它（见 [_toolRawById]）。
     if (raw != null) _toolRawById[id] = raw;
+
+    // 工具调用记进**诊断日志**（用户 2026-10-16：「能不能看出来是不是使用了子代理」——
+    // 以前日志只有模型的 thought/message，工具调用一条都不记，所以看不出来。
+    // 记成独立 tag `[chat:tool]`，与 `print:dsh-*` 的 App 日志区分开；**不记参数正文**
+    // （可能含用户内容），只记工具名/类别/命令首行。）
+    DiagnosticsLog.add(
+      'chat:tool',
+      '开始 ${_shortTool(title)}${command == null || command.trim().isEmpty ? '' : ' · ${_shortTool(command)}'}',
+    );
 
     setState(() {
       final m = ChatMsg(
@@ -1023,6 +1039,11 @@ class _ChatPageState extends State<ChatPage> {
   void _onToolResult(Map<String, dynamic> update) {
     final id = update['toolCallId'] as String? ?? 'unknown';
     final status = update['status'] as String? ?? '';
+    // 结束也记一行（成败一目了然）——与上面 `chat:tool` 成对，便于算耗时/看是否重试。
+    if (status.isNotEmpty) {
+      DiagnosticsLog.add('chat:tool',
+          '结束 ${_shortTool(_toolById[id]?.toolTitle ?? id)} → $status');
+    }
     // ⚠️ 完成通知通常**不带** rawInput —— 用首次通知里缓存的那份兜底，
     // 否则「写文件」类工具的 path 参数在这里就丢了（产物会漏）。
     final rawInput = update['rawInput'] ?? _toolRawById[id];

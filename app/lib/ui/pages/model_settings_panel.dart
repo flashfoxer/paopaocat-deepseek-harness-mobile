@@ -213,34 +213,20 @@ class _ModelSettingsPanelState extends State<ModelSettingsPanel> {
   @override
   void didUpdateWidget(covariant ModelSettingsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // ── ① **切页刷新**（refreshTick）：重读磁盘 + 把展开态收回去 ──
+    // 两个计数器**都只重读数据**，界面状态（展开了哪张卡、勾选了哪些模型）一律保留。
     //
-    //    这才是"切换即刷新"的完整语义（用户要求：每次切到这一页都像重进来一次）。
-    if (oldWidget.refreshTick != widget.refreshTick) {
-      setState(() {
-        _openProvider = null;
-        _addOpen = false;
-        _poolOpen = false;
-        _poolFormOpen = false;
-        _poolEditing = null;
-        _poolMembers = <String>[];
-        _openPoolCard = null;
-        _fetchedFor = null;
-        _fetched = const <FetchedModel>[];
-        _picked.clear();
-        _fetchError = null;
-        _fetchNotice = null;
-      });
-      _reload();
-      return;
-    }
-
-    // ── ② **只是别处改了模型**（syncTick）：只重读数据，**不动界面状态** ──
+    // ⚠️ 这里原本在 refreshTick 变化时把展开态全清掉（`_openProvider = null` 等），
+    //    本意是"每次切回这一页都像重进来一次"。真机反馈（2026-10-16）暴露了它的代价：
+    //    「选择大模型经常发生跳转，比如我在云端大模型填写，一下子跳到免费大模型，
+    //     还得滑屏到云端的填写框」—— 卡片被收起 → 整页高度骤减 → 滚动位置突变，
+    //    用户正在填的表单就这么"跳"走了（免费模型那张卡在列表上方，所以看到的永远是它）。
     //
-    //    ⚠️ 必须有这一条分支：以前两个方向共用一个计数，于是"在面板里点了个会落盘的东西"
-    //    也会被当成切页 → 把展开的厂家卡收起来、把勾选清空 → 用户看到的就是
-    //    "一点就退出，我还要再进去保存"（2026-10-15 真机反馈）。
-    if (oldWidget.syncTick != widget.syncTick) {
+    //    "切换即刷新"要的是**数据新鲜**（重读 `models.json` / 系统安全区里的 Key），
+    //    不是把用户正在填的表单收起来。所以现在只 `_reload()`：
+    //      · 厂家/模型/轮换池的**数据**照旧重读（切页仍然"刷"）；
+    //      · 界面状态不再被打断（这条同时覆盖了 2026-10-15 那次"一点就退出"的修复）。
+    if (oldWidget.refreshTick != widget.refreshTick ||
+        oldWidget.syncTick != widget.syncTick) {
       _reload();
     }
   }

@@ -51,22 +51,54 @@ const String kCorruptSuffix = '.corrupt';
 /// 为什么 `rename` 是原子的：同目录内它是 POSIX `rename(2)` ——
 /// 要么看到旧文件、要么看到新文件，**不会看到半份**。
 /// 所以 `.part` 必须与目标**同目录**（跨文件系统的 rename 不是原子的、还会失败）。
+/// ⚠️ 临时文件名**必须唯一**（真机 2026-10-16 踩过）：
+///
+/// 原来固定用 `<目标>.part`，于是**并发保存同一个目标**时两次写共用同一个临时文件 ——
+/// 先完成的那次把它 rename 走，另一个就 `PathNotFoundException:
+/// Cannot rename file to '.../<id>.json', path = '.../<id>.json.part'`，
+/// 且**这一次的更新就丢了**（真机日志里产物索引就这样丢过一次，
+/// 前后两次保存只差 21 毫秒；同一天还出现过多组相隔 12~21ms 的成对保存）。
+///
+/// 现在每次写都带一个唯一后缀（微秒 + 进程号 + 自增序号），互不干扰。
 Future<void> writeStringAtomic(File target, String contents) async {
   final parent = target.parent;
   if (!parent.existsSync()) parent.createSync(recursive: true);
-  final part = File('${target.path}.part');
+  final part = File('${target.path}.part.${_uniquePartSuffix()}');
   await part.writeAsString(contents, flush: true);
-  // rename 覆盖已存在的目标：Android/Linux 上直接成功。
-  await part.rename(target.path);
+  try {
+    // rename 覆盖已存在的目标：Android/Linux 上直接成功。
+    await part.rename(target.path);
+  } catch (e) {
+    // 失败时把自己这个临时文件清掉，不留垃圾（唯一名不会互相覆盖，但会堆积）。
+    try {
+      if (part.existsSync()) part.deleteSync();
+    } catch (_) {}
+    rethrow;
+  }
+}
+
+/// 自增序号：同一微秒内的两次调用也不会撞名。
+int _partSeq = 0;
+
+String _uniquePartSuffix() {
+  _partSeq = (_partSeq + 1) & 0xffffff;
+  return '${DateTime.now().microsecondsSinceEpoch}-$pid-$_partSeq';
 }
 
 /// 原子写（同步版）。给那些本来就同步的调用点用。
 void writeStringAtomicSync(File target, String contents) {
   final parent = target.parent;
   if (!parent.existsSync()) parent.createSync(recursive: true);
-  final part = File('${target.path}.part');
+  final part = File('${target.path}.part.${_uniquePartSuffix()}');
   part.writeAsStringSync(contents, flush: true);
-  part.renameSync(target.path);
+  try {
+    part.renameSync(target.path);
+  } catch (e) {
+    try {
+      if (part.existsSync()) part.deleteSync();
+    } catch (_) {}
+    rethrow;
+  }
 }
 
 /// 把一个**读不出来的**文件挪到一边，返回被挪到的位置（失败返回 null）。
